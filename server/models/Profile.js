@@ -26,41 +26,6 @@ const Profile = sequelize.define('Profile', {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  profileType: {
-    type: DataTypes.ENUM('Home Mode', 'Enterprise Mode'),
-    defaultValue: 'Home Mode',
-    allowNull: false,
-  },
-
-  // NEW: Enterprise Password (set by admin after approval)
-  enterprisePassword: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-
-  // NEW: Approval Status for Enterprise Mode
-  approvalStatus: {
-    type: DataTypes.ENUM('PENDING', 'APPROVED', 'REJECTED'),
-    defaultValue: 'PENDING',
-    allowNull: false
-  },
-
-  // NEW: Admin who approved (optional)
-  approvedBy: {
-    type: DataTypes.UUID,
-    allowNull: true,
-    references: {
-      model: 'users',
-      key: 'id'
-    },
-    comment: 'Admin user ID who approved the Enterprise PC profile'
-  },
-
-  // NEW: Approval timestamp
-  approvedAt: {
-    type: DataTypes.DATE,
-    allowNull: true
-  },
 
   // VPN Settings
   vpnEnabled: {

@@ -10,12 +10,10 @@ const ProfileManager = () => {
   const [showForm, setShowForm] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
   const [editingProfile, setEditingProfile] = useState(null);
-  const [approvalStatus, setApprovalStatus] = useState("PENDING");
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    profileType: "Home Mode",
     vpnEnabled: false,
     vpnServer: "",
     vpnProtocol: "OpenVPN",
@@ -130,12 +128,9 @@ const ProfileManager = () => {
 
   const handleEdit = (profile) => {
     setEditingProfile(profile);
-    setApprovalStatus(profile.approvalStatus || "PENDING");
-
     setFormData({
       name: profile.name,
       description: profile.description || "",
-      profileType: profile.profileType,
       vpnEnabled: profile.vpnEnabled,
       vpnServer: profile.vpnServer || "",
       vpnProtocol: profile.vpnProtocol || "OpenVPN",
@@ -156,7 +151,6 @@ const ProfileManager = () => {
       scheduleCondition: profile.scheduleCondition || "",
       autoActivate: profile.autoActivate
     });
-
     setShowForm(true);
   };
 
@@ -195,24 +189,11 @@ const ProfileManager = () => {
   };
 
   const handleActivate = async (profile) => {
-    if (profile.profileType === "Enterprise Mode" && profile.approvalStatus !== "APPROVED") {
-      alert("This Enterprise Mode profile is not approved yet. Please wait for admin approval.");
-      return;
-    }
-
-    let password = null;
-    if (profile.profileType === "Enterprise Mode") {
-      password = prompt("Enter the Enterprise Mode password to activate:");
-      if (!password) {
-        return;
-      }
-    }
-
     try {
       const token = localStorage.getItem("token");
       await axios.put(
         `${API_URL}/profiles/${profile.id}/activate`,
-        { password },
+        {},
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -231,7 +212,6 @@ const ProfileManager = () => {
     setFormData({
       name: "",
       description: "",
-      profileType: "Home Mode",
       vpnEnabled: false,
       vpnServer: "",
       vpnProtocol: "OpenVPN",
@@ -250,9 +230,8 @@ const ProfileManager = () => {
       scheduleEndTime: "",
       scheduleDays: [],
       scheduleCondition: "",
-      autoActivate: false,
+      autoActivate: false
     });
-    setApprovalStatus("PENDING");
   };
 
   const handleCancel = () => {
@@ -373,52 +352,6 @@ const ProfileManager = () => {
                   className="w-full bg-zinc-900 border border-zinc-800 p-2 rounded-lg text-white focus:outline-none focus:border-green-500"
                 />
               </div>
-
-              <div className="flex flex-col mb-4">
-                <label className="text-zinc-400 mb-2">Profile Type</label>
-                <select
-                  name="profileType"
-                  value={formData.profileType}
-                  onChange={handleInputChange}
-                  className="w-full bg-zinc-900 border border-zinc-800 p-2 rounded-lg text-white focus:outline-none focus:border-green-500"
-                >
-                  <option value="Home Mode">Home Mode</option>
-                  <option value="Enterprise Mode">Enterprise Mode</option>
-                </select>
-              </div>
-
-              {/* Enterprise Mode Notice */}
-              {formData.profileType === "Enterprise Mode" && (!editingProfile || editingProfile.approvalStatus !== "APPROVED") && (
-                <div className="p-4 border border-yellow-500 rounded-lg bg-yellow-900/20 mb-4">
-                  <div className="flex items-start gap-3">
-                    <div className="text-yellow-400 text-2xl">⚠️</div>
-                    <div className="flex-1">
-                      <p className="text-yellow-400 text-sm font-semibold mb-2">
-                        Admin Approval Required
-                      </p>
-                      <p className="text-zinc-300 text-sm mb-3">
-                        Enterprise Mode profiles require admin approval before they can be activated.
-                        Once approved by an administrator, they will set a password that you'll need to activate this profile.
-                      </p>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-zinc-400">Current Status:</span>
-                        <span className={`px-3 py-1 text-xs rounded-full font-bold ${
-                          approvalStatus === "APPROVED"
-                            ? "bg-green-600 text-white"
-                            : "bg-yellow-600 text-black"
-                        }`}>
-                          {approvalStatus}
-                        </span>
-                      </div>
-                      {approvalStatus === "PENDING" && (
-                        <p className="text-zinc-400 text-xs mt-2">
-                          Your profile is awaiting admin approval. You'll be notified once it's approved.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* VPN Settings */}
@@ -469,7 +402,7 @@ const ProfileManager = () => {
                     <input
                       type="number"
                       name="vpnPort"
-                      placeholder="1194"
+                      placeholder="Enter port number"
                       value={formData.vpnPort}
                       onChange={handleInputChange}
                       className="w-full bg-zinc-900 border border-zinc-800 p-2 rounded-lg text-white focus:outline-none focus:border-green-500"
@@ -633,7 +566,8 @@ const ProfileManager = () => {
                             name="scheduleStartTime"
                             value={formData.scheduleStartTime}
                             onChange={handleInputChange}
-                            className="w-full bg-zinc-900 border border-zinc-800 p-2 rounded-lg text-zinc-300 focus:outline-none focus:border-green-500"
+                            className="w-full bg-zinc-900 border border-zinc-800 p-2 rounded-lg text-white focus:outline-none focus:border-green-500 [color-scheme:dark]"
+                            style={{ colorScheme: 'dark' }}
                           />
                         </div>
 
@@ -644,7 +578,8 @@ const ProfileManager = () => {
                             name="scheduleEndTime"
                             value={formData.scheduleEndTime}
                             onChange={handleInputChange}
-                            className="w-full bg-zinc-900 border border-zinc-800 p-2 rounded-lg text-zinc-300 focus:outline-none focus:border-green-500"
+                            className="w-full bg-zinc-900 border border-zinc-800 p-2 rounded-lg text-white focus:outline-none focus:border-green-500 [color-scheme:dark]"
+                            style={{ colorScheme: 'dark' }}
                           />
                         </div>
                       </div>
@@ -700,17 +635,41 @@ const ProfileManager = () => {
             </div>
 
             {/* Form Actions */}
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 type="submit"
-                className="px-6 py-2 bg-green-500 text-black font-bold rounded-lg hover:bg-green-600 transition-colors"
+                style={{
+                  padding: '10px 24px',
+                  backgroundColor: '#22c55e',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#16a34a'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#22c55e'}
               >
                 {editingProfile ? "Update Profile" : "Create Profile"}
               </button>
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-6 py-2 bg-zinc-700 text-white font-bold rounded-lg hover:bg-zinc-600 transition-colors"
+                style={{
+                  padding: '10px 24px',
+                  backgroundColor: '#27272a',
+                  color: '#fff',
+                  border: '1px solid #3f3f46',
+                  borderRadius: '8px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#3f3f46'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#27272a'}
               >
                 Cancel
               </button>
@@ -736,22 +695,6 @@ const ProfileManager = () => {
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <h4 className="text-lg font-semibold">{profile.name}</h4>
-                      
-                      <span className="px-2 py-1 text-xs rounded bg-zinc-800 text-zinc-300 font-semibold">
-                        {profile.profileType}
-                      </span>
-
-                      {profile.profileType === "Enterprise Mode" && (
-                        <span
-                          className={`px-2 py-1 text-xs rounded font-bold ${
-                            profile.approvalStatus === "APPROVED"
-                              ? "bg-green-600 text-black"
-                              : "bg-yellow-600 text-black"
-                          }`}
-                        >
-                          {profile.approvalStatus}
-                        </span>
-                      )}
 
                       {profile.isActive && (
                         <span className="px-2 py-1 text-xs rounded bg-green-500 text-black font-bold">
