@@ -1,7 +1,10 @@
 import axios from 'axios';
 
 // Get API URL from environment variable or use default
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? (typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:5000/api')
+    : 'http://localhost:5000/api');
 
 // Create axios instance with default config
 const api = axios.create({
@@ -78,6 +81,48 @@ export const authAPI = {
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
+  }
+};
+
+// Dashboard API functions
+export const dashboardAPI = {
+  // Get dashboard data (VPN status and threats blocked)
+  getDashboard: async () => {
+    const response = await api.get('/dashboard');
+    return response.data;
+  }
+};
+
+// Admin API functions
+export const adminAPI = {
+  // Get all users
+  getAllUsers: async () => {
+    const response = await api.get('/admin/users');
+    return response.data;
+  },
+
+  // Get user by ID
+  getUserById: async (userId) => {
+    const response = await api.get(`/admin/users/${userId}`);
+    return response.data;
+  },
+
+  // Update user
+  updateUser: async (userId, userData) => {
+    const response = await api.put(`/admin/users/${userId}`, userData);
+    return response.data;
+  },
+
+  // Delete user
+  deleteUser: async (userId) => {
+    const response = await api.delete(`/admin/users/${userId}`);
+    return response.data;
+  },
+
+  // Get admin statistics
+  getStatistics: async () => {
+    const response = await api.get('/admin/statistics');
+    return response.data;
   }
 };
 

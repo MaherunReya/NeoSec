@@ -27,11 +27,41 @@ const Profile = sequelize.define('Profile', {
     allowNull: true
   },
   profileType: {
-    type: DataTypes.ENUM('Work Mode', 'Public WiFi Mode', 'Home Mode', 'Custom'),
-    defaultValue: 'Custom',
+    type: DataTypes.ENUM('Home Mode', 'Enterprise Mode'),
+    defaultValue: 'Home Mode',
+    allowNull: false,
+  },
+
+  // NEW: Enterprise Password (set by admin after approval)
+  enterprisePassword: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+
+  // NEW: Approval Status for Enterprise Mode
+  approvalStatus: {
+    type: DataTypes.ENUM('PENDING', 'APPROVED', 'REJECTED'),
+    defaultValue: 'PENDING',
     allowNull: false
   },
-  
+
+  // NEW: Admin who approved (optional)
+  approvedBy: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'Admin user ID who approved the Enterprise PC profile'
+  },
+
+  // NEW: Approval timestamp
+  approvedAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+
   // VPN Settings
   vpnEnabled: {
     type: DataTypes.BOOLEAN,
@@ -67,24 +97,6 @@ const Profile = sequelize.define('Profile', {
   defaultFirewallAction: {
     type: DataTypes.ENUM('ALLOW', 'DENY'),
     defaultValue: 'DENY'
-  },
-  
-  // DNS Settings
-  dnsEnabled: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
-  },
-  primaryDns: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  secondaryDns: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  dnsSecurity: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
   },
   
   // Access Controls
@@ -149,7 +161,10 @@ const Profile = sequelize.define('Profile', {
     type: DataTypes.DATE,
     allowNull: true
   },
-  
+  activationCount: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
   lastConditionMet: {
     type: DataTypes.STRING,
     allowNull: true
