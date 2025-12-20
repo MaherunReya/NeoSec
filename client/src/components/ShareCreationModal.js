@@ -147,22 +147,6 @@ const ShareCreationModal = ({ profile, onClose, onSuccess, theme = 'dark', palet
                 {shareLink}
               </div>
               <div style={{ display: 'flex', gap: 12 }}>
-                {/* <button
-                  onClick={handleCopy}
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    backgroundColor: palette.accent,
-                    color: theme === 'dark' ? '#121212' : '#ffffff',
-                    border: 'none',
-                    borderRadius: 8,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: 14
-                  }}
-                >
-                  Copy Link
-                </button> */}
                 <button
                   onClick={onClose}
                   style={{
