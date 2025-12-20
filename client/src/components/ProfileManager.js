@@ -741,7 +741,11 @@ useEffect(() => {
          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button
             onClick={() => {
-              window.location = '/share-management';
+              if (window.setCurrentView) {
+                window.setCurrentView('share-management');
+              } else {
+                window.location.href = '/share-management';
+              }
             }} 
             style={{
               padding: '10px 18px',

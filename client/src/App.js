@@ -465,6 +465,11 @@ if (isShareManagementPage) {
                         {currentView === 'scan' && (
                             <ScanDashboard theme={theme} palette={palette} />
                         )}
+                        
+                        {/* Share Management View */}
+                        {currentView === 'share-management' && (
+                        <ShareManagement theme={theme} palette={palette} />
+                        )}
 
                         {/* SUBCRIPTION View */}
                         {currentView === "subscription" && (
