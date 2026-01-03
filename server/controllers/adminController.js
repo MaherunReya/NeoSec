@@ -83,7 +83,8 @@ const getAllUsers = async (req, res) => {
       attributes: { exclude: ['password'] },
       order: order,
       limit: pagination.limit,
-      offset: pagination.offset
+      offset: pagination.offset,
+      raw: false // Ensure we get model instances
     });
 
     res.status(200).json({
@@ -96,10 +97,17 @@ const getAllUsers = async (req, res) => {
     });
   } catch (error) {
     console.error('Get all users error:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? {
+        message: error.message,
+        original: error.original?.message,
+        code: error.original?.code,
+        stack: error.stack
+      } : undefined
     });
   }
 };

@@ -51,6 +51,108 @@ Content-Type: application/json
 
 ---
 
+## How to Create/Add Threats Through Postman
+
+### Method 1: Create Test Threat (Recommended for Testing)
+
+**Method:** `POST`  
+**URL:** `http://localhost:5000/api/threat-blocker/test`
+
+**Headers:**
+```
+Authorization: Bearer <your_jwt_token>
+```
+
+**Body:** None (empty)
+
+**What it does:**
+- Randomly selects an IP from your blocklist
+- Creates a test threat entry in the threats table
+- Creates an activity log entry
+- Returns the created threat data
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "message": "Test threat created successfully",
+  "data": {
+    "threat": {
+      "id": "789",
+      "threatType": "malware",
+      "sourceIp": "192.168.1.100",
+      "description": "[TEST] Simulated blocked threat IP: 192.168.1.100 (Malware Host) from AbuseIPDB",
+      "severity": "critical",
+      "blocked": true,
+      "userId": "123",
+      "createdAt": "2024-01-15T12:00:00Z"
+    },
+    "testIP": "192.168.1.100",
+    "threatType": "Malware Host"
+  }
+}
+```
+
+**Note:** This endpoint requires that you have at least one IP in your blocklist. If your blocklist is empty, run the force-update endpoint first (see Method 2 below).
+
+---
+
+### Method 2: Add IP to Blocklist (Automatically Creates Threat When Blocked)
+
+Threats are automatically created when:
+1. An IP in the blocklist tries to access your server
+2. The threat blocker middleware blocks the request
+3. A threat entry is automatically created in the threats table
+
+**To add an IP to the blocklist manually:**
+
+**Method:** `POST`  
+**URL:** `http://localhost:5000/api/threat-blocker/force-update`
+
+**Headers:**
+```
+Authorization: Bearer <your_jwt_token>
+```
+
+**Body:** None (empty)
+
+This will fetch threats from external sources (AbuseIPDB, free sources) and add them to your blocklist. When these IPs try to access your server, threats will be automatically created.
+
+---
+
+### Method 3: Understanding Threat Types
+
+When threats are created, they use these threat types:
+- `malware` - Malware C&C, Botnet, Malware Host
+- `phishing` - Phishing attacks
+- `intrusion` - Brute Force, Exploit attempts
+- `ddos` - DDoS attacks
+- `suspicious` - Spam, Suspicious activity
+- `other` - Other types
+
+**Severity levels:**
+- `critical` - Confidence score ≥ 90
+- `high` - Confidence score ≥ 75
+- `medium` - Confidence score ≥ 50
+- `low` - Confidence score < 50
+
+---
+
+### Quick Test Workflow:
+
+1. **Login** to get your JWT token (see Setup section above)
+2. **Force update blocklist** to populate IPs:
+   ```
+   POST http://localhost:5000/api/threat-blocker/force-update
+   ```
+3. **Create test threat**:
+   ```
+   POST http://localhost:5000/api/threat-blocker/test
+   ```
+4. **View created threat** in dashboard or activity logs
+
+---
+
 ## Module 1: Admin Panel & User Management
 
 ### 1. Get All Users

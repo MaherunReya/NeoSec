@@ -64,6 +64,10 @@ const User = sequelize.define('User', {
         type: DataTypes.BOOLEAN,
         defaultValue: false
         // With underscored: false, Sequelize will use 'isPaid' directly
+    },
+    lastLogin: {
+        type: DataTypes.DATE,
+        allowNull: true
     }
 }, {
     tableName: 'users',

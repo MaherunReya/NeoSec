@@ -398,7 +398,7 @@ function AdminUsersView({
                                                 </span>
                                             </td>
                                             <td style={{ padding: '12px', color: palette.textMuted, fontSize: '13px' }}>
-                                                —
+                                                {u.lastLogin ? new Date(u.lastLogin).toLocaleString() : 'Never'}
                                             </td>
                                             <td style={{ padding: '12px' }}>
                                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>

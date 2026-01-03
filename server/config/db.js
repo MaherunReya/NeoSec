@@ -157,6 +157,7 @@ const connectDB = async () => {
             const hasAccountType = columnNames.includes('accountType') || columnNames.includes('account_type');
             const hasSubscriptionTier = columnNames.includes('subscriptionTier') || columnNames.includes('subscription_tier');
             const hasIsPaid = columnNames.includes('isPaid') || columnNames.includes('is_paid');
+            const hasLastLogin = columnNames.includes('lastLogin') || columnNames.includes('last_login');
             
             // isApproved should already exist, but check anyway
             if (!hasIsApproved) {
@@ -188,6 +189,7 @@ const connectDB = async () => {
             if (!hasAccountType) missingColumns.push('accountType');
             if (!hasSubscriptionTier) missingColumns.push('subscriptionTier');
             if (!hasIsPaid) missingColumns.push('isPaid');
+            if (!hasLastLogin) missingColumns.push('lastLogin');
             
             if (missingColumns.length > 0) {
                 console.log(`Missing columns detected: ${missingColumns.join(', ')}. Adding them...`);
@@ -229,6 +231,13 @@ const connectDB = async () => {
                     await sequelize.query(`
                         ALTER TABLE users 
                         ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT false;
+                    `);
+                }
+                
+                if (missingColumns.includes('lastLogin')) {
+                    await sequelize.query(`
+                        ALTER TABLE users 
+                        ADD COLUMN IF NOT EXISTS "lastLogin" TIMESTAMP WITH TIME ZONE;
                     `);
                 }
                 

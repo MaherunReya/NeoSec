@@ -10,6 +10,7 @@ const ProfileLog = sequelize.define('ProfileLog', {
   profileId: {
     type: DataTypes.UUID,
     allowNull: false,
+    field: 'profile_id', // Map to database column name
     references: {
       model: 'profiles',
       key: 'id'
@@ -18,6 +19,7 @@ const ProfileLog = sequelize.define('ProfileLog', {
   userId: {
     type: DataTypes.UUID,
     allowNull: false,
+    field: 'user_id', // Map to database column name
     references: {
       model: 'users',
       key: 'id'
@@ -41,15 +43,18 @@ const ProfileLog = sequelize.define('ProfileLog', {
   },
   userEmail: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    field: 'user_email' // Map to database column name
   },
   ipAddress: {
     type: DataTypes.STRING,
-    allowNull: true
+    allowNull: true,
+    field: 'ip_address' // Map to database column name
   },
   userAgent: {
     type: DataTypes.STRING,
-    allowNull: true
+    allowNull: true,
+    field: 'user_agent' // Map to database column name
   },
   description: {
     type: DataTypes.TEXT,
