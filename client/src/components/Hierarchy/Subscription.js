@@ -1,5 +1,5 @@
 // src/components/Hierarchy/Subscription.js
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from '../../services/api';
 
 const plans = [
@@ -60,29 +60,73 @@ const Subscription = ({ theme, palette }) => {
   });
 
 
-  useEffect(() => {
-    fetchData();
-    checkURLParams();
+  const fetchData = useCallback(async () => {
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      setError('No authentication token found');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch subscription
+      const subData = await api.get('/subscription/me');
+      const newPlan = subData?.data?.subscription?.tier || 'free';
+      setCurrentPlan(newPlan);
+
+      // Fetch billing history
+      const billData = await api.get('/subscription/billing');
+      setBillingHistory(billData?.data?.history || []);
+
+
+    } catch (err) {
+      console.error('Failed to load subscription data:', err?.response?.data?.message || err?.message);
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to load subscription data';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
 
-  const checkURLParams = () => {
-    const params = new URLSearchParams(window.location.search);
+  const manuallyUpgradeUser = useCallback(async (selectedTier = 'basic') => {
+    try {
+      console.log('=== CALLING MANUAL UPGRADE ===');
+      console.log('Selected tier:', selectedTier);
+      // This is a fallback for test mode when webhook doesn't fire
+      console.log('Making API call to /subscription/upgrade-test with tier:', selectedTier);
+      const response = await api.post('/subscription/upgrade-test', { tier: selectedTier });
+      console.log('Manual upgrade response:', response);
+      console.log('Response data:', response.data);
 
-    if (params.get('success')) {
-      // Show congratulations and refresh data to check leader status
-      handlePaymentSuccess();
-      // Clear URL params
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-    if (params.get('canceled')) {
-      setMessage('Payment was canceled.');
-      // Clear URL params
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  };
+      if (response.data.success) {
+        console.log('Manual upgrade successful');
+        setMessage(`🎉 Congratulations! You are now a Leader with ${selectedTier.toUpperCase()} plan! You can create and manage groups.`);
+        setTimeout(() => {
+          alert(`🎉 Welcome to Leader status with ${selectedTier.toUpperCase()} plan! You can now access group management features.`);
+        }, 1000);
 
-  const handlePaymentSuccess = async () => {
+        // Clear the stored tier after successful upgrade
+        localStorage.removeItem('selectedTier');
+
+        // Refresh data
+        console.log('Refreshing data after manual upgrade...');
+        await fetchData();
+      } else {
+        console.log('Manual upgrade response not successful:', response.data);
+      }
+    } catch (error) {
+      console.error('Manual upgrade failed:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      setMessage('🎉 Payment successful! Your leader status may take a moment to update. Please refresh the page.');
+    }
+  }, [fetchData]);
+
+  const handlePaymentSuccess = useCallback(async () => {
     try {
       console.log('=== PAYMENT SUCCESS HANDLING ===');
       console.log('Current selectedTier state:', selectedTier);
@@ -135,72 +179,28 @@ const Subscription = ({ theme, palette }) => {
       console.error('Error in payment success handling:', error);
       setMessage('🎉 Payment successful! Please refresh the page to see your leader status.');
     }
-  };
+  }, [selectedTier, fetchData, manuallyUpgradeUser]);
 
-  const manuallyUpgradeUser = async (selectedTier = 'basic') => {
-    try {
-      console.log('=== CALLING MANUAL UPGRADE ===');
-      console.log('Selected tier:', selectedTier);
-      // This is a fallback for test mode when webhook doesn't fire
-      console.log('Making API call to /subscription/upgrade-test with tier:', selectedTier);
-      const response = await api.post('/subscription/upgrade-test', { tier: selectedTier });
-      console.log('Manual upgrade response:', response);
-      console.log('Response data:', response.data);
+  const checkURLParams = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
 
-      if (response.data.success) {
-        console.log('Manual upgrade successful');
-        setMessage(`🎉 Congratulations! You are now a Leader with ${selectedTier.toUpperCase()} plan! You can create and manage groups.`);
-        setTimeout(() => {
-          alert(`🎉 Welcome to Leader status with ${selectedTier.toUpperCase()} plan! You can now access group management features.`);
-        }, 1000);
-
-        // Clear the stored tier after successful upgrade
-        localStorage.removeItem('selectedTier');
-
-        // Refresh data
-        console.log('Refreshing data after manual upgrade...');
-        await fetchData();
-      } else {
-        console.log('Manual upgrade response not successful:', response.data);
-      }
-    } catch (error) {
-      console.error('Manual upgrade failed:', error);
-      console.error('Error details:', error.response?.data || error.message);
-      setMessage('🎉 Payment successful! Your leader status may take a moment to update. Please refresh the page.');
+    if (params.get('success')) {
+      // Show congratulations and refresh data to check leader status
+      handlePaymentSuccess();
+      // Clear URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
-  };
-
-  const fetchData = async () => {
-    const token = localStorage.getItem('token');
-
-    if (!token) {
-      setError('No authentication token found');
-      setLoading(false);
-      return;
+    if (params.get('canceled')) {
+      setMessage('Payment was canceled.');
+      // Clear URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
+  }, [handlePaymentSuccess]);
 
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch subscription
-      const subData = await api.get('/subscription/me');
-      const newPlan = subData?.data?.subscription?.tier || 'free';
-      setCurrentPlan(newPlan);
-
-      // Fetch billing history
-      const billData = await api.get('/subscription/billing');
-      setBillingHistory(billData?.data?.history || []);
-
-
-    } catch (err) {
-      console.error('Failed to load subscription data:', err?.response?.data?.message || err?.message);
-      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to load subscription data';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    fetchData();
+    checkURLParams();
+  }, [fetchData, checkURLParams]);
 
   const startCheckout = async (tier) => {
     console.log('startCheckout called with tier:', tier);

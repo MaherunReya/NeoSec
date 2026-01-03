@@ -13,12 +13,12 @@ ScanHistory.init(
     userId: {
       type: DataTypes.UUID,
       allowNull: false,
-      field: 'user_id' // Map to database column name
+      // Use camelCase column name expected in existing table
     },
     scanType: {
       type: DataTypes.ENUM('FILE', 'URL', 'IP'),
       allowNull: false,
-      field: 'scan_type' // Map to database column name
+      // Keep camelCase column naming
     },
     target: {
       type: DataTypes.STRING,
@@ -26,12 +26,12 @@ ScanHistory.init(
     },
     fileHash: {
       type: DataTypes.STRING,
-      field: 'file_hash' // Map to database column name
+      // camelCase
     },
     scanId: {
       type: DataTypes.STRING,
       allowNull: false,
-      field: 'scan_id' // Map to database column name
+      // camelCase
     },
     status: {
       type: DataTypes.ENUM('PENDING', 'SCANNING', 'COMPLETED', 'ERROR'),
@@ -42,7 +42,7 @@ ScanHistory.init(
     permalink: DataTypes.STRING,
     scanDate: {
       type: DataTypes.DATE,
-      field: 'scan_date' // Map to database column name
+      // camelCase
     }
   },
   {
@@ -50,7 +50,7 @@ ScanHistory.init(
     modelName: 'ScanHistory',
     tableName: 'scan_histories',
     timestamps: true,
-    underscored: true // Enable underscored for timestamps (created_at, updated_at)
+    underscored: false // Use camelCase columns to match existing schema
   }
 );
 

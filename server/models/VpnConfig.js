@@ -24,13 +24,11 @@ const VpnConfig = sequelize.define('VpnConfig', {
     configFileName: {
         type: DataTypes.STRING,
         allowNull: false,
-        field: 'configfilename', // Map to database column name (lowercase)
         comment: 'Original filename (.ovpn or .conf)'
     },
     configFileContent: {
         type: DataTypes.TEXT('long'),
         allowNull: false,
-        field: 'configfilecontent', // Map to database column name (lowercase)
         comment: 'Content of the configuration file'
     },
     description: {
@@ -50,7 +48,7 @@ const VpnConfig = sequelize.define('VpnConfig', {
     isActive: {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
-        field: 'isactive' // Map to database column name
+        // camelCase column in DB
     },
     userId: {
         type: DataTypes.UUID,

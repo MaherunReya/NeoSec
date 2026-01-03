@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { impersonationAPI, adminAPI, getErrorMessage } from '../services/api';
 import { hierarchyAPI } from '../services/hierarchyAPI';
 import { FiLogIn, FiLogOut, FiAlertCircle } from 'react-icons/fi';
@@ -21,12 +21,7 @@ const UserImpersonation = ({ theme = 'dark', palette = null, user }) => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [reason, setReason] = useState('');
 
-  useEffect(() => {
-    fetchUsers();
-    fetchSessions();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       if (user.role === 'admin') {
         // Admin can impersonate any user
@@ -46,9 +41,9 @@ const UserImpersonation = ({ theme = 'dark', palette = null, user }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       const response = await impersonationAPI.getImpersonationSessions();
       if (response.success) {
@@ -57,7 +52,12 @@ const UserImpersonation = ({ theme = 'dark', palette = null, user }) => {
     } catch (err) {
       setError(getErrorMessage(err));
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+    fetchSessions();
+  }, [fetchUsers, fetchSessions]);
 
   const handleStartImpersonation = async () => {
     if (!selectedUserId) {

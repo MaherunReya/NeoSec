@@ -41,9 +41,9 @@ const MFASettings = sequelize.define('MFASettings', {
 }, {
   tableName: 'mfa_settings',
   timestamps: true,
-  underscored: true,
+  underscored: false,
   indexes: [
-    { fields: ['user_id'] },
+    { fields: ['userId'] },
     { fields: ['enabled'] }
   ]
 });

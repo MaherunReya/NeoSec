@@ -290,13 +290,14 @@ exports.createLog = async (data) => {
 // Function to export activity logs in CSV or JSON format
 exports.exportLogs = async (req, res) => {
   try {
+    // Allow filters to come from either query params (GET) or request body (POST)
     const {
       format = 'csv',
       eventType,
       severity,
       startDate,
       endDate
-    } = req.query;
+    } = { ...req.query, ...req.body };
 
     const whereClause = {};
 

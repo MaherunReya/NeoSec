@@ -12,8 +12,9 @@ router.use(protect);
 
 // Activity log routes
 router.get('/', getLogs);
-router.get('/:id', getLogById);
+router.get('/export', exportLogs); // support GET exports for easier filtering via query params
 router.post('/export', exportLogs);
+router.get('/:id', getLogById);
 
 module.exports = router;
 
