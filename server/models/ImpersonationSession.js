@@ -49,11 +49,11 @@ const ImpersonationSession = sequelize.define('ImpersonationSession', {
 }, {
   tableName: 'impersonation_sessions',
   timestamps: true,
-  underscored: true, // Use snake_case for column names
+  underscored: false,
   indexes: [
-    { fields: ['adminUserId'] }, // Sequelize will convert to admin_user_id
-    { fields: ['targetUserId'] }, // Sequelize will convert to target_user_id
-    { fields: ['isActive'] } // Sequelize will convert to is_active
+    { fields: ['adminUserId'] },
+    { fields: ['targetUserId'] },
+    { fields: ['isActive'] }
   ]
 });
 

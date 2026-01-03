@@ -56,7 +56,8 @@ const Invitation = sequelize.define('Invitation', {
     }
 }, {
     tableName: 'invitations',
-    timestamps: true
+    timestamps: true,
+    underscored: false // Use camelCase columns to match existing schema
 });
 
 module.exports = Invitation;

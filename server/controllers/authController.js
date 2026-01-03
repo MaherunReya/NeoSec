@@ -340,6 +340,14 @@ const login = async (req, res) => {
       // Don't fail login if logging fails
     }
 
+    // Update last login timestamp
+    try {
+      user.lastLogin = new Date();
+      await user.save();
+    } catch (lastLoginError) {
+      console.error('Error updating last login timestamp:', lastLoginError);
+    }
+
     // IMPORTANT: return FULL user state
     res.status(200).json({
       success: true,

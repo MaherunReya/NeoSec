@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { impersonationAPI, adminAPI, getErrorMessage } from '../services/api';
 import { hierarchyAPI } from '../services/hierarchyAPI';
 import { FiLogIn, FiLogOut, FiAlertCircle } from 'react-icons/fi';
@@ -21,24 +21,19 @@ const UserImpersonation = ({ theme = 'dark', palette = null, user }) => {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [reason, setReason] = useState('');
 
-  useEffect(() => {
-    fetchUsers();
-    fetchSessions();
-  }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       if (user.role === 'admin') {
         // Admin can impersonate any user
         const response = await adminAPI.getAllUsers();
         if (response.success) {
-          setUsers(response.data || []);
+          setUsers(response.data?.users || []);
         }
       } else if (user.accountType === 'leader') {
         // Leader can only impersonate their group members
         const response = await hierarchyAPI.getMyGroupMembers();
         if (response.success) {
-          setUsers(response.data || []);
+          setUsers(response.data?.users || response.data || []);
         }
       }
     } catch (err) {
@@ -46,9 +41,9 @@ const UserImpersonation = ({ theme = 'dark', palette = null, user }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       const response = await impersonationAPI.getImpersonationSessions();
       if (response.success) {
@@ -57,7 +52,12 @@ const UserImpersonation = ({ theme = 'dark', palette = null, user }) => {
     } catch (err) {
       setError(getErrorMessage(err));
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+    fetchSessions();
+  }, [fetchUsers, fetchSessions]);
 
   const handleStartImpersonation = async () => {
     if (!selectedUserId) {
@@ -156,7 +156,7 @@ const UserImpersonation = ({ theme = 'dark', palette = null, user }) => {
             }}
           >
             <option value="">-- Select User --</option>
-            {users.map(user => (
+            {Array.isArray(users) && users.map(user => (
               <option key={user.id} value={user.id}>{user.email}</option>
             ))}
           </select>

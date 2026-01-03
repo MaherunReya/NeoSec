@@ -55,6 +55,20 @@ async function getMissingTables(tables) {
     return missing;
 }
 
+// Helper to rename a column only if the old name exists and the new name is missing
+async function renameColumnIfExists(table, oldName, newName) {
+    const [cols] = await sequelize.query(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = '${table}' AND table_schema = 'public';
+    `);
+    const names = cols.map(c => c.column_name);
+    if (names.includes(oldName) && !names.includes(newName)) {
+        console.log(`⚠️  Renaming column ${table}.${oldName} -> ${newName}`);
+        await sequelize.query(`ALTER TABLE ${table} RENAME COLUMN "${oldName}" TO "${newName}";`);
+        console.log(`✅ Renamed ${table}.${oldName} -> ${newName}`);
+    }
+}
+
 // ---- connectDB ----
 const connectDB = async () => {
     try {
@@ -138,6 +152,40 @@ const connectDB = async () => {
             console.log('Database tables already exist.');
         }
 
+        // 5a) Normalize legacy snake_case columns to camelCase
+        try {
+            await renameColumnIfExists('profile_logs', 'profile_id', 'profileId');
+            await renameColumnIfExists('profile_logs', 'user_id', 'userId');
+            await renameColumnIfExists('invitations', 'group_id', 'groupId');
+            await renameColumnIfExists('invitations', 'inviter_id', 'inviterId');
+            await renameColumnIfExists('invitations', 'invitee_id', 'inviteeId');
+            await renameColumnIfExists('scan_histories', 'user_id', 'userId');
+            await renameColumnIfExists('scan_histories', 'scan_type', 'scanType');
+            await renameColumnIfExists('scan_histories', 'file_hash', 'fileHash');
+            await renameColumnIfExists('scan_histories', 'scan_id', 'scanId');
+            await renameColumnIfExists('scan_histories', 'scan_date', 'scanDate');
+            await renameColumnIfExists('feature_toggles', 'feature_name', 'featureName');
+            await renameColumnIfExists('feature_toggles', 'target_type', 'targetType');
+            await renameColumnIfExists('feature_toggles', 'target_id', 'targetId');
+            await renameColumnIfExists('feature_toggles', 'target_role', 'targetRole');
+            await renameColumnIfExists('feature_toggles', 'created_by', 'createdBy');
+            await renameColumnIfExists('role_templates', 'is_system', 'isSystem');
+            await renameColumnIfExists('role_templates', 'created_by', 'createdBy');
+            await renameColumnIfExists('mfa_settings', 'user_id', 'userId');
+            await renameColumnIfExists('mfa_settings', 'last_used_at', 'lastUsedAt');
+            await renameColumnIfExists('impersonation_sessions', 'admin_user_id', 'adminUserId');
+            await renameColumnIfExists('impersonation_sessions', 'target_user_id', 'targetUserId');
+            await renameColumnIfExists('impersonation_sessions', 'started_at', 'startedAt');
+            await renameColumnIfExists('impersonation_sessions', 'ended_at', 'endedAt');
+            await renameColumnIfExists('impersonation_sessions', 'ip_address', 'ipAddress');
+            await renameColumnIfExists('impersonation_sessions', 'is_active', 'isActive');
+            await renameColumnIfExists('vpn_configs', 'configfilename', 'configFileName');
+            await renameColumnIfExists('vpn_configs', 'configfilecontent', 'configFileContent');
+            await renameColumnIfExists('vpn_configs', 'isactive', 'isActive');
+        } catch (renameError) {
+            console.error('Error renaming legacy columns:', renameError.message);
+        }
+
         // 5) Check and add missing columns to users table
         try {
             const [columns] = await sequelize.query(`
@@ -157,6 +205,7 @@ const connectDB = async () => {
             const hasAccountType = columnNames.includes('accountType') || columnNames.includes('account_type');
             const hasSubscriptionTier = columnNames.includes('subscriptionTier') || columnNames.includes('subscription_tier');
             const hasIsPaid = columnNames.includes('isPaid') || columnNames.includes('is_paid');
+            const hasLastLogin = columnNames.includes('lastLogin') || columnNames.includes('last_login');
             
             // isApproved should already exist, but check anyway
             if (!hasIsApproved) {
@@ -188,6 +237,7 @@ const connectDB = async () => {
             if (!hasAccountType) missingColumns.push('accountType');
             if (!hasSubscriptionTier) missingColumns.push('subscriptionTier');
             if (!hasIsPaid) missingColumns.push('isPaid');
+            if (!hasLastLogin) missingColumns.push('lastLogin');
             
             if (missingColumns.length > 0) {
                 console.log(`Missing columns detected: ${missingColumns.join(', ')}. Adding them...`);
@@ -229,6 +279,13 @@ const connectDB = async () => {
                     await sequelize.query(`
                         ALTER TABLE users 
                         ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT false;
+                    `);
+                }
+                
+                if (missingColumns.includes('lastLogin')) {
+                    await sequelize.query(`
+                        ALTER TABLE users 
+                        ADD COLUMN IF NOT EXISTS "lastLogin" TIMESTAMP WITH TIME ZONE;
                     `);
                 }
                 
@@ -284,6 +341,26 @@ const connectDB = async () => {
         } catch (colError) {
             console.error('Error checking/adding columns:', colError.message);
             // Don't fail the entire connection if column check fails
+        }
+
+        // 5b) Ensure profiles table has geoLocationCountries column
+        try {
+            const [profileCols] = await sequelize.query(`
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'profiles' AND table_schema = 'public';
+            `);
+            const profileColumnNames = profileCols.map(col => col.column_name);
+            if (!profileColumnNames.includes('geoLocationCountries')) {
+                console.log('⚠️  geoLocationCountries column missing in profiles. Adding it...');
+                await sequelize.query(`
+                    ALTER TABLE profiles 
+                    ADD COLUMN IF NOT EXISTS "geoLocationCountries" JSONB DEFAULT '[]'::jsonb;
+                `);
+                console.log('✅ geoLocationCountries column added to profiles.');
+            }
+        } catch (profileColError) {
+            console.error('Error checking/adding profiles columns:', profileColError.message);
         }
 
         // 6) Fix firewall_rules table columns if needed

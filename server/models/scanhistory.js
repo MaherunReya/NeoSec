@@ -12,22 +12,26 @@ ScanHistory.init(
     },
     userId: {
       type: DataTypes.UUID,
-      allowNull: false
+      allowNull: false,
+      // Use camelCase column name expected in existing table
     },
     scanType: {
       type: DataTypes.ENUM('FILE', 'URL', 'IP'),
-      allowNull: false
+      allowNull: false,
+      // Keep camelCase column naming
     },
     target: {
       type: DataTypes.STRING,
       allowNull: false
     },
     fileHash: {
-      type: DataTypes.STRING
+      type: DataTypes.STRING,
+      // camelCase
     },
     scanId: {
       type: DataTypes.STRING,
-      allowNull: false
+      allowNull: false,
+      // camelCase
     },
     status: {
       type: DataTypes.ENUM('PENDING', 'SCANNING', 'COMPLETED', 'ERROR'),
@@ -36,12 +40,17 @@ ScanHistory.init(
     positives: DataTypes.INTEGER,
     total: DataTypes.INTEGER,
     permalink: DataTypes.STRING,
-    scanDate: DataTypes.DATE
+    scanDate: {
+      type: DataTypes.DATE,
+      // camelCase
+    }
   },
   {
     sequelize,
     modelName: 'ScanHistory',
-    tableName: 'scan_histories'
+    tableName: 'scan_histories',
+    timestamps: true,
+    underscored: false // Use camelCase columns to match existing schema
   }
 );
 

@@ -47,11 +47,13 @@ const VpnConfig = sequelize.define('VpnConfig', {
     },
     isActive: {
         type: DataTypes.BOOLEAN,
-        defaultValue: false
+        defaultValue: false,
+        // camelCase column in DB
     },
     userId: {
         type: DataTypes.UUID,
         allowNull: false,
+        // Note: Database has 'userId' (camelCase), so no field mapping needed
         references: {
             model: 'users',
             key: 'id'
