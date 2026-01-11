@@ -57,6 +57,8 @@ const mfaRoutes = require('./routes/mfaRoutes');
 const impersonationRoutes = require('./routes/impersonationRoutes');
 const sharedProfileRoutes = require('./routes/sharedProfileRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const sessionRoutes = require('./routes/sessionRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 // Initialize Express app
 const app = express();
@@ -125,6 +127,7 @@ app.use(threatBlockerMiddleware);
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth/sessions', sessionRoutes);
 const profileRoutes = require('./routes/profileRoutes');
 app.use('/api/profiles', profileRoutes);
 
@@ -155,6 +158,9 @@ const threatBlockerRoutes = require('./routes/threatBlockerRoutes');
 const activityLogRoutes = require('./routes/activityLogRoutes');
 app.use('/api/threat-blocker', threatBlockerRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
+
+// AI Assistant routes
+app.use('/api/ai', aiRoutes);
 
 
 // Health check route with database status

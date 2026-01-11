@@ -729,6 +729,55 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                         )}
                     </div>
                 )}
+
+                <button
+                    onMouseEnter={() => setNavHover('user-profile')}
+                    onMouseLeave={() => setNavHover(null)}
+                    onClick={() => setCurrentView('user-profile')}
+                    style={{
+                        width: '100%',
+                        padding: '12px 15px',
+                        marginTop: '20px',
+                        marginBottom: '10px',
+                        backgroundColor: currentView === 'user-profile' || navHover === 'user-profile'
+                            ? (theme === 'light' ? palette.accentSoft : (currentView === 'user-profile' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
+                            : 'transparent',
+                        color: currentView === 'user-profile' || navHover === 'user-profile' ? palette.accent : palette.text,
+                        border: currentView === 'user-profile' || navHover === 'user-profile' ? `1px solid ${palette.accent}` : '1px solid transparent',
+                        borderRadius: '10px',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        transition: 'all 0.15s ease',
+                        boxShadow: navHover === 'user-profile' ? '0 6px 14px rgba(0,0,0,0.08)' : 'none'
+                    }}
+                >
+                    My Profile
+                </button>
+
+                <button
+                    onMouseEnter={() => setNavHover('ai-assistant')}
+                    onMouseLeave={() => setNavHover(null)}
+                    onClick={() => setCurrentView('ai-assistant')}
+                    style={{
+                        width: '100%',
+                        padding: '12px 15px',
+                        marginBottom: '10px',
+                        backgroundColor: currentView === 'ai-assistant' || navHover === 'ai-assistant'
+                            ? (theme === 'light' ? palette.accentSoft : (currentView === 'ai-assistant' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
+                            : 'transparent',
+                        color: currentView === 'ai-assistant' || navHover === 'ai-assistant' ? palette.accent : palette.text,
+                        border: currentView === 'ai-assistant' || navHover === 'ai-assistant' ? `1px solid ${palette.accent}` : '1px solid transparent',
+                        borderRadius: '10px',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        transition: 'all 0.15s ease',
+                        boxShadow: navHover === 'ai-assistant' ? '0 6px 14px rgba(0,0,0,0.08)' : 'none'
+                    }}
+                >
+                    AI Assistant
+                </button>
                 
                 <button
                     onClick={handleLogout}
@@ -737,7 +786,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                     style={{
                         width: '100%',
                         padding: '12px 15px',
-                        marginTop: '30px',
+                        marginTop: '20px',
                         backgroundColor: logoutHover
                             ? (theme === 'dark' ? 'rgba(54,226,123,0.2)' : 'rgba(31,164,90,0.15)')
                             : palette.accentSoft,

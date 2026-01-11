@@ -108,6 +108,12 @@ export const authAPI = {
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
+  },
+
+  // Update user profile
+  updateProfile: async (profileData) => {
+    const response = await api.put('/auth/profile', profileData);
+    return response.data;
   }
 };
 
@@ -526,6 +532,59 @@ export const impersonationAPI = {
   },
   getImpersonationSessions: async (activeOnly = false) => {
     const response = await api.get('/impersonation/sessions', { params: { activeOnly } });
+    return response.data;
+  }
+};
+
+// User Profile API functions
+export const userProfileAPI = {
+  // Get user profile
+  getProfile: async () => {
+    const response = await api.get('/auth/me');
+    return response.data;
+  },
+  // Update user profile
+  updateProfile: async (profileData) => {
+    const response = await api.put('/auth/profile', profileData);
+    return response.data;
+  },
+  // Get active sessions
+  getActiveSessions: async () => {
+    const response = await api.get('/auth/sessions');
+    return response.data;
+  },
+  // Logout session
+  logoutSession: async (sessionId) => {
+    const response = await api.post(`/auth/sessions/${sessionId}/logout`);
+    return response.data;
+  },
+  // Logout all sessions
+  logoutAllSessions: async () => {
+    const response = await api.post('/auth/sessions/logout-all');
+    return response.data;
+  },
+  // Update preferences
+  updatePreferences: async (preferences) => {
+    const response = await api.put('/auth/preferences', preferences);
+    return response.data;
+  },
+  // Delete account
+  deleteAccount: async (confirmation) => {
+    const response = await api.delete('/auth/account', { data: { confirmation } });
+    return response.data;
+  },
+  // Deactivate account
+  deactivateAccount: async () => {
+    const response = await api.post('/auth/account/deactivate');
+    return response.data;
+  }
+};
+
+// AI Assistant API functions
+export const aiAssistantAPI = {
+  // Profile assistance
+  profileAssist: async (data) => {
+    const response = await api.post('/ai/profile-assist', data);
     return response.data;
   }
 };

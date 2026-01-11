@@ -48,6 +48,10 @@ import Invitations from './components/Hierarchy/Invitations';
 import ShareManagement from './components/ShareManagement';
 import SharedProfileViewer from './components/SharedProfileViewer';
 
+// User Profile & AI Assistant Components
+import UserProfilePage from './components/UserProfilePage';
+import AIAssistantPage from './components/AIAssistantPage';
+
 function App() {
     
     // Custom Hooks
@@ -584,6 +588,41 @@ if (isShareManagementPage) {
                                 handleToggleUserStatus={handleToggleUserStatus}
                                 handleSaveUser={handleSaveUser}
                                 closeEditModal={closeEditModal}
+                            />
+                        )}
+
+                        {/* User Profile View */}
+                        {currentView === 'user-profile' && (
+                            <UserProfilePage
+                                theme={theme}
+                                palette={palette}
+                                user={user}
+                                setUser={setUser}
+                                handleLogout={handleLogout}
+                                currentView={currentView}
+                                setCurrentView={setCurrentView}
+                                sidebarOpen={sidebarOpen}
+                                setSidebarOpen={setSidebarOpen}
+                                isMobile={isMobile}
+                                isTablet={isTablet}
+                                setTheme={setTheme}
+                            />
+                        )}
+
+                        {/* AI Assistant View */}
+                        {currentView === 'ai-assistant' && (
+                            <AIAssistantPage
+                                theme={theme}
+                                palette={palette}
+                                user={user}
+                                handleLogout={handleLogout}
+                                currentView={currentView}
+                                setCurrentView={setCurrentView}
+                                sidebarOpen={sidebarOpen}
+                                setSidebarOpen={setSidebarOpen}
+                                isMobile={isMobile}
+                                isTablet={isTablet}
+                                setTheme={setTheme}
                             />
                         )}
                     </div>

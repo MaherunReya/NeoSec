@@ -221,6 +221,18 @@ Profile.hasMany(SharedProfile, {
   as: 'sharedProfiles'
 });
 
+const Session = require('./Session');
+
+// User <-> Session
+User.hasMany(Session, {
+    foreignKey: 'userId',
+    as: 'sessions'
+});
+Session.belongsTo(User, {
+    foreignKey: 'userId',
+    as: 'user'
+});
+
 module.exports = {
     User,
     Group,
@@ -241,6 +253,7 @@ module.exports = {
     Profile,
     SharedProfile,
     SharedProfileLog,
+    Session,
 };
 
 

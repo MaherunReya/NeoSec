@@ -3,6 +3,7 @@ const LoginHistory = require('../models/LoginHistory');
 const jwt = require('jsonwebtoken');
 const { getLocationFromIP } = require('../services/ipGeolocationService');
 const { getClientIP } = require('../utils/ipUtils');
+const { createSession } = require('./sessionController');
 
 // Generate JWT Token
 const generateToken = (userId) => {
@@ -346,6 +347,14 @@ const login = async (req, res) => {
       await user.save();
     } catch (lastLoginError) {
       console.error('Error updating last login timestamp:', lastLoginError);
+    }
+
+    // Create session record
+    try {
+      await createSession(user.id, token, req);
+    } catch (sessionError) {
+      console.error('Error creating session:', sessionError);
+      // Don't fail login if session creation fails
     }
 
     // IMPORTANT: return FULL user state

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSE471 Project Report - NeoSec</title>
+    <style>
+        @page {
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            line-height: 1.6;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        h2 {
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            page-break-after: avoid;
+        }
+        h3 {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+        h4 {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        table, th, td {
+            border: 1px solid #333;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            page-break-inside: avoid;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 5px 0;
+        }
+        p {
+            margin: 10px 0;
+            text-align: justify;
+        }
+        .toc {
+            margin: 20px 0;
+        }
+        .toc ol {
+            list-style-type: decimal;
+        }
+        .toc li {
+            margin: 5px 0;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+        strong {
+            font-weight: bold;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #333;
+            margin: 20px 0;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <h1>CSE471: System Analysis and Design</h1>
+    <h2 style="text-align: center;">Project Report</h2>
+    <h3 style="text-align: center;">Project Title: NeoSec-VPN & Firewall Manager</h3>
+    
+    <p><strong>Group No:</strong> 04, <strong>CSE471 Lab Section:</strong> 05,<br>
+    <strong>Summer 2025</strong></p>
+    
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>22201101 | Md.Saadat Rahman</td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>22201093 | Ar Rafi Rayhan</td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>22299166 | Fariha Binta Salim</td>
+        </tr>
+        <tr>
+            <td>4</td>
+            <td>22201851 | Maherun Rob Reya</td>
+        </tr>
+    </table>
+    
+    <p><strong>Submission Date:</strong> [To be filled]</p>
+    
+    <hr>
+    
+    <div class="toc">
+        <h2>Table of Contents</h2>
+        <ol>
+            <li>System Request</li>
+            <li>Functional Requirements</li>
+            <li>Technology (Framework, Languages)</li>
+            <li>Backend Development</li>
+            <li>User Interface Design</li>
+            <li>Frontend Development</li>
+            <li>User Manual</li>
+            <li>Performance and Network Analysis</li>
+            <li>Github Repo [Public] Link</li>
+            <li>Link of Deployed Project</li>
+            <li>Individual Contribution</li>
+            <li>References</li>
+        </ol>
+    </div>
+    
+    <div class="page-break"></div>
+    
+    <div class="section">
+        <h2>1. System Request</h2>
+        
+        <h3>Business need:</h3>
+        <p>NeoSec addresses the critical need for a unified, user-friendly platform that combines VPN management and firewall protection in a single, accessible solution. Currently, users struggle with fragmented security tools that require technical expertise to configure and maintain. Small businesses, remote workers, and individuals need an integrated system that provides enterprise-grade network security without the complexity of traditional solutions. NeoSec bridges this gap by offering a web-based management interface that simplifies VPN configuration, firewall rule management, and threat protection, making advanced network security accessible to non-technical users while maintaining the power and flexibility required by IT professionals.</p>
+        
+        <h3>Business requirements:</h3>
+        <p>NeoSec must deliver a comprehensive security management platform with the following core capabilities:</p>
+        <ul>
+            <li><strong>User Management & Authentication:</strong> Secure registration, login, and role-based access control (admin, operator, viewer) with JWT-based authentication, session management, and multi-factor authentication support.</li>
+            <li><strong>VPN Management:</strong> Complete lifecycle management of VPN configurations (OpenVPN and WireGuard), including creation, editing, activation, and automatic synchronization with desktop clients. Support for profile-based VPN switching and scheduling.</li>
+            <li><strong>Firewall Rule Management:</strong> Intuitive web interface for creating, editing, and deleting firewall rules with support for IP addresses, ports, protocols (TCP/UDP/BOTH), and actions (ACCEPT/REJECT/DROP). Rules must be automatically synchronized to desktop clients for kernel-level enforcement.</li>
+            <li><strong>Profile Management:</strong> Centralized system for creating and managing security profiles that combine VPN configurations, firewall rules, DNS settings, and access controls. Profiles should support scheduling, versioning, and audit logging.</li>
+            <li><strong>Threat Protection:</strong> Automated threat blocker that integrates with AbuseIPDB and other threat intelligence sources to automatically update blocklists. Real-time threat detection and blocking with geolocation-based rules.</li>
+            <li><strong>Desktop Client Integration:</strong> Linux desktop application that securely communicates with the server, automatically applies configurations, and enforces firewall rules at the kernel level using iptables/nftables.</li>
+            <li><strong>Monitoring & Reporting:</strong> Comprehensive dashboard showing VPN status, threat statistics, activity logs, and system health metrics. Real-time notifications for critical events.</li>
+            <li><strong>Hierarchy & Access Control:</strong> Organizational structure (Organization → Team → User) with scoped permissions, delegation, and access matrix for enterprise environments.</li>
+            <li><strong>File Scanning:</strong> Integration with VirusTotal API for scanning files, URLs, and IP addresses for malicious content.</li>
+            <li><strong>Subscription Management:</strong> Support for free and paid subscription tiers with Stripe integration for payment processing.</li>
+        </ul>
+        
+        <h3>Business value:</h3>
+        <p>NeoSec creates significant value for multiple stakeholders by consolidating network security management into a single, cost-effective platform. For individual users and small businesses, it eliminates the need for expensive enterprise security solutions while providing professional-grade protection. The platform reduces operational costs by automating threat detection and firewall rule updates, minimizing the need for dedicated IT staff. For enterprises, the hierarchical access control and audit logging features ensure compliance and governance while maintaining security. The subscription model provides predictable revenue streams, and the scalable architecture supports growth from individual users to large organizations. By simplifying complex security operations, NeoSec reduces the barrier to entry for effective network security, potentially preventing costly security breaches and data loss incidents.</p>
+        
+        <h3>Special issues or constraints:</h3>
+        <p>NeoSec faces several critical challenges that must be addressed:</p>
+        <ul>
+            <li><strong>Security & Privacy:</strong> The platform handles sensitive network configurations, user credentials, and threat intelligence data. Robust encryption, secure authentication, and compliance with data protection regulations (GDPR, etc.) are essential. All communications between web client, server, and desktop client must be encrypted.</li>
+            <li><strong>Cross-Platform Compatibility:</strong> The desktop application must work exclusively on Linux systems, requiring careful handling of Linux-specific networking tools (iptables, nftables, NetworkManager). The web interface must be responsive and work across all modern browsers.</li>
+            <li><strong>Real-Time Synchronization:</strong> Desktop clients must stay synchronized with server configurations without manual intervention. This requires reliable background processes, error handling, and rollback mechanisms when updates fail.</li>
+            <li><strong>Performance & Scalability:</strong> The system must handle thousands of concurrent users, process threat intelligence updates efficiently, and maintain low latency for dashboard updates and rule synchronization.</li>
+            <li><strong>Network Privileges:</strong> Desktop firewall enforcement requires elevated privileges (sudo/root), which presents security and usability challenges. The application must handle privilege escalation securely and gracefully.</li>
+            <li><strong>API Rate Limits:</strong> Integration with external services (AbuseIPDB, VirusTotal, IP geolocation APIs) is subject to rate limits and API costs, requiring efficient caching and usage optimization.</li>
+            <li><strong>Desktop Application Deployment:</strong> Linux desktop applications require distribution through package managers or direct downloads, adding complexity to deployment and updates compared to web-only solutions.</li>
+        </ul>
+    </div>
+    
+    <div class="page-break"></div>
+    
+    <div class="section">
+        <h2>2. Functional Requirements</h2>
+        
+        <h3>Module 1: User Management & Core Features</h3>
+        
+        <h4>[Saadat-1] Admin Panel & User Management, Dashboard & Status Monitoring</h4>
+        <ul>
+            <li>The system allows users to sign up and log in securely with email and password authentication.</li>
+            <li>Dashboard is the main screen every user sees, displaying personal status including:
+                <ul>
+                    <li>VPN connection status ("Is my VPN connected?")</li>
+                    <li>Threat blocking statistics ("How many threats has my client blocked?")</li>
+                    <li>System health metrics</li>
+                    <li>Recent activity logs</li>
+                </ul>
+            </li>
+            <li>Admin Panel is a separate, protected section only accessible to administrators, providing:
+                <ul>
+                    <li>View and edit all user accounts</li>
+                    <li>Monitor application health and statistics</li>
+                    <li>Manage user roles and permissions</li>
+                    <li>Review audit logs and system events</li>
+                    <li>Approve or reject user registrations</li>
+                </ul>
+            </li>
+        </ul>
+        
+        <h4>[Rayhan-2] Automation, Scheduling & Secure Server Communication</h4>
+        <ul>
+            <li>The desktop software communicates with the server securely via JWT authentication tokens.</li>
+            <li>Periodically fetches updates from the server without manual interaction.</li>
+            <li>Automatically applies new rules based on the configuration.</li>
+            <li>Automatically starts the application on system boot.</li>
+            <li>Users can manually sync the client with the server on demand.</li>
+            <li>If new profile validation fails, the system rolls back to the previous working configuration.</li>
+            <li>If the server is unreachable, the client uses the last updated configuration (offline mode).</li>
+        </ul>
+        
+        <h4>[Fariha-3] Authentication (JWT-based) & User Roles</h4>
+        <ul>
+            <li><strong>Role-Based Access Control:</strong> Different user roles (admin, operator, viewer) define permissions for system features.</li>
+            <li><strong>Session Protection:</strong> Users can stay signed in with secure session management. Sessions refresh automatically and logout safely when needed.</li>
+            <li><strong>Core Operations:</strong> Sign in and sign out have built-in protection with JWT token validation.</li>
+            <li><strong>Validation Criteria:</strong> Only authorized users can access protected parts, and sessions refresh without requiring re-login.</li>
+            <li><strong>Secure Login System:</strong> Users authenticate through JWT tokens with short-lived access tokens and refresh token support.</li>
+        </ul>
+        
+        <h4>[Maherun-4] Profile Management</h4>
+        <ul>
+            <li>Central system for creating, editing, and managing user security profiles on the website.</li>
+            <li>Each profile defines VPN configuration, firewall rules, DNS settings, and access controls.</li>
+            <li>Users can easily organize and apply different security setups for specific use cases (e.g., Work VPN, Public WiFi Mode).</li>
+            <li>Profiles are safely stored in the database, encrypted, and retrievable only by authorized users.</li>
+            <li>Ensures data consistency and accountability through audit logging — every edit or change is recorded with timestamps and user info.</li>
+            <li>Profiles can be linked to scheduling features to automatically activate at specific times or under specific conditions.</li>
+            <li>Designed for scalability and reliability, allowing organizations to manage multiple users and profiles efficiently.</li>
+        </ul>
+        
+        <h3>Module 2: Task and Project Organization</h3>
+        
+        <h4>[Saadat-1] Firewall Rule Management</h4>
+        <ul>
+            <li>Simple web page with a table and forms for managing firewall rules.</li>
+            <li>Users can easily add, edit, or delete their own custom firewall rules.</li>
+            <li>Each rule has clear options:
+                <ul>
+                    <li><strong>Action:</strong> Allow (ACCEPT), Deny (REJECT), or Drop (DROP)</li>
+                    <li><strong>Criteria:</strong> Specific IP address, port number, or traffic direction</li>
+                    <li><strong>Protocol:</strong> TCP, UDP, or BOTH</li>
+                </ul>
+            </li>
+            <li>Every rule created by a user is saved to PostgreSQL database.</li>
+            <li>Desktop app downloads these rules from the database to know what to block or allow.</li>
+        </ul>
+        
+        <h4>[Rayhan-2] Firewall via iptables/nftables</h4>
+        <ul>
+            <li>Loads firewall rules from the remote server and enforces them on the fly.</li>
+            <li>Done via iptables/nftables to enforce rules at kernel level.</li>
+            <li>Runs via elevated privilege using a daemon or sudo permission.</li>
+            <li>Rules are updated automatically on server synchronization.</li>
+            <li>Cronjob-based firewall rules enforcement as per configuration.</li>
+            <li>Event-based firewall rules enforcement (e.g., certain WiFi networks connected).</li>
+        </ul>
+        
+        <h4>[Fariha-3] VPN Configuration Management</h4>
+        <ul>
+            <li><strong>VPN Endpoint Setup:</strong> Easily manage VPN connections with preferred settings (OpenVPN and WireGuard).</li>
+            <li><strong>Profile Linking:</strong> Attach VPN setup to security profiles for organized project control.</li>
+            <li><strong>Validation & Versioning:</strong> Every configuration is checked for accuracy and can be cloned or restored at any time.</li>
+            <li><strong>Task Assignment:</strong> Automatically send VPN setup tasks to specific devices or users.</li>
+            <li><strong>Live Status Updates:</strong> Real-time progress updates and results as VPN configs are applied.</li>
+        </ul>
+        
+        <h4>[Maherun-4] Feature-2: Profile Sharing via Encrypted Link</h4>
+        <ul>
+            <li>Allows users to share security profiles (VPN/firewall configurations) with others through secure, encrypted links.</li>
+            <li>Makes collaboration easier while keeping sensitive data protected. No raw credentials or configs are ever exposed.</li>
+            <li>Recipients can view or import the shared profile depending on the permissions set by the sender.</li>
+            <li>Senders can add a password to the shared link for extra protection.</li>
+            <li>The system supports revoking a shared link at any time — immediately removing access for all recipients.</li>
+            <li>All link activity (views, imports, expirations) is tracked and logged for transparency and auditing.</li>
+        </ul>
+        
+        <h3>Module 3: Dashboard and Notifications</h3>
+        
+        <h4>[Saadat-1] Automatic Threat Blocker (from Malware/IP Blocklist Integration)</h4>
+        <ul>
+            <li>Set up an automated task on the server (a "cron job") that runs every night.</li>
+            <li>Automatically calls the AbuseIPDB API to download a fresh list of thousands of known dangerous IP addresses (hackers, malware, etc.).</li>
+            <li>The server saves this new list to the database, and all desktop clients automatically download it and add it to their local firewall rules, so they are always protected against the latest threats.</li>
+        </ul>
+        
+        <h4>[Saadat-1] Scheduling and Notifications, Logs and Reporting</h4>
+        <ul>
+            <li>A logging system where desktop clients continuously send their activity (like VPN status or firewall blocks) to the web server, which stores everything in the PostgreSQL database.</li>
+            <li><strong>Log Viewer:</strong> A "Log Viewer" page on the web app allows users and admins to search, filter (by date, IP, etc.), and download these logs to see what's happening or troubleshoot problems.</li>
+            <li><strong>In-App Notifications:</strong> A notification system inside the dashboard. When the server detects a critical event (like a scheduled profile failing), it sends an alert to the web app, which appears as a pop-up or notification icon for the user.</li>
+        </ul>
+        
+        <h4>[Rayhan-2] VPN Management</h4>
+        <ul>
+            <li>Connects, monitors, and terminates VPN connections (Wireguard, OpenVPN) as per rules using background process.</li>
+            <li>Rules update periodically without manual interaction.</li>
+            <li>VPN profiles switch automatically based on the latest rulesets.</li>
+            <li>Time-based rules enforcement via cronjobs.</li>
+            <li>Event-based rules enforcement (Connected to certain networks).</li>
+            <li>Terminates internet access / Keeps connection active based on rules if VPN server is unavailable.</li>
+        </ul>
+        
+        <h4>[Rayhan-2] Geolocation based IP rules via 3rd party API</h4>
+        <ul>
+            <li>Fetches the geolocation of IP and blocks/allows as per user set rules.</li>
+            <li>Caches IP locations for a certain period to ensure low latency.</li>
+            <li>Other rules can be combined with geolocation rules to make the system more flexible. For example, users can set rules like: "allow all IP from Russia if the time is between 11:00 to 14:00 otherwise block it."</li>
+            <li>The Geolocation is fetched via external API.</li>
+        </ul>
+        
+        <h4>[Fariha-3] External mail APIs to send instant email alerts</h4>
+        <ul>
+            <li><strong>Event Monitoring:</strong> Instantly tracks issues like VPN errors, firewall problems, or expiring certificates.</li>
+            <li><strong>Instant Email Alerts:</strong> Sends immediate notifications through trusted email services when critical errors occur.</li>
+            <li><strong>Dedicated Notification Panel:</strong> Provides a central dashboard section for reviewing past alerts and detailed event logs.</li>
+            <li><strong>Priority Control:</strong> Important alerts are sent first, while duplicates are filtered to avoid clutter.</li>
+        </ul>
+        
+        <h4>[Fariha-3] Hierarchy</h4>
+        <ul>
+            <li><strong>Structured Access:</strong> Establishes an Organization → Team → User hierarchy for clear role separation.</li>
+            <li><strong>Scoped Permissions:</strong> Users can only manage profiles within their assigned teams.</li>
+            <li><strong>Delegation System:</strong> Allows admins to assign managers who can review and approve changes in their scope.</li>
+            <li><strong>Access Matrix & Logs:</strong> Admins can appoint managers to approve and oversee changes.</li>
+            <li><strong>Secure Governance:</strong> Admins keep complete control while enforcing strict role boundaries.</li>
+        </ul>
+        
+        <h4>[Maherun-4] Feature-3: External API based file scanning</h4>
+        <ul>
+            <li>Upload a file to scan using various antivirus products.</li>
+            <li>Use VirusTotal to scan for malicious signatures in user-provided files.</li>
+            <li>Scan URLs for threats.</li>
+            <li>Get IP address-based security reports using VirusTotal.</li>
+            <li>Automatically generates a scan report summary, showing how many antivirus engines flagged the file or link.</li>
+            <li>Protects user privacy; only hashes and metadata are sent to VirusTotal, not private or personal content.</li>
+        </ul>
+        
+        <h4>[Maherun-4] Feature-4: Paid account and Payment</h4>
+        <ul>
+            <li>Enables users to upgrade to paid plans (e.g., Basic, Pro, Enterprise) for additional features and higher usage limits.</li>
+            <li>Provides a secure and integrated payment system directly on the website using Stripe.</li>
+            <li>Supports subscription management, billing history, and automatic plan enforcement.</li>
+        </ul>
+    </div>
+    
+    <div class="page-break"></div>
+    
+    <div class="section">
+        <h2>3. Technology (Framework, Languages)</h2>
+        
+        <h3>Web Application Stack:</h3>
+        <ul>
+            <li><strong>Language:</strong> JavaScript</li>
+            <li><strong>Frontend Framework:</strong> React.js</li>
+            <li><strong>Backend Framework:</strong> Node.js + Express.js</li>
+            <li><strong>Styling:</strong> Tailwind CSS</li>
+            <li><strong>Database:</strong> PostgreSQL</li>
+            <li><strong>ORM:</strong> Sequelize</li>
+            <li><strong>Authentication:</strong> JWT (JSON Web Tokens)</li>
+            <li><strong>Payment Processing:</strong> Stripe</li>
+            <li><strong>Deployment:</strong>
+                <ul>
+                    <li>Frontend: Vercel</li>
+                    <li>Backend: Microsoft Azure / Render</li>
+                </ul>
+            </li>
+        </ul>
+        
+        <h3>Desktop Application Stack:</h3>
+        <ul>
+            <li><strong>Language:</strong> Python, Bash</li>
+            <li><strong>Framework:</strong> PyQt5</li>
+            <li><strong>Networking Tools:</strong>
+                <ul>
+                    <li>OpenVPN/WireGuard</li>
+                    <li>iptables/nftables</li>
+                    <li>ufw</li>
+                    <li>NetworkManager</li>
+                </ul>
+            </li>
+            <li><strong>Platform:</strong> Linux (system-level enforcement)</li>
+        </ul>
+        
+        <h3>External APIs & Services:</h3>
+        <ul>
+            <li><strong>Threat Intelligence:</strong> AbuseIPDB API</li>
+            <li><strong>Virus Scanning:</strong> VirusTotal API</li>
+            <li><strong>IP Geolocation:</strong> IP Geolocation Service</li>
+            <li><strong>Email Service:</strong> Brevo (formerly Sendinblue)</li>
+            <li><strong>Blocklist Sources:</strong> Free blocklist services</li>
+        </ul>
+        
+        <h3>Development Tools:</h3>
+        <ul>
+            <li><strong>Version Control:</strong> Git</li>
+            <li><strong>Package Manager:</strong> npm</li>
+            <li><strong>Build Tools:</strong> React Scripts, Node.js</li>
+            <li><strong>Environment Management:</strong> dotenv</li>
+        </ul>
+    </div>
+    
+    <p style="text-align: center; margin-top: 50px; color: #666;">
+        <em>Note: This is a partial HTML version. The complete report with all code snippets, backend development details, frontend development, user manual, and other sections continues in the full document. Please refer to the Markdown file for the complete content, or continue adding sections as needed.</em>
+    </p>
+    
+    <p style="text-align: center; margin-top: 30px;">
+        <strong>To convert this to PDF:</strong><br>
+        1. Open this HTML file in a web browser<br>
+        2. Press Ctrl+P (or Cmd+P on Mac)<br>
+        3. Select "Save as PDF" as the destination<br>
+        4. Click "Save"<br><br>
+        <strong>To import to Google Docs:</strong><br>
+        1. Open Google Docs<br>
+        2. Go to File → Open → Upload<br>
+        3. Select this HTML file<br>
+        4. Google Docs will convert it automatically
+    </p>
+</body>
+</html>
+
