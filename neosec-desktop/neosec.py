@@ -17,7 +17,7 @@ except (ImportError, AttributeError):
 
 # ── URLs ──────────────────────────────────────────────────────────────────────
 # Uses NEOSEC_SERVER env var if set (useful for local dev), otherwise production.
-_base = os.environ.get("NEOSEC_SERVER", "https://neosec.onrender.com")
+_base = os.environ.get("NEOSEC_SERVER", "http://localhost:5000")
 signup_url        = "https://neosec-mauve.vercel.app/"
 auth_url          = f"{_base}/api/auth/login"
 verification_url  = f"{_base}/api/auth/verify"
