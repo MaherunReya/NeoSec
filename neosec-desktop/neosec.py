@@ -6,7 +6,14 @@ import os
 import requests
 import pathlib
 import json
-import socketio as sio_lib
+try:
+    from socketio import Client as SocketIOClient
+except (ImportError, AttributeError):
+    raise ImportError(
+        "python-socketio[client] is not installed or the wrong 'socketio' package is active.\n"
+        "Run: pip install 'python-socketio[client]'\n"
+        "If an old 'socketio' package is installed, uninstall it first: pip uninstall socketio"
+    )
 
 # ── URLs ──────────────────────────────────────────────────────────────────────
 # Uses NEOSEC_SERVER env var if set (useful for local dev), otherwise production.
@@ -105,7 +112,7 @@ class SocketWorker(QRunnable):
         self.signals = backend_signals
 
     def run(self):
-        client = sio_lib.Client(reconnection=True, reconnection_attempts=3, logger=False)
+        client = SocketIOClient(reconnection=True, reconnection_attempts=3, logger=False)
 
         @client.event(namespace="/desktop")
         def connect():
