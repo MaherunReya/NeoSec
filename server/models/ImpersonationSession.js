@@ -49,7 +49,6 @@ const ImpersonationSession = sequelize.define('ImpersonationSession', {
 }, {
   tableName: 'impersonation_sessions',
   timestamps: true,
-  underscored: false,
   indexes: [
     { fields: ['adminUserId'] },
     { fields: ['targetUserId'] },

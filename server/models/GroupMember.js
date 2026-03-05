@@ -49,7 +49,6 @@ const GroupMember = sequelize.define('GroupMember', {
 }, {
     tableName: 'group_members',
     timestamps: true,
-    underscored: false, // Disable underscored since database uses camelCase columns
     indexes: [
         {
             unique: true,

@@ -49,7 +49,6 @@ const LoginHistory = sequelize.define('LoginHistory', {
 }, {
   tableName: 'login_history',
   timestamps: true,
-  underscored: false, // Disable underscored since we're using camelCase in queries
   indexes: [
     { fields: ['userId'] },
     { fields: ['ipAddress'] },

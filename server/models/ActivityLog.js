@@ -3,7 +3,6 @@ const { sequelize } = require('../config/db');
 const User = require('./User');
 const Device = require('./Device');
 
-
 const ActivityLog = sequelize.define('ActivityLog', {
   id: {
     type: DataTypes.UUID,
@@ -68,7 +67,6 @@ const ActivityLog = sequelize.define('ActivityLog', {
   timestamps: true,
   updatedAt: false, // Only track createdAt
   tableName: 'activity_logs',
-  underscored: false, // Disable underscored since database uses camelCase columns
   indexes: [
     { fields: ['eventType'] },
     { fields: ['severity'] },

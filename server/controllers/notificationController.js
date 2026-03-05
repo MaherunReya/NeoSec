@@ -1,31 +1,17 @@
 const Notification = require('../models/Notification');
 const User = require('../models/User');
-const { createNotification } = require('../utils/notificationHelper');
 
 // Get all notifications for current user (or all if admin)
 exports.getNotifications = async (req, res) => {
     try {
-        // Check authentication
-        if (!req.user || !req.user.id) {
-            return res.status(401).json({
-                success: false,
-                message: 'User not authenticated'
-            });
-        }
-        
-
-
         const { status, priority, userId } = req.query;
 
         const whereClause = {};
         
-        // Check if user is admin (handle both role and accountType)
-        const isAdmin = req.user && (req.user.role === 'admin' || req.user.accountType === 'admin');
-        
         // Admins can view all notifications or filter by userId
-        if (isAdmin && userId) {
+        if (req.user.role === 'admin' && userId) {
             whereClause.userId = userId;
-        } else if (!isAdmin) {
+        } else if (req.user.role !== 'admin') {
             // Regular users only see their own notifications
             whereClause.userId = req.user.id;
         }
@@ -43,7 +29,7 @@ exports.getNotifications = async (req, res) => {
             where: whereClause,
             include: [
                 {
-                    model: User,
+                    model: require('../models/User'),
                     as: 'user',
                     attributes: ['id', 'email'],
                     required: false
@@ -62,17 +48,9 @@ exports.getNotifications = async (req, res) => {
         });
     } catch (error) {
         console.error('Get notifications error:', error);
-        console.error('Error details:', error.message);
-        console.error('Error stack:', error.stack);
         res.status(500).json({
             success: false,
-            message: 'Failed to fetch notifications',
-            error: process.env.NODE_ENV === 'development' ? {
-                message: error.message,
-                original: error.original?.message,
-                code: error.original?.code,
-                stack: error.stack
-            } : undefined
+            message: 'Failed to fetch notifications'
         });
     }
 };
@@ -102,8 +80,7 @@ exports.createNotification = async (req, res) => {
         const targetUserId = userId || req.user.id;
 
         // Only admins can send notifications to other users
-        const isAdmin = req.user && (req.user.role === 'admin' || req.user.accountType === 'admin');
-        if (userId && userId !== req.user.id && !isAdmin) {
+        if (userId && userId !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
                 message: 'Only admins can send notifications to other users'
@@ -130,15 +107,25 @@ exports.createNotification = async (req, res) => {
             });
         }
 
-                // Create notification using helper (which handles email sending)
-        const notification = await createNotification(targetUserId, {
+        // Create notification
+        const notification = await Notification.create({
             title,
             message,
             eventType,
             priority: priority || 'medium',
             emailRecipients: emailRecipients ? JSON.stringify(emailRecipients) : null,
-            eventLog
-        }, true);
+            eventLog,
+            userId: targetUserId,
+            emailSent: false
+        });
+
+        // Log to console for demo purposes
+        console.log('🔔 NEW NOTIFICATION CREATED:');
+        console.log(`   Title: ${title}`);
+        console.log(`   Type: ${eventType}`);
+        console.log(`   Priority: ${priority || 'medium'}`);
+        console.log(`   User: ${req.user.email}`);
+        console.log(`   Time: ${new Date().toISOString()}`);
 
         res.status(201).json({
             success: true,
@@ -154,74 +141,100 @@ exports.createNotification = async (req, res) => {
     }
 };
 
-// Generic notification simulation
-exports.simulateNotification = async (req, res) => {
+// Simulate event-based notification (VPN tunnel down example)
+exports.simulateVpnTunnelDown = async (req, res) => {
     try {
-        const { message, priority = 'medium' } = req.body;
+        const { serverName, siteId } = req.body;
 
-        // Validate inputs
-        if (!message || message.trim() === '') {
-            return res.status(400).json({
-                success: false,
-                message: 'Message is required'
-            });
-        }
+        const notification = await Notification.create({
+            title: 'WireGuard Tunnel Down',
+            message: `WireGuard tunnel to ${serverName || 'Site A'} is Down`,
+            eventType: 'vpn_tunnel_down',
+            priority: 'critical',
+            emailRecipients: JSON.stringify([
+                'admin@gmail.com',
+                'user1@hotmail.com',
+                'user2@gmail.com'
+            ]),
+            eventLog: `WireGuard tunnel connection failed. Site: ${siteId || 'Site A'}. Last successful connection: ${new Date(Date.now() - 15 * 60 * 1000).toISOString()}`,
+            userId: req.user.id,
+            emailSent: false
+        });
 
-        if (!['low', 'medium', 'high', 'critical'].includes(priority.toLowerCase())) {
-            return res.status(400).json({
-                success: false,
-                message: 'Priority must be one of: low, medium, high, critical'
-            });
-        }
-
-        const normalizedPriority = priority.toLowerCase();
-
-        // Create appropriate notification based on priority
-        let title, eventLog, consoleMessage;
-
-        switch (normalizedPriority) {
-            case 'critical':
-                title = 'Critical System Alert';
-                eventLog = `Critical alert: ${message}`;
-                consoleMessage = '🚨 CRITICAL ALERT';
-                break;
-            case 'high':
-                title = 'High Priority Alert';
-                eventLog = `High priority alert: ${message}`;
-                consoleMessage = '⚠️ HIGH PRIORITY ALERT';
-                break;
-            case 'medium':
-                title = 'System Notification';
-                eventLog = `System notification: ${message}`;
-                consoleMessage = 'ℹ️ SYSTEM NOTIFICATION';
-                break;
-            case 'low':
-                title = 'Information';
-                eventLog = `Information: ${message}`;
-                consoleMessage = '📝 INFORMATION';
-                break;
-        }
-
-        const notification = await createNotification(req.user.id, {
-            title,
-            message,
-            eventType: 'generic_notification',
-            priority: normalizedPriority,
-            eventLog
-        }, true);
-
-        console.log(consoleMessage);
+        console.log('🚨 CRITICAL ALERT: VPN Tunnel Down');
 
         res.status(201).json({
             success: true,
-            message: 'Notification created and email sent',
+            message: 'VPN tunnel down notification created',
             data: notification
         });
     } catch (error) {
-        console.error('Simulate notification error:', error);
+        console.error('Simulate VPN error:', error);
         res.status(500).json({
             success: false,
-            message: 'Failed to create notification'
+            message: 'Failed to create VPN notification'
+        });
+    }
+};
+
+// Simulate certificate expiring notification
+exports.simulateCertificateExpiring = async (req, res) => {
+    try {
+        const { certificateName, daysLeft } = req.body;
+
+        const notification = await Notification.create({
+            title: 'OpenVPN Certificate Expiring',
+            message: `${certificateName || 'OpenVPN'} certificate will expire in ${daysLeft || 7} days`,
+            eventType: 'certificate_expiring',
+            priority: daysLeft <= 3 ? 'high' : 'medium',
+            eventLog: `Certificate expiration warning. Certificate: ${certificateName}. Expires: ${new Date(Date.now() + (daysLeft || 7) * 24 * 60 * 60 * 1000).toISOString()}`,
+            userId: req.user.id,
+            emailSent: false
+        });
+
+        console.log('⚠️ REMINDER: Certificate Expiring');
+
+        res.status(201).json({
+            success: true,
+            message: 'Certificate expiring notification created',
+            data: notification
+        });
+    } catch (error) {
+        console.error('Simulate certificate error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create certificate notification'
+        });
+    }
+};
+
+// Simulate firewall error
+exports.simulateFirewallError = async (req, res) => {
+    try {
+        const { errorMessage } = req.body;
+
+        const notification = await Notification.create({
+            title: 'Firewall Error',
+            message: errorMessage || 'Critical firewall configuration error detected',
+            eventType: 'firewall_error',
+            priority: 'critical',
+            eventLog: `Firewall error detected at ${new Date().toISOString()}. Error: ${errorMessage}`,
+            userId: req.user.id,
+            emailSent: false
+        });
+
+        console.log('🔥 CRITICAL: Firewall Error');
+
+        res.status(201).json({
+            success: true,
+            message: 'Firewall error notification created',
+            data: notification
+        });
+    } catch (error) {
+        console.error('Simulate firewall error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to create firewall notification'
         });
     }
 };
@@ -265,8 +278,7 @@ exports.markAllAsRead = async (req, res) => {
         const whereClause = { userId: req.user.id, status: 'unread' };
 
         // Admins can mark all for a specific user if userId is provided
-        const isAdmin = req.user && (req.user.role === 'admin' || req.user.accountType === 'admin');
-        if (isAdmin && req.body.userId) {
+        if (req.user.role === 'admin' && req.body.userId) {
             whereClause.userId = req.body.userId;
         }
 

@@ -10,7 +10,6 @@ const Profile = sequelize.define('Profile', {
   userId: {
     type: DataTypes.UUID,
     allowNull: false,
-    field: 'userId', // Explicitly map to camelCase column (database has userId, not user_id)
     references: {
       model: 'users',
       key: 'id'
@@ -126,8 +125,7 @@ const Profile = sequelize.define('Profile', {
 
 }, {
   tableName: 'profiles',
-  timestamps: true,
-  underscored: false // Disable underscored since database uses camelCase for userId
+  timestamps: true
 });
 
 module.exports = Profile;

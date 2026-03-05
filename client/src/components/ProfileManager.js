@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import ShareCreationModal from './ShareCreationModal';
-import ShareManagement from './ShareManagement';
 import countries from "i18n-iso-countries";
 import enLocale from "i18n-iso-countries/langs/en.json";
 countries.registerLocale(enLocale);
@@ -361,30 +360,6 @@ const ProfileManager = ({ theme = 'dark', palette }) => {
   const [firewallRules, setFirewallRules] = useState([]);
   const [showShareModal, setShowShareModal] = useState(false);
   const [sharingProfile, setSharingProfile] = useState(null);
-  const [showShareManagement, setShowShareManagement] = useState(false);
-
-  // Helper function to convert action (number or string) to string
-  const getActionString = (action) => {
-    if (typeof action === 'string') {
-      return action.toLowerCase();
-    }
-    // Map numeric actions: 0 = allow/accept, 1 = reject, 2 = drop
-    const actionMap = { 0: 'allow', 1: 'reject', 2: 'drop' };
-    return actionMap[action] || 'allow';
-  };
-
-  // Helper function to convert protocol (number or string) to string
-  const getProtocolString = (protocol) => {
-    if (typeof protocol === 'string') {
-      return protocol.toUpperCase();
-    }
-    if (protocol == null || protocol === undefined) {
-      return 'ANY';
-    }
-    // Map numeric protocols: 0 = TCP, 1 = UDP, 2 = BOTH
-    const protocolMap = { 0: 'TCP', 1: 'UDP', 2: 'BOTH' };
-    return protocolMap[protocol] || 'ANY';
-  };
 
 
 
@@ -512,13 +487,6 @@ useEffect(() => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate profile name
-    if (!formData.name || formData.name.trim().length < 3 || formData.name.trim().length > 50) {
-      showToast('Profile name must be between 3 and 50 characters', 'error');
-      return;
-    }
-    
     try {
       const submitData = {
         ...formData,
@@ -822,17 +790,24 @@ const handleRemoveCountry = (countryToRemove) => {
 
          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button
-            onClick={() => setShowShareManagement(true)}
+            onClick={() => {
+              // Navigate to share management view
+              if (window.setCurrentView) {
+                window.setCurrentView('share-management');
+              } else {
+                // Fallback: open in new window
+                window.location.href = '/share-management';
+              }
+            }} 
             style={{
-              padding: '8px 16px',
-              borderRadius: 8,
-              border: `1px solid ${colors.border}`,
+              padding: '10px 18px',
+              borderRadius: 999,
+              border: `1px solid ${colors.accent}`,
               backgroundColor: 'transparent',
-              color: colors.text,
+              color: colors.accent,
               fontSize: 14,
-              fontWeight: 500,
+              fontWeight: 600,
               cursor: 'pointer',
-              transition: 'all 0.2s',
             }}
           >
             Manage All Shares
@@ -841,15 +816,14 @@ const handleRemoveCountry = (countryToRemove) => {
           <button
             onClick={() => setShowLogs(!showLogs)}
             style={{
-              padding: '8px 16px',
-              borderRadius: 8,
+              padding: '10px 18px',
+              borderRadius: 999,
               border: `1px solid ${colors.border}`,
-              backgroundColor: showLogs ? colors.accentSoft : 'transparent',
+              backgroundColor: showLogs ? colors.accentSoft : colors.bgCard,
               color: colors.text,
               fontSize: 14,
               fontWeight: 500,
               cursor: 'pointer',
-              transition: 'all 0.2s',
             }}
           >
             {showLogs ? 'Hide Logs' : 'View Activity Logs'}
@@ -1007,17 +981,9 @@ const handleRemoveCountry = (countryToRemove) => {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  minLength={3}
-                  maxLength={50}
-                  placeholder="Enter profile name (3-50 characters)"
                   className="form-input"
                   style={styles.formInput}
                 />
-                {formData.name && (formData.name.length < 3 || formData.name.length > 50) && (
-                  <div style={{ color: colors.danger, fontSize: '12px', marginTop: '4px' }}>
-                    Profile name must be between 3 and 50 characters
-                  </div>
-                )}
               </div>
 
               <div className="form-group">
@@ -1290,15 +1256,15 @@ const handleRemoveCountry = (countryToRemove) => {
                                   borderRadius: 12,
                                   fontSize: 11,
                                   fontWeight: 600,
-                                  backgroundColor: getActionString(rule.action) === 'allow'
+                                  backgroundColor: rule.action === 'allow'
                                     ? (theme === 'dark' ? '#1E402C' : '#e6f4ed')
                                     : (theme === 'dark' ? '#40201E' : '#fee2e2'),
-                                  color: getActionString(rule.action) === 'allow'
+                                  color: rule.action === 'allow'
                                     ? (theme === 'dark' ? '#36E27B' : '#1fa45a')
                                     : (theme === 'dark' ? '#FF7777' : '#d4183d'),
                                 }}
                               >
-                                {getActionString(rule.action) === 'allow' ? '✓' : '✗'} {getActionString(rule.action).toUpperCase()}
+                                {rule.action === 'allow' ? '✓' : '✗'} {rule.action.toUpperCase()}
                               </span>
                               
                               <span
@@ -1311,7 +1277,7 @@ const handleRemoveCountry = (countryToRemove) => {
                                   fontWeight: 500
                                 }}
                               >
-                                {getProtocolString(rule.protocol)}
+                                {(rule.protocol || 'any').toUpperCase()}
                               </span>
                               
                               <span style={{ fontSize: 11, color: colors.textMuted }}>
@@ -1381,7 +1347,7 @@ const handleRemoveCountry = (countryToRemove) => {
                             Firewall Rule {ruleIndex + 1}
                           </div>
                           <div>
-                            {getActionString(rule.action).toUpperCase()} - {getProtocolString(rule.protocol)} ({rule.direction || 'inbound'})
+                            {rule.action.toUpperCase()} - {rule.protocol.toUpperCase()} ({rule.direction})
                             {rule.description && ` - ${rule.description}`}
                           </div>
                         </div>
@@ -1858,8 +1824,6 @@ const handleRemoveCountry = (countryToRemove) => {
                     justifyContent: 'space-between',
                     alignItems: 'flex-start',
                     gap: 16,
-                    position: 'relative',
-                    minHeight: '200px',
                   }}
                 >
                   {/* LEFT: info */}
@@ -2066,7 +2030,7 @@ const handleRemoveCountry = (countryToRemove) => {
                     </div>
                   </div>
 
-                  {/* RIGHT: actions - positioned lower */}
+                  {/* RIGHT: actions (top-right) */}
                   <div
                     className="profile-actions"
                     style={{
@@ -2074,10 +2038,8 @@ const handleRemoveCountry = (countryToRemove) => {
                       flexDirection: 'row',
                       gap: 8,
                       alignItems: 'center',
-                      flexWrap: 'wrap',
                       justifyContent: 'flex-end',
-                      marginTop: '40px',
-                      minWidth: 300,
+                      minWidth: 260,
                     }}
                   >
                     {/* Activate / Deactivate – transparent, outlined */}
@@ -2113,7 +2075,7 @@ const handleRemoveCountry = (countryToRemove) => {
                       >
                         Deactivate
                       </button>
-
+                      
                     )}
 
                     {/* Edit – subtle neutral outline */}
@@ -2148,13 +2110,14 @@ const handleRemoveCountry = (countryToRemove) => {
                       Delete
                     </button>
                   </div>
-
-                  {/* Share Profile button - positioned at bottom right corner */}
+                  {/* Profile Share Button*/}
                   <div
                     style={{
-                      position: 'absolute',
-                      bottom: '20px',
-                      right: '20px',
+                      marginTop: 16,
+                      paddingTop: 16,
+                      borderTop: `1px solid ${colors.border}`,
+                      display: 'flex',
+                      justifyContent: 'flex-end',
                     }}
                   >
                     <button
@@ -2169,13 +2132,13 @@ const handleRemoveCountry = (countryToRemove) => {
                         border: 'none',
                         borderRadius: 6,
                         cursor: 'pointer',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                        fontSize: 14,
+                        fontWeight: 600
                       }}
                     >
                       Share Profile
                     </button>
+
                   </div>
 
 
@@ -2198,67 +2161,6 @@ const handleRemoveCountry = (countryToRemove) => {
           theme={theme}
           palette={colors}
         />
-      )}
-
-      {showShareManagement && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-          }}
-          onClick={() => setShowShareManagement(false)}
-        >
-          <div
-            style={{
-              backgroundColor: colors.bgCard,
-              borderRadius: 12,
-              border: `1px solid ${colors.border}`,
-              width: '90%',
-              maxWidth: '1200px',
-              height: '80%',
-              maxHeight: '800px',
-              overflow: 'hidden',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                padding: '20px',
-                borderBottom: `1px solid ${colors.border}`,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <h2 style={{ margin: 0, color: colors.text }}>Share Management</h2>
-              <button
-                onClick={() => setShowShareManagement(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: colors.text,
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div style={{ height: 'calc(100% - 80px)', overflow: 'auto' }}>
-              <ShareManagement theme={theme} palette={colors} />
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

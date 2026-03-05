@@ -40,8 +40,7 @@ const Threat = sequelize.define('Threat', {
   }
 }, {
   timestamps: true,
-  tableName: 'threats',
-  underscored: false // Disable underscored since database uses camelCase columns
+  tableName: 'threats'
 });
 
 // Define association

@@ -7,7 +7,6 @@ import './index.css';
 
 
 
-
 // Custom Hooks
 import { useTheme } from './hooks/useTheme';
 import { useToastManager } from './hooks/useToastManager';
@@ -15,7 +14,6 @@ import { useScreenSize } from './hooks/useScreenSize';
 
 // Layout Components
 import Sidebar from './components/Layout/Sidebar';
-import Header from './components/Layout/Header';
 import DashboardView from './components/Views/DashboardView';
 import AdminUsersView from './components/Views/AdminUsersView';
 import Toast from './components/Common/Toast';
@@ -25,7 +23,6 @@ import ScanDashboard from './components/ScanDashboard';
 import ProfileManager from './components/ProfileManager';
 import FirewallRuleManagement from './components/FirewallRuleManagement';
 import AdminAuditTrail from './components/AdminAuditTrail';
-import ActivityLogAndNotification from './components/ActivityLogAndNotification';
 import SystemHealthMetrics from './components/SystemHealthMetrics';
 import MFASettings from './components/MFASettings';
 import DeviceInventory from './components/DeviceInventory';
@@ -41,8 +38,8 @@ import VpnManagement from './components/VpnManagement';
 // Hierarchy Components
 import Subscription from './components/Hierarchy/Subscription';
 import GroupManagement from './components/Hierarchy/GroupManagement';
-import MemberSecurityManagement from './components/Hierarchy/MemberSecurityManagement';
 import Invitations from './components/Hierarchy/Invitations';
+import Memberships from './components/Hierarchy/Memberships';
 
 // Share Profile Components
 import ShareManagement from './components/ShareManagement';
@@ -117,8 +114,7 @@ function App() {
                 setAdminError(null);
                 const usersResponse = await adminAPI.getAllUsers();
                 if (usersResponse.success) {
-                    // API returns { success: true, data: { users: [...], pagination: {...} } }
-                    setUsers(usersResponse.data?.users || []);
+                    setUsers(usersResponse.data || []);
                 } else {
                     setAdminError(usersResponse.message || 'Failed to load users');
                 }
@@ -167,41 +163,28 @@ function App() {
     }, [currentView, user]);
 
     // Fetch dashboard data when user is logged in
-    const fetchDashboard = useCallback(async () => {
-        if (user && currentView === 'dashboard') {
-            try {
-                setDashboardLoading(true);
-                setDashboardError(null);
-                const response = await dashboardAPI.getDashboard();
-                if (response.success) {
-                    setDashboardData(response.data);
-                } else {
-                    setDashboardError(response.message || 'Failed to load dashboard data');
+    useEffect(() => {
+        const fetchDashboard = async () => {
+            if (user && currentView === 'dashboard') {
+                try {
+                    setDashboardLoading(true);
+                    setDashboardError(null);
+                    const response = await dashboardAPI.getDashboard();
+                    if (response.success) {
+                        setDashboardData(response.data);
+                    } else {
+                        setDashboardError(response.message || 'Failed to load dashboard data');
+                    }
+                } catch (error) {
+                    console.error('Dashboard fetch error:', error);
+                    setDashboardError(getErrorMessage(error, 'Failed to load dashboard data'));
+                } finally {
+                    setDashboardLoading(false);
                 }
-            } catch (error) {
-                console.error('Dashboard fetch error:', error);
-                setDashboardError(getErrorMessage(error, 'Failed to load dashboard data'));
-            } finally {
-                setDashboardLoading(false);
             }
-        }
-    }, [user, currentView]);
-
-    // Initial load and when dependencies change
-    useEffect(() => {
+        };
         fetchDashboard();
-    }, [fetchDashboard]);
-
-    // Auto-refresh dashboard every 30 seconds when on dashboard view
-    useEffect(() => {
-        if (!user || currentView !== 'dashboard') return;
-
-        const interval = setInterval(() => {
-            fetchDashboard();
-        }, 30000); // Refresh every 30 seconds
-
-        return () => clearInterval(interval);
-    }, [user, currentView, fetchDashboard]);
+    }, [user, currentView]);
 
     // Admin Data Fetch
     useEffect(() => {
@@ -298,12 +281,6 @@ function App() {
         showToast('Logged out', 'info');
     };
 
-    const handleUserUpdate = (updatedUserData) => {
-        setUser(updatedUserData);
-        localStorage.setItem('user', JSON.stringify(updatedUserData));
-        showToast('Profile updated successfully', 'success');
-    };
-
     
 
     // Loading State
@@ -393,23 +370,11 @@ if (isShareManagementPage) {
     if (user) {
         return (
             <>
-                {/* Header */}
-                <Header
-                    user={user}
-                    theme={theme}
-                    palette={palette}
-                    isMobile={isMobile}
-                    isTablet={isTablet}
-                    onLogout={handleLogout}
-                    onUserUpdate={handleUserUpdate}
-                />
-
                 <div style={{
                     minHeight: '100vh',
                     backgroundColor: palette.bgMain,
                     color: palette.text,
-                    display: 'flex',
-                    paddingTop: '60px' // Account for fixed header
+                    display: 'flex'
                 }}>
                     <Sidebar
                         user={user}
@@ -430,13 +395,13 @@ if (isShareManagementPage) {
                     <div style={{
                         flex: 1,
                         padding: isMobile ? '16px' : isTablet ? '24px' : '40px',
-                        paddingTop: isMobile ? '16px' : (isTablet ? '24px' : '40px'), // Reduced since header accounts for top spacing
+                        paddingTop: isMobile ? '64px' : (isTablet ? '24px' : '40px'),
                         overflowY: 'auto',
                         backgroundColor: palette.bgMain,
                         color: palette.text,
-                        marginLeft: isMobile ? (sidebarOpen ? '260px' : '0') : '260px',
+                        marginLeft: isMobile ? (sidebarOpen ? '260px' : '0') : '260px',  
                         transition: 'background-color 0.3s ease, color 0.3s ease, padding 0.3s ease, margin-left 0.3s ease, padding-top 0.3s ease',
-                        height: 'calc(100vh - 60px)' // Subtract header height
+                        height: '100vh'  
                     }}>
                         {/* Dashboard View */}
                         {currentView === 'dashboard' && (
@@ -450,7 +415,6 @@ if (isShareManagementPage) {
                                 isMobile={isMobile}
                                 isTablet={isTablet}
                                 setCurrentView={setCurrentView}
-                                onDashboardRefresh={fetchDashboard}
                             />
                         )}
 
@@ -479,32 +443,25 @@ if (isShareManagementPage) {
                         <ShareManagement theme={theme} palette={palette} />
                         )}
 
-                        {/* SUBSCRIPTION View */}
+                        {/* SUBCRIPTION View */}
                         {currentView === "subscription" && (
-                            <Subscription
-                                user={user}
-                                theme={theme}
-                                palette={palette}
-                                onUpgradeSuccess={(updatedUser) => {
-                                    setUser(updatedUser);
-                                    localStorage.setItem("user", JSON.stringify(updatedUser));
-                                }}
-                            />
+                        <Subscription
+                            user={user}
+                            onUpgradeSuccess={(updatedUser) => {
+                                setUser(updatedUser);
+                                localStorage.setItem("user", JSON.stringify(updatedUser));
+                            }}
+                        />
                         )}
 
-                        {currentView === "groups" && <GroupManagement user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
-                        {currentView === "member-security" && <MemberSecurityManagement user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
-                        {currentView === "invitations" && <Invitations theme={theme} palette={palette} />}
+                        {currentView === "groups" && user.accountType === "leader" && <GroupManagement user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
+                        {currentView === "invitations" && <Invitations />}
+                        {currentView === "memberships" && <Memberships />}
 
 
                         {/* Audit View */}
                         {currentView === 'audit' && user.role === 'admin' && (
                             <AdminAuditTrail theme={theme} palette={palette} />
-                        )}
-
-                        {/* Activity Log and Notification View - Only for non-admin users */}
-                        {currentView === 'activity-log-notification' && user.role !== 'admin' && (
-                            <ActivityLogAndNotification theme={theme} palette={palette} />
                         )}
 
                         {/* System Health View */}
@@ -538,8 +495,8 @@ if (isShareManagementPage) {
                         )}
 
                         {/* Impersonation View */}
-                        {currentView === 'impersonation' && (user.role === 'admin' || user.accountType === 'leader') && (
-                            <UserImpersonation theme={theme} palette={palette} user={user} />
+                        {currentView === 'impersonation' && user.role === 'admin' && (
+                            <UserImpersonation theme={theme} palette={palette} />
                         )}
 
                         {/* Admin Notifications View */}

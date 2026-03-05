@@ -34,8 +34,7 @@ const Notification = sequelize.define('Notification', {
             'critical_threat_detected',
             'scheduled_profile_failed',
             'system_error',
-            'log_export_ready',
-            'generic_notification'
+            'log_export_ready'
         ),
         allowNull: false
     },
@@ -44,8 +43,11 @@ const Notification = sequelize.define('Notification', {
         defaultValue: 'medium',
         allowNull: false
     },
-    // severity: Removed - column doesn't exist in database
-    // If needed in future, add column to database first
+    severity: {
+        type: DataTypes.ENUM('critical', 'warning', 'info'),
+        allowNull: true,
+        defaultValue: null
+    },
     status: {
         type: DataTypes.ENUM('unread', 'read', 'archived'),
         defaultValue: 'unread'
@@ -72,8 +74,7 @@ const Notification = sequelize.define('Notification', {
     }
 }, {
     timestamps: true,
-    tableName: 'notifications',
-    underscored: false // Override global setting - use camelCase for timestamps
+    tableName: 'notifications'
 });
 
 // Association

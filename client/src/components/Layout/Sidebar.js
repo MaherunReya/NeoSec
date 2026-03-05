@@ -4,7 +4,6 @@ import SidebarButton from './SidebarButton';
 function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, isMobile, isTablet, sidebarOpen, setSidebarOpen, handleLogout }) {
     const [navHover, setNavHover] = useState(null);
     const [logoutHover, setLogoutHover] = useState(false);
-    const [extrasDropdownOpen, setExtrasDropdownOpen] = useState(false);
 
     return (
         <>
@@ -142,31 +141,16 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                 color: palette.textMuted
                             }}>{user.email}</p>
                             <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
+                                display: 'inline-block',
                                 marginTop: '10px',
                                 padding: '5px 12px',
                                 borderRadius: '15px',
                                 fontSize: '12px',
                                 backgroundColor: user.role === 'admin' ? palette.accentSoft : palette.bgPanel,
                                 color: user.role === 'admin' ? palette.accent : palette.text,
-                                border: user.role === 'admin' ? `1px solid ${palette.accent}` : `1px solid ${palette.border}`,
-                                minWidth: '80px'
+                                border: user.role === 'admin' ? `1px solid ${palette.accent}` : `1px solid ${palette.border}`
                             }}>
-                                <span>{user.role === 'admin' ? 'Admin' : 'User'}</span>
-                                {user.accountType === 'leader' && (
-                                    <>
-                                        <span style={{
-                                            margin: '0 6px',
-                                            height: '12px',
-                                            width: '1px',
-                                            backgroundColor: user.role === 'admin' ? palette.accent : palette.textMuted,
-                                            opacity: 0.6
-                                        }}></span>
-                                        <span>Leader</span>
-                                    </>
-                                )}
+                                {user.role === 'admin' ? ' Admin' : ' User'}
                             </span>
                             <div style={{
                                 marginTop: '4px',
@@ -223,9 +207,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                             width: '100%',
                             padding: '12px 15px',
                             marginBottom: '10px',
-                            backgroundColor: currentView === 'dashboard' || navHover === 'dashboard'
-                                ? (theme === 'light' ? palette.accentSoft : (currentView === 'dashboard' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                : 'transparent',
+                            backgroundColor: currentView === 'dashboard' || navHover === 'dashboard' ? palette.accentSoft : 'transparent',
                             color: currentView === 'dashboard' || navHover === 'dashboard' ? palette.accent : palette.text,
                             border: currentView === 'dashboard' || navHover === 'dashboard' ? `1px solid ${palette.accent}` : '1px solid transparent',
                             borderRadius: '10px',
@@ -247,9 +229,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                             width: '100%',
                             padding: '12px 15px',
                             marginBottom: '10px',
-                            backgroundColor: currentView === 'vpn' || navHover === 'vpn'
-                                ? (theme === 'light' ? palette.accentSoft : (currentView === 'vpn' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                : 'transparent',
+                            backgroundColor: currentView === 'vpn' || navHover === 'vpn' ? palette.accentSoft : 'transparent',
                             color: currentView === 'vpn' || navHover === 'vpn' ? palette.accent : palette.text,
                             border: currentView === 'vpn' || navHover === 'vpn' ? `1px solid ${palette.accent}` : '1px solid transparent',
                             borderRadius: '10px',
@@ -271,9 +251,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                             width: '100%',
                             padding: '12px 15px',
                             marginBottom: '10px',
-                            backgroundColor: currentView === 'firewall' || navHover === 'firewall'
-                                ? (theme === 'light' ? palette.accentSoft : (currentView === 'firewall' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                : 'transparent',
+                            backgroundColor: currentView === 'firewall' || navHover === 'firewall' ? palette.accentSoft : 'transparent',
                             color: currentView === 'firewall' || navHover === 'firewall' ? palette.accent : palette.text,
                             border: currentView === 'firewall' || navHover === 'firewall' ? `1px solid ${palette.accent}` : '1px solid transparent',
                             borderRadius: '10px',
@@ -295,9 +273,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                             width: '100%',
                             padding: '12px 15px',
                             marginBottom: '10px',
-                            backgroundColor: currentView === 'profiles' || navHover === 'profiles'
-                                ? (theme === 'light' ? palette.accentSoft : (currentView === 'profiles' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                : 'transparent',
+                            backgroundColor: currentView === 'profiles' || navHover === 'profiles' ? palette.accentSoft : 'transparent',
                             color: currentView === 'profiles' || navHover === 'profiles' ? palette.accent : palette.text,
                             border: currentView === 'profiles' || navHover === 'profiles' ? `1px solid ${palette.accent}` : '1px solid transparent',
                             borderRadius: '10px',
@@ -311,86 +287,18 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                         Security Profiles
                     </button>
 
-                    {/* Activity Log and Notification - Only for non-admin users */}
-                    {user.role !== 'admin' && (
-                        <SidebarButton 
-                            label="Activity Log and Notification" 
-                            view="activity-log-notification" 
-                            currentView={currentView} 
-                            setCurrentView={setCurrentView} 
-                            theme={theme} 
-                            palette={palette} 
-                        />
-                    )}
-
                     <nav className="flex-1 space-y-2 text-sm">
                         {/* HIERARCHY */}
                         <SidebarButton label="Subscription" view="subscription" currentView={currentView} setCurrentView={setCurrentView} theme={theme} palette={palette} />
 
                         {user.accountType === "leader" && (
-                            <>
-                                <SidebarButton label="My Groups" view="groups" currentView={currentView} setCurrentView={setCurrentView} theme={theme} palette={palette} />
-                                <SidebarButton label="Member Security" view="member-security" currentView={currentView} setCurrentView={setCurrentView} theme={theme} palette={palette} />
-                            </>
+                            <SidebarButton label="My Groups" view="groups" currentView={currentView} setCurrentView={setCurrentView} theme={theme} palette={palette} />
                         )}
 
                         <SidebarButton label="Invitations" view="invitations" currentView={currentView} setCurrentView={setCurrentView} theme={theme} palette={palette} />
+                        <SidebarButton label="My Memberships" view="memberships" currentView={currentView} setCurrentView={setCurrentView} theme={theme} palette={palette} />
                     </nav>
 
-                    {/* Leader Section */}
-                    {user.accountType === 'leader' && (
-                        <>
-                            <button
-                                onMouseEnter={() => setNavHover('groups-leader')}
-                                onMouseLeave={() => setNavHover(null)}
-                                onClick={() => setCurrentView('groups')}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px 15px',
-                                    marginBottom: '10px',
-                                    backgroundColor: currentView === 'groups' || navHover === 'groups-leader'
-                                        ? (theme === 'light' ? palette.accentSoft : (currentView === 'groups' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                        : 'transparent',
-                                    color: currentView === 'groups' || navHover === 'groups-leader' ? palette.accent : palette.text,
-                                    border: currentView === 'groups' || navHover === 'groups-leader' ? `1px solid ${palette.accent}` : '1px solid transparent',
-                                    borderRadius: '10px',
-                                    textAlign: 'left',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    transition: 'all 0.15s ease',
-                                    boxShadow: navHover === 'groups-leader' ? '0 6px 14px rgba(0,0,0,0.08)' : 'none'
-                                }}
-                            >
-                                My Groups
-                            </button>
-                            <SidebarButton label="Member Security" view="member-security" currentView={currentView} setCurrentView={setCurrentView} theme={theme} palette={palette} />
-                            <button
-                                onMouseEnter={() => setNavHover('impersonation')}
-                                onMouseLeave={() => setNavHover(null)}
-                                onClick={() => setCurrentView('impersonation')}
-                                style={{
-                                    width: '100%',
-                                    padding: '12px 15px',
-                                    marginBottom: '10px',
-                                    backgroundColor: currentView === 'impersonation' || navHover === 'impersonation'
-                                        ? (theme === 'light' ? palette.accentSoft : (currentView === 'impersonation' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                        : 'transparent',
-                                    color: currentView === 'impersonation' || navHover === 'impersonation' ? palette.accent : palette.text,
-                                    border: currentView === 'impersonation' || navHover === 'impersonation' ? `1px solid ${palette.accent}` : '1px solid transparent',
-                                    borderRadius: '10px',
-                                    textAlign: 'left',
-                                    cursor: 'pointer',
-                                    fontSize: '14px',
-                                    transition: 'all 0.15s ease',
-                                    boxShadow: navHover === 'impersonation' ? '0 6px 14px rgba(0,0,0,0.08)' : 'none'
-                                }}
-                            >
-                                Member Impersonation
-                            </button>
-                        </>
-                    )}
-
-                    {/* Admin Section */}
                     {user.role === 'admin' && (
                         <>
                             <button
@@ -401,9 +309,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                     width: '100%',
                                     padding: '12px 15px',
                                     marginBottom: '10px',
-                                    backgroundColor: currentView === 'users' || navHover === 'users'
-                                        ? (theme === 'light' ? palette.accentSoft : (currentView === 'users' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                        : 'transparent',
+                                    backgroundColor: currentView === 'users' || navHover === 'users' ? palette.accentSoft : 'transparent',
                                     color: currentView === 'users' || navHover === 'users' ? palette.accent : palette.text,
                                     border: currentView === 'users' || navHover === 'users' ? `1px solid ${palette.accent}` : '1px solid transparent',
                                     borderRadius: '10px',
@@ -424,9 +330,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                     width: '100%',
                                     padding: '12px 15px',
                                     marginBottom: '10px',
-                                    backgroundColor: currentView === 'scan' || navHover === 'scan'
-                                        ? (theme === 'light' ? palette.accentSoft : (currentView === 'scan' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                        : 'transparent',
+                                    backgroundColor: currentView === 'scan' || navHover === 'scan' ? palette.accentSoft : 'transparent',
                                     color: currentView === 'scan' || navHover === 'scan' ? palette.accent : palette.text,
                                     border: currentView === 'scan' || navHover === 'scan' ? `1px solid ${palette.accent}` : '1px solid transparent',
                                     borderRadius: '10px',
@@ -447,9 +351,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                     width: '100%',
                                     padding: '12px 15px',
                                     marginBottom: '10px',
-                                    backgroundColor: currentView === 'audit' || navHover === 'audit'
-                                        ? (theme === 'light' ? palette.accentSoft : (currentView === 'audit' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                        : 'transparent',
+                                    backgroundColor: currentView === 'audit' || navHover === 'audit' ? palette.accentSoft : 'transparent',
                                     color: currentView === 'audit' || navHover === 'audit' ? palette.accent : palette.text,
                                     border: currentView === 'audit' || navHover === 'audit' ? `1px solid ${palette.accent}` : '1px solid transparent',
                                     borderRadius: '10px',
@@ -463,6 +365,27 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                 Audit Trail
                             </button>
                             <button
+                                onMouseEnter={() => setNavHover('system-health')}
+                                onMouseLeave={() => setNavHover(null)}
+                                onClick={() => setCurrentView('system-health')}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 15px',
+                                    marginBottom: '10px',
+                                    backgroundColor: currentView === 'system-health' || navHover === 'system-health' ? palette.accentSoft : 'transparent',
+                                    color: currentView === 'system-health' || navHover === 'system-health' ? palette.accent : palette.text,
+                                    border: currentView === 'system-health' || navHover === 'system-health' ? `1px solid ${palette.accent}` : '1px solid transparent',
+                                    borderRadius: '10px',
+                                    textAlign: 'left',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: navHover === 'system-health' ? '0 6px 14px rgba(0,0,0,0.08)' : 'none'
+                                }}
+                            >
+                                System Health
+                            </button>
+                            <button
                                 onMouseEnter={() => setNavHover('devices')}
                                 onMouseLeave={() => setNavHover(null)}
                                 onClick={() => setCurrentView('devices')}
@@ -470,9 +393,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                     width: '100%',
                                     padding: '12px 15px',
                                     marginBottom: '10px',
-                                    backgroundColor: currentView === 'devices' || navHover === 'devices'
-                                        ? (theme === 'light' ? palette.accentSoft : (currentView === 'devices' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                        : 'transparent',
+                                    backgroundColor: currentView === 'devices' || navHover === 'devices' ? palette.accentSoft : 'transparent',
                                     color: currentView === 'devices' || navHover === 'devices' ? palette.accent : palette.text,
                                     border: currentView === 'devices' || navHover === 'devices' ? `1px solid ${palette.accent}` : '1px solid transparent',
                                     borderRadius: '10px',
@@ -486,6 +407,27 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                 Device Inventory
                             </button>
                             <button
+                                onMouseEnter={() => setNavHover('mfa')}
+                                onMouseLeave={() => setNavHover(null)}
+                                onClick={() => setCurrentView('mfa')}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 15px',
+                                    marginBottom: '10px',
+                                    backgroundColor: currentView === 'mfa' || navHover === 'mfa' ? palette.accentSoft : 'transparent',
+                                    color: currentView === 'mfa' || navHover === 'mfa' ? palette.accent : palette.text,
+                                    border: currentView === 'mfa' || navHover === 'mfa' ? `1px solid ${palette.accent}` : '1px solid transparent',
+                                    borderRadius: '10px',
+                                    textAlign: 'left',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: navHover === 'mfa' ? '0 6px 14px rgba(0,0,0,0.08)' : 'none'
+                                }}
+                            >
+                                MFA Settings
+                            </button>
+                            <button
                                 onMouseEnter={() => setNavHover('login-history')}
                                 onMouseLeave={() => setNavHover(null)}
                                 onClick={() => setCurrentView('login-history')}
@@ -493,9 +435,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                     width: '100%',
                                     padding: '12px 15px',
                                     marginBottom: '10px',
-                                    backgroundColor: currentView === 'login-history' || navHover === 'login-history'
-                                        ? (theme === 'light' ? palette.accentSoft : (currentView === 'login-history' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                        : 'transparent',
+                                    backgroundColor: currentView === 'login-history' || navHover === 'login-history' ? palette.accentSoft : 'transparent',
                                     color: currentView === 'login-history' || navHover === 'login-history' ? palette.accent : palette.text,
                                     border: currentView === 'login-history' || navHover === 'login-history' ? `1px solid ${palette.accent}` : '1px solid transparent',
                                     borderRadius: '10px',
@@ -509,6 +449,48 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                 Login History
                             </button>
                             <button
+                                onMouseEnter={() => setNavHover('feature-toggles')}
+                                onMouseLeave={() => setNavHover(null)}
+                                onClick={() => setCurrentView('feature-toggles')}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 15px',
+                                    marginBottom: '10px',
+                                    backgroundColor: currentView === 'feature-toggles' || navHover === 'feature-toggles' ? palette.accentSoft : 'transparent',
+                                    color: currentView === 'feature-toggles' || navHover === 'feature-toggles' ? palette.accent : palette.text,
+                                    border: currentView === 'feature-toggles' || navHover === 'feature-toggles' ? `1px solid ${palette.accent}` : '1px solid transparent',
+                                    borderRadius: '10px',
+                                    textAlign: 'left',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: navHover === 'feature-toggles' ? '0 6px 14px rgba(0,0,0,0.08)' : 'none'
+                                }}
+                            >
+                                Feature Toggles
+                            </button>
+                            <button
+                                onMouseEnter={() => setNavHover('role-templates')}
+                                onMouseLeave={() => setNavHover(null)}
+                                onClick={() => setCurrentView('role-templates')}
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 15px',
+                                    marginBottom: '10px',
+                                    backgroundColor: currentView === 'role-templates' || navHover === 'role-templates' ? palette.accentSoft : 'transparent',
+                                    color: currentView === 'role-templates' || navHover === 'role-templates' ? palette.accent : palette.text,
+                                    border: currentView === 'role-templates' || navHover === 'role-templates' ? `1px solid ${palette.accent}` : '1px solid transparent',
+                                    borderRadius: '10px',
+                                    textAlign: 'left',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    transition: 'all 0.15s ease',
+                                    boxShadow: navHover === 'role-templates' ? '0 6px 14px rgba(0,0,0,0.08)' : 'none'
+                                }}
+                            >
+                                Role Templates
+                            </button>
+                            <button
                                 onMouseEnter={() => setNavHover('impersonation')}
                                 onMouseLeave={() => setNavHover(null)}
                                 onClick={() => setCurrentView('impersonation')}
@@ -516,9 +498,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                     width: '100%',
                                     padding: '12px 15px',
                                     marginBottom: '10px',
-                                    backgroundColor: currentView === 'impersonation' || navHover === 'impersonation'
-                                        ? (theme === 'light' ? palette.accentSoft : (currentView === 'impersonation' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                        : 'transparent',
+                                    backgroundColor: currentView === 'impersonation' || navHover === 'impersonation' ? palette.accentSoft : 'transparent',
                                     color: currentView === 'impersonation' || navHover === 'impersonation' ? palette.accent : palette.text,
                                     border: currentView === 'impersonation' || navHover === 'impersonation' ? `1px solid ${palette.accent}` : '1px solid transparent',
                                     borderRadius: '10px',
@@ -539,9 +519,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                     width: '100%',
                                     padding: '12px 15px',
                                     marginBottom: '10px',
-                                    backgroundColor: currentView === 'admin-notifications' || navHover === 'admin-notifications'
-                                        ? (theme === 'light' ? palette.accentSoft : (currentView === 'admin-notifications' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                        : 'transparent',
+                                    backgroundColor: currentView === 'admin-notifications' || navHover === 'admin-notifications' ? palette.accentSoft : 'transparent',
                                     color: currentView === 'admin-notifications' || navHover === 'admin-notifications' ? palette.accent : palette.text,
                                     border: currentView === 'admin-notifications' || navHover === 'admin-notifications' ? `1px solid ${palette.accent}` : '1px solid transparent',
                                     borderRadius: '10px',
@@ -562,9 +540,7 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                                     width: '100%',
                                     padding: '12px 15px',
                                     marginBottom: '10px',
-                                    backgroundColor: currentView === 'threat-blocker' || navHover === 'threat-blocker'
-                                        ? (theme === 'light' ? palette.accentSoft : (currentView === 'threat-blocker' ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                        : 'transparent',
+                                    backgroundColor: currentView === 'threat-blocker' || navHover === 'threat-blocker' ? palette.accentSoft : 'transparent',
                                     color: currentView === 'threat-blocker' || navHover === 'threat-blocker' ? palette.accent : palette.text,
                                     border: currentView === 'threat-blocker' || navHover === 'threat-blocker' ? `1px solid ${palette.accent}` : '1px solid transparent',
                                     borderRadius: '10px',
@@ -580,156 +556,6 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                         </>
                     )}
                 </nav>
-                
-                {/* Extras Dropdown - Only for admin users */}
-                {user?.role === 'admin' && (
-                    <div style={{ marginTop: '20px', marginBottom: '10px' }}>
-                        <button
-                            onClick={() => setExtrasDropdownOpen(!extrasDropdownOpen)}
-                            onMouseEnter={() => setNavHover('extras')}
-                            onMouseLeave={() => setNavHover(null)}
-                            style={{
-                                width: '100%',
-                                padding: '12px 15px',
-                                marginBottom: '10px',
-                                backgroundColor: extrasDropdownOpen || navHover === 'extras'
-                                    ? (theme === 'light' ? palette.accentSoft : (extrasDropdownOpen ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
-                                    : 'transparent',
-                                color: extrasDropdownOpen || navHover === 'extras' ? palette.accent : palette.text,
-                                border: extrasDropdownOpen || navHover === 'extras' ? `1px solid ${palette.accent}` : '1px solid transparent',
-                                borderRadius: '10px',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                fontWeight: extrasDropdownOpen ? 600 : 500,
-                                transition: 'all 0.15s ease',
-                                boxShadow: navHover === 'extras' ? '0 6px 14px rgba(0,0,0,0.08)' : 'none',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between'
-                            }}
-                        >
-                            <span>Extras</span>
-                            <span style={{
-                                transform: extrasDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                                transition: 'transform 0.2s ease',
-                                fontSize: '12px'
-                            }}>▼</span>
-                        </button>
-                        
-                        {extrasDropdownOpen && (
-                            <div style={{
-                                marginLeft: '15px',
-                                marginTop: '5px',
-                                marginBottom: '10px',
-                                paddingLeft: '10px',
-                                borderLeft: `2px solid ${palette.border}`
-                            }}>
-                                <button
-                                    onClick={() => {
-                                        setCurrentView('feature-toggles');
-                                        setExtrasDropdownOpen(false);
-                                    }}
-                                    onMouseEnter={() => setNavHover('feature-toggles')}
-                                    onMouseLeave={() => setNavHover(null)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px 12px',
-                                        marginBottom: '8px',
-                                        backgroundColor: currentView === 'feature-toggles' || navHover === 'feature-toggles'
-                                            ? (theme === 'light' ? palette.accentSoft : 'rgba(255, 255, 255, 0.1)')
-                                            : 'transparent',
-                                        color: currentView === 'feature-toggles' || navHover === 'feature-toggles' ? palette.accent : palette.text,
-                                        border: currentView === 'feature-toggles' || navHover === 'feature-toggles' ? `1px solid ${palette.accent}` : '1px solid transparent',
-                                        borderRadius: '8px',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontSize: '13px',
-                                        transition: 'all 0.15s ease'
-                                    }}
-                                >
-                                    Feature Toggles
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setCurrentView('role-templates');
-                                        setExtrasDropdownOpen(false);
-                                    }}
-                                    onMouseEnter={() => setNavHover('role-templates')}
-                                    onMouseLeave={() => setNavHover(null)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px 12px',
-                                        marginBottom: '8px',
-                                        backgroundColor: currentView === 'role-templates' || navHover === 'role-templates'
-                                            ? (theme === 'light' ? palette.accentSoft : 'rgba(255, 255, 255, 0.1)')
-                                            : 'transparent',
-                                        color: currentView === 'role-templates' || navHover === 'role-templates' ? palette.accent : palette.text,
-                                        border: currentView === 'role-templates' || navHover === 'role-templates' ? `1px solid ${palette.accent}` : '1px solid transparent',
-                                        borderRadius: '8px',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontSize: '13px',
-                                        transition: 'all 0.15s ease'
-                                    }}
-                                >
-                                    Role Templates
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setCurrentView('mfa');
-                                        setExtrasDropdownOpen(false);
-                                    }}
-                                    onMouseEnter={() => setNavHover('mfa')}
-                                    onMouseLeave={() => setNavHover(null)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px 12px',
-                                        marginBottom: '8px',
-                                        backgroundColor: currentView === 'mfa' || navHover === 'mfa'
-                                            ? (theme === 'light' ? palette.accentSoft : 'rgba(255, 255, 255, 0.1)')
-                                            : 'transparent',
-                                        color: currentView === 'mfa' || navHover === 'mfa' ? palette.accent : palette.text,
-                                        border: currentView === 'mfa' || navHover === 'mfa' ? `1px solid ${palette.accent}` : '1px solid transparent',
-                                        borderRadius: '8px',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontSize: '13px',
-                                        transition: 'all 0.15s ease'
-                                    }}
-                                >
-                                    Multi-Factor Authentication
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setCurrentView('system-health');
-                                        setExtrasDropdownOpen(false);
-                                    }}
-                                    onMouseEnter={() => setNavHover('system-health')}
-                                    onMouseLeave={() => setNavHover(null)}
-                                    style={{
-                                        width: '100%',
-                                        padding: '10px 12px',
-                                        marginBottom: '8px',
-                                        backgroundColor: currentView === 'system-health' || navHover === 'system-health'
-                                            ? (theme === 'light' ? palette.accentSoft : 'rgba(255, 255, 255, 0.1)')
-                                            : 'transparent',
-                                        color: currentView === 'system-health' || navHover === 'system-health' ? palette.accent : palette.text,
-                                        border: currentView === 'system-health' || navHover === 'system-health' ? `1px solid ${palette.accent}` : '1px solid transparent',
-                                        borderRadius: '8px',
-                                        textAlign: 'left',
-                                        cursor: 'pointer',
-                                        fontSize: '13px',
-                                        transition: 'all 0.15s ease'
-                                    }}
-                                >
-                                    System Health
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                )}
-                
                 <button
                     onClick={handleLogout}
                     onMouseEnter={() => setLogoutHover(true)}

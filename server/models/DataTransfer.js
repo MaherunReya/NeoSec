@@ -50,8 +50,7 @@ const DataTransfer = sequelize.define('DataTransfer', {
   }
 }, {
   tableName: 'data_transfers',
-  timestamps: true,
-  underscored: false // Disable underscored since database uses camelCase columns
+  timestamps: true
 });
 
 // Associations
