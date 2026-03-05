@@ -161,16 +161,10 @@ User.hasOne(MFASettings, {
     as: 'mfaSettings'
 });
 
-// User <-> ImpersonationSession (Admin relationship)
+// User <-> ImpersonationSession
 User.hasMany(ImpersonationSession, {
     foreignKey: 'adminUserId',
     as: 'impersonationSessions'
-});
-
-// User <-> ImpersonationSession (Target relationship)
-User.hasMany(ImpersonationSession, {
-    foreignKey: 'targetUserId',
-    as: 'targetImpersonationSessions'
 });
 
 // User <-> ActivityLog

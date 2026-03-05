@@ -145,68 +145,27 @@ const login = async (req, res) => {
     // Test database connection first
     const { sequelize } = require('../config/db');
     try {
-      // Test connection with a simple query
       await sequelize.authenticate();
-      
-      // Verify the users table exists and is accessible
-      const [results] = await sequelize.query(`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'users'
-        );
-      `);
-      
-      if (!results || !results[0] || !results[0].exists) {
-        throw new Error('Users table does not exist in database');
-      }
     } catch (connError) {
       console.error('Database connection error in login:', connError.message);
-      console.error('Connection error stack:', connError.stack);
       return res.status(503).json({
         success: false,
-        message: 'Database connection unavailable. Please try again later.',
-        error: process.env.NODE_ENV === 'development' ? connError.message : undefined
+        message: 'Database connection unavailable. Please try again later.'
       });
     }
 
     // Find user by email
     let user;
     try {
-      // Ensure database connection is ready
-      const { sequelize } = require('../config/db');
-      if (!sequelize) {
-        throw new Error('Database connection not available');
-      }
-      
-      // Test connection before query
-      await sequelize.authenticate();
-      
-      // Query user by email (Sequelize handles column name conversion automatically)
-      user = await User.findOne({ 
-        where: { email: email.toLowerCase().trim() },
-        raw: false // Ensure we get a model instance, not plain object
-      });
+      user = await User.findOne({ where: { email } });
     } catch (dbError) {
       console.error('Database error finding user:', dbError);
       console.error('Database error details:', dbError.message);
       console.error('Database error stack:', dbError.stack);
-      console.error('Database error name:', dbError.name);
-      
-      // Provide more helpful error messages
-      let errorMessage = 'Database error. Please try again later.';
-      if (process.env.NODE_ENV === 'development') {
-        errorMessage = `Database error: ${dbError.message}`;
-      }
-      
       return res.status(500).json({
         success: false,
-        message: errorMessage,
-        error: process.env.NODE_ENV === 'development' ? {
-          message: dbError.message,
-          name: dbError.name,
-          stack: dbError.stack
-        } : undefined
+        message: 'Database error. Please try again later.',
+        error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
       });
     }
 
@@ -340,14 +299,6 @@ const login = async (req, res) => {
       // Don't fail login if logging fails
     }
 
-    // Update last login timestamp
-    try {
-      user.lastLogin = new Date();
-      await user.save();
-    } catch (lastLoginError) {
-      console.error('Error updating last login timestamp:', lastLoginError);
-    }
-
     // IMPORTANT: return FULL user state
     res.status(200).json({
       success: true,
@@ -414,92 +365,10 @@ const getMe = async (req, res) => {
   }
 };
 
-// @desc    Update user profile
-// @route   PUT /api/auth/profile
-// @access  Private
-const updateProfile = async (req, res) => {
-  try {
-    const { name, phone, currentPassword, newPassword } = req.body;
-    const userId = req.user.id;
-
-    // Find user
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    // If changing password, verify current password
-    if (newPassword) {
-      if (!currentPassword) {
-        return res.status(400).json({
-          success: false,
-          message: 'Current password is required to change password'
-        });
-      }
-
-      const isCurrentPasswordValid = await user.comparePassword(currentPassword);
-      if (!isCurrentPasswordValid) {
-        return res.status(400).json({
-          success: false,
-          message: 'Current password is incorrect'
-        });
-      }
-
-      // Validate new password length
-      if (newPassword.length < 6) {
-        return res.status(400).json({
-          success: false,
-          message: 'New password must be at least 6 characters long'
-        });
-      }
-    }
-
-    // Update user fields
-    const updateData = {};
-    if (name !== undefined) updateData.name = name;
-    if (phone !== undefined) updateData.phone = phone;
-    if (newPassword) updateData.password = newPassword;
-
-    // Update user
-    await user.update(updateData);
-
-    // Fetch updated user data (without password)
-    const updatedUser = await User.findByPk(userId, {
-      attributes: [
-        'id',
-        'email',
-        'role',
-        'accountType',
-        'subscriptionTier',
-        'isPaid',
-        'isApproved',
-        'createdAt'
-      ]
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Profile updated successfully',
-      user: updatedUser
-    });
-  } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error updating profile',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
 module.exports = {
   register,
   login,
-  getMe,
-  updateProfile
+  getMe
 };
 
 

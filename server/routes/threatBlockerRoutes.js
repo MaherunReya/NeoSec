@@ -6,8 +6,7 @@ const {
   forceUpdate,
   getStats,
   updateSettings,
-  exportBlocklist,
-  testThreatBlocker
+  exportBlocklist
 } = require('../controllers/threatBlockerController');
 const { protect } = require('../middleware/auth');
 
@@ -21,7 +20,6 @@ router.post('/force-update', forceUpdate);
 router.get('/stats', getStats);
 router.put('/settings', updateSettings);
 router.get('/export', exportBlocklist);
-router.post('/test', testThreatBlocker); // Test endpoint to simulate a blocked threat
 
 module.exports = router;
 

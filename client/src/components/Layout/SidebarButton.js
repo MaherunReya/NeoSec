@@ -16,9 +16,9 @@ function SidebarButton({ label, view, currentView, setCurrentView, theme = 'dark
                 backgroundColor: active || hover
                     ? (theme === 'light' ? palette.accentSoft : (active ? '#1E402C' : 'rgba(255, 255, 255, 0.1)'))
                     : 'transparent',
-                color: active || hover
+                color: active
                     ? palette.accent
-                    : palette.text,
+                    : (theme === 'light' ? palette.text : '#ffffff'),
                 border: active || hover
                     ? `1px solid ${palette.accent}`
                     : '1px solid transparent',

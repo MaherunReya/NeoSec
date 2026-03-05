@@ -58,8 +58,7 @@ const ProfileLog = sequelize.define('ProfileLog', {
 }, {
   tableName: 'profile_logs',
   timestamps: true,
-  updatedAt: false,
-  underscored: false // Use camelCase columns to align with existing schema
+  updatedAt: false
 });
 
 module.exports = ProfileLog;

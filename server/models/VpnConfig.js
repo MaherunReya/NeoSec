@@ -35,25 +35,13 @@ const VpnConfig = sequelize.define('VpnConfig', {
         type: DataTypes.TEXT,
         allowNull: true
     },
-    serverAddress: {
-        type: DataTypes.STRING,
-        allowNull: true, // Make it nullable to avoid constraint errors
-        comment: 'VPN server address extracted from config file'
-    },
-    port: {
-        type: DataTypes.INTEGER,
-        allowNull: true, // Make it nullable to avoid constraint errors
-        comment: 'VPN server port extracted from config file'
-    },
     isActive: {
         type: DataTypes.BOOLEAN,
-        defaultValue: false,
-        // camelCase column in DB
+        defaultValue: false
     },
     userId: {
         type: DataTypes.UUID,
         allowNull: false,
-        // Note: Database has 'userId' (camelCase), so no field mapping needed
         references: {
             model: 'users',
             key: 'id'
@@ -61,8 +49,7 @@ const VpnConfig = sequelize.define('VpnConfig', {
     }
 }, {
     timestamps: true,
-    tableName: 'vpn_configs',
-    underscored: false // Disable underscored since database uses camelCase columns
+    tableName: 'vpn_configs'
 });
 
 // Define association
