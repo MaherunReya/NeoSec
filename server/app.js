@@ -1,6 +1,9 @@
+const http = require('http');
+const { Server } = require('socket.io');
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const { registerDesktopHandlers } = require('./sockets/desktopHandler');
 
 // IMPORTANT: Load models BEFORE connecting to database
 const User = require('./models/User');
@@ -217,11 +220,28 @@ if (!process.env.DATABASE_URL) {
     console.error('Please set DATABASE_URL in your environment variables.');
 }
 
-app.listen(PORT, () => {
+// Create HTTP server and attach Socket.IO
+const httpServer = http.createServer(app);
+
+const io = new Server(httpServer, {
+    cors: {
+        origin: allowedOrigins,
+        methods: ['GET', 'POST'],
+        credentials: true,
+    },
+    // Allow both websocket and polling transports for maximum compatibility
+    transports: ['websocket', 'polling'],
+});
+
+// Register desktop client socket handlers
+registerDesktopHandlers(io);
+
+httpServer.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`JWT_SECRET: ${process.env.JWT_SECRET ? 'Set' : 'NOT SET - THIS WILL CAUSE ERRORS!'}`);
     console.log(`DATABASE_URL: ${process.env.DATABASE_URL ? 'Set' : 'NOT SET - THIS WILL CAUSE ERRORS!'}`);
+    console.log(`Socket.IO: Enabled on /desktop namespace`);
 });
 
 

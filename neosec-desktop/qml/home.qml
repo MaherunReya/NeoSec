@@ -18,6 +18,9 @@ Page {
     property string username: " "
     property string currentSelection: "dashboardBtn"
 
+    // Profile data pushed from socket (may be null if not yet received)
+    property var userProfile: null
+
     Rectangle {
         id: bg
         color: background_dark
@@ -82,6 +85,7 @@ Page {
             spacing: 2
             width: parent.width - 20
             anchors.horizontalCenter: parent.horizontalCenter
+
             Button {
                 id: dashboardBtn
                 height: 50
@@ -92,15 +96,12 @@ Page {
                         contentStack.push(dashboardView, StackView.Immediate)
                     }
                 }
-                HoverHandler {
-                    cursorShape: parent.hovered ? Qt.PointingHandCursor : Qt.ArrowCursor
-                }
+                HoverHandler { cursorShape: parent.hovered ? Qt.PointingHandCursor : Qt.ArrowCursor }
                 contentItem: Row {
                     spacing: 10
                     anchors.left: parent.left
                     anchors.leftMargin: 20
                     Image {
-                        id: dashboardLogo
                         height: parent.height
                         source: "images/profile.svg"
                         fillMode: Image.PreserveAspectFit
@@ -108,7 +109,6 @@ Page {
                         sourceSize.height: height
                     }
                     Text {
-                        id: dashboardBtnLabel
                         text: "Dashboard"
                         anchors.verticalCenter: parent.verticalCenter
                         font.weight: Font.Medium
@@ -121,6 +121,7 @@ Page {
                     radius: 5
                 }
             }
+
             Button {
                 id: vpnBtn
                 height: 50
@@ -131,15 +132,12 @@ Page {
                         contentStack.push(vpnView, StackView.Immediate)
                     }
                 }
-                HoverHandler {
-                    cursorShape: parent.hovered ? Qt.PointingHandCursor : Qt.ArrowCursor
-                }
+                HoverHandler { cursorShape: parent.hovered ? Qt.PointingHandCursor : Qt.ArrowCursor }
                 contentItem: Row {
                     spacing: 10
                     anchors.left: parent.left
                     anchors.leftMargin: 20
                     Image {
-                        id: vpnLogo
                         height: parent.height
                         source: "images/vpn.svg"
                         fillMode: Image.PreserveAspectFit
@@ -147,7 +145,6 @@ Page {
                         sourceSize.height: height
                     }
                     Text {
-                        id: vpnBtnLabel
                         text: "VPN"
                         anchors.verticalCenter: parent.verticalCenter
                         font.weight: Font.Medium
@@ -160,6 +157,7 @@ Page {
                     radius: 5
                 }
             }
+
             Button {
                 id: firewallBtn
                 height: 50
@@ -170,15 +168,12 @@ Page {
                         contentStack.push(firewallView, StackView.Immediate)
                     }
                 }
-                HoverHandler {
-                    cursorShape: parent.hovered ? Qt.PointingHandCursor : Qt.ArrowCursor
-                }
+                HoverHandler { cursorShape: parent.hovered ? Qt.PointingHandCursor : Qt.ArrowCursor }
                 contentItem: Row {
                     spacing: 10
                     anchors.left: parent.left
                     anchors.leftMargin: 20
                     Image {
-                        id: firewallLogo
                         height: parent.height
                         source: "images/firewall.svg"
                         fillMode: Image.PreserveAspectFit
@@ -186,7 +181,6 @@ Page {
                         sourceSize.height: height
                     }
                     Text {
-                        id: firewallBtnLabel
                         text: "Firewall"
                         anchors.verticalCenter: parent.verticalCenter
                         font.weight: Font.Medium
@@ -196,7 +190,6 @@ Page {
                 }
                 background: Rectangle {
                     color: page.currentSelection === "firewallBtn" ? input_background_dark : (parent.hovered ? background_dark : form_background_dark)
-
                     radius: 5
                 }
             }
@@ -211,24 +204,16 @@ Page {
             anchors.bottomMargin: 30
             onClicked: backend.handleLogout()
             contentItem: Text {
-                id: logoutBtnLabel
                 text: "Logout"
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 font.pointSize: 12
                 font.weight: Font.DemiBold
-                anchors.centerIn: parent
                 color: text_light
             }
-            background: Rectangle {
-                color: error_red
-                radius: 5
-            }
-            HoverHandler {
-                cursorShape: parent.hovered ? Qt.PointingHandCursor : Qt.ArrowCursor
-            }
+            background: Rectangle { color: error_red; radius: 5 }
+            HoverHandler { cursorShape: parent.hovered ? Qt.PointingHandCursor : Qt.ArrowCursor }
         }
-
     }
 
     StackView {
@@ -241,18 +226,30 @@ Page {
         initialItem: dashboardView
 
         Component {
-                id: dashboardView
-                Loader { source: "dashboard.qml" }
+            id: dashboardView
+            Loader {
+                property var userProfile: page.userProfile
+                source: "dashboard.qml"
+                onLoaded: { if (item) item.userProfile = userProfile }
             }
+        }
 
-            Component {
-                id: vpnView
-                Loader { source: "vpn.qml" }
+        Component {
+            id: vpnView
+            Loader {
+                property var userProfile: page.userProfile
+                source: "vpn.qml"
+                onLoaded: { if (item) item.userProfile = userProfile }
             }
+        }
 
-            Component {
-                id: firewallView
-                Loader { source: "firewall.qml" }
+        Component {
+            id: firewallView
+            Loader {
+                property var userProfile: page.userProfile
+                source: "firewall.qml"
+                onLoaded: { if (item) item.userProfile = userProfile }
             }
+        }
     }
 }
