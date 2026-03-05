@@ -6,22 +6,16 @@ import os
 import requests
 import pathlib
 import json
-try:
-    from socketio import Client as SocketIOClient
-except (ImportError, AttributeError):
-    raise ImportError(
-        "python-socketio[client] is not installed or the wrong 'socketio' package is active.\n"
-        "Run: pip install 'python-socketio[client]'\n"
-        "If an old 'socketio' package is installed, uninstall it first: pip uninstall socketio"
-    )
 
 # ── URLs ──────────────────────────────────────────────────────────────────────
-# Uses NEOSEC_SERVER env var if set (useful for local dev), otherwise production.
+# Set NEOSEC_SERVER env var to point at a local dev server, e.g. http://localhost:5000
 _base = os.environ.get("NEOSEC_SERVER", "http://localhost:5000")
 signup_url        = "https://neosec-mauve.vercel.app/"
 auth_url          = f"{_base}/api/auth/login"
 verification_url  = f"{_base}/api/auth/verify"
-socket_server_url = _base
+profiles_url      = f"{_base}/api/profiles"
+vpn_url           = f"{_base}/api/vpn"
+firewall_url      = f"{_base}/api/firewall"
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 base_dir = pathlib.Path(__file__).resolve().parent
@@ -29,6 +23,10 @@ main_qml = base_dir / "qml" / "main.qml"
 data_dir = pathlib.Path.home() / ".local" / "share" / "neosec"
 data_dir.mkdir(parents=True, exist_ok=True)
 auth_file = data_dir / "auth.json"
+
+
+def _auth_headers(token):
+    return {"Authorization": f"Bearer {token}"}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -65,7 +63,7 @@ class AuthWorker(QRunnable):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# AuthFileWorker  –  verifies saved token on startup (REST), then connects socket
+# AuthFileWorker  –  verifies saved token on startup (REST), then fetches profile
 # ─────────────────────────────────────────────────────────────────────────────
 class AuthFileWorker(QRunnable):
     def __init__(self, backend_signals, parent=None):
@@ -80,16 +78,16 @@ class AuthFileWorker(QRunnable):
                 if token:
                     response = requests.get(
                         verification_url,
-                        headers={"Authorization": f"Bearer {token}"},
+                        headers=_auth_headers(token),
                         timeout=10,
                     ).json()
                     if response.get("success"):
                         username = f"{response.get('email')} ({response.get('role')})"
                         self.signals.loginSuccess.emit(username)
-                        # ── Connect socket after successful REST verification ──
-                        worker = SocketWorker(token, self.signals)
+                        # Fetch profile data in a separate worker
+                        worker = ProfileFetchWorker(token, self.signals)
                         self.signals._thread_pool.start(worker)
-                        # authenticationFinished will be emitted by SocketWorker
+                        # authenticationFinished is emitted by ProfileFetchWorker
                         return
                     else:
                         self.signals.loginFailed.emit("Authentication token expired")
@@ -102,80 +100,137 @@ class AuthFileWorker(QRunnable):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SocketWorker  –  connects to Socket.IO /desktop namespace, authenticates,
-#                  then emits the profile back to the Qt main thread.
+# ProfileFetchWorker  –  fetches profile + VPN configs + firewall rules via REST
+#                        then emits the data back to the Qt main thread.
+#                        No external socket library required — uses only `requests`.
 # ─────────────────────────────────────────────────────────────────────────────
-class SocketWorker(QRunnable):
+class ProfileFetchWorker(QRunnable):
     def __init__(self, token, backend_signals, parent=None):
         super().__init__(parent)
         self.token = token
         self.signals = backend_signals
 
     def run(self):
-        client = SocketIOClient(reconnection=True, reconnection_attempts=3, logger=False)
-
-        @client.event(namespace="/desktop")
-        def connect():
-            print("[socket] Connected to server /desktop namespace")
-            client.emit("authenticate", {"token": self.token}, namespace="/desktop")
-
-        @client.on("auth_success", namespace="/desktop")
-        def on_auth_success(data):
-            print(f"[socket] auth_success received for {data.get('user', {}).get('email', '?')}")
-            self.signals.profileReceived.emit(json.dumps(data))
-            self.signals.authenticationFinished.emit()
-
-        @client.on("auth_error", namespace="/desktop")
-        def on_auth_error(data):
-            msg = data.get("message", "Socket authentication failed")
-            print(f"[socket] auth_error: {msg}")
-            self.signals.socketError.emit(msg)
-            self.signals.authenticationFinished.emit()
-            try:
-                client.disconnect()
-            except Exception:
-                pass
-
-        @client.event(namespace="/desktop")
-        def disconnect():
-            print("[socket] Disconnected from server")
-
+        headers = _auth_headers(self.token)
         try:
-            client.connect(
-                socket_server_url,
-                namespaces=["/desktop"],
-                transports=["websocket", "polling"],
-                wait_timeout=15,
+            # 1. Fetch all profiles, find the active one
+            profiles_resp = requests.get(profiles_url, headers=headers, timeout=10).json()
+            profiles = profiles_resp.get("profiles", profiles_resp.get("data", []))
+            active_profile = next(
+                (p for p in profiles if p.get("isActive")), None
             )
-            # Keep the worker alive while the socket is connected; disconnect on quit.
-            self.signals._active_socket = client
-            # Block until the socket disconnects
-            client.wait()
+
+            # 2. Fetch VPN configs
+            vpn_resp = requests.get(vpn_url, headers=headers, timeout=10).json()
+            vpn_configs = vpn_resp.get("vpnConfigs", vpn_resp.get("data", []))
+
+            # 3. Fetch firewall rules
+            fw_resp = requests.get(firewall_url, headers=headers, timeout=10).json()
+            firewall_rules = fw_resp.get("rules", fw_resp.get("data", []))
+
+            # 4. Read user info from saved auth file
+            try:
+                auth_data = json.loads(auth_file.read_text())
+                user = auth_data.get("user") or {
+                    "email": auth_data.get("email", ""),
+                    "role": auth_data.get("role", "user"),
+                    "subscriptionTier": auth_data.get("subscriptionTier", "free"),
+                }
+            except Exception:
+                user = {}
+
+            payload = {
+                "user": user,
+                "profile": active_profile,
+                "vpnConfigs": vpn_configs,
+                "firewallRules": firewall_rules,
+            }
+
+            print(f"[profile] Fetched profile: {active_profile.get('name') if active_profile else 'none'}, "
+                  f"{len(vpn_configs)} VPN config(s), {len(firewall_rules)} firewall rule(s)")
+
+            self.signals.profileReceived.emit(json.dumps(payload))
+
         except Exception as e:
-            print(f"[socket] Connection error: {e}")
-            self.signals.socketError.emit(f"Could not connect to server socket: {e}")
-            self.signals.authenticationFinished.emit()
+            print(f"ProfileFetchWorker error: {e}")
+            self.signals.socketError.emit(f"Could not load profile: {e}")
+
+        self.signals.authenticationFinished.emit()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ToggleWorker  –  sends a REST update to toggle VPN or firewall in the active profile
+# ─────────────────────────────────────────────────────────────────────────────
+class ToggleWorker(QRunnable):
+    def __init__(self, token, profile_id, field, value, backend_signals, parent=None):
+        super().__init__(parent)
+        self.token = token
+        self.profile_id = profile_id
+        self.field = field
+        self.value = value
+        self.signals = backend_signals
+
+    def run(self):
+        if not self.profile_id:
+            print(f"[toggle] No active profile ID — cannot toggle {self.field}")
+            return
+        url = f"{profiles_url}/{self.profile_id}"
+        try:
+            resp = requests.put(
+                url,
+                json={self.field: self.value},
+                headers=_auth_headers(self.token),
+                timeout=10,
+            ).json()
+            if resp.get("success"):
+                print(f"[toggle] {self.field} set to {self.value} OK")
+            else:
+                print(f"[toggle] Server rejected toggle: {resp.get('message')}")
+        except Exception as e:
+            print(f"[toggle] Error: {e}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Backend  –  QObject exposed to QML
 # ─────────────────────────────────────────────────────────────────────────────
 class Backend(QObject):
-    loginSuccess          = Signal(str)       # username string
-    loginFailed           = Signal(str)       # error message
-    loginFileSaved        = Signal()
-    logout                = Signal()
+    loginSuccess           = Signal(str)   # username string
+    loginFailed            = Signal(str)   # error message
+    loginFileSaved         = Signal()
+    logout                 = Signal()
     authenticationFinished = Signal()
 
-    # New signals for socket profile data
-    profileReceived       = Signal(str)       # JSON string of full profile payload
-    socketError           = Signal(str)       # socket-level error message
+    # Profile data pushed after REST fetch
+    profileReceived        = Signal(str)   # JSON string of full profile payload
+    socketError            = Signal(str)   # error message
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._thread_pool = QThreadPool.globalInstance()
-        self._active_socket = None            # holds the connected sio.Client
+        self._thread_pool  = QThreadPool.globalInstance()
+        self._token        = None          # saved after login/verify
+        self._active_profile_id = None    # cached for toggle calls
         self.loginFileSaved.connect(self.checkSavedAuth)
+        self.profileReceived.connect(self._cache_profile_id)
+
+    @Slot(str)
+    def _cache_profile_id(self, profile_json):
+        """Cache the active profile ID so toggle calls can reference it."""
+        try:
+            data = json.loads(profile_json)
+            profile = data.get("profile")
+            self._active_profile_id = profile.get("id") if profile else None
+            print(f"[backend] Active profile ID cached: {self._active_profile_id}")
+        except Exception:
+            pass
+
+    def _get_token(self):
+        """Read token from saved auth file."""
+        try:
+            if auth_file.exists():
+                return json.loads(auth_file.read_text()).get("token")
+        except Exception:
+            pass
+        return None
 
     @Slot()
     def checkSavedAuth(self):
@@ -187,37 +242,31 @@ class Backend(QObject):
         worker = AuthWorker(user, password, self)
         self._thread_pool.start(worker)
 
-    @Slot(str)
-    def connectSocket(self, token):
-        """Called from QML after a fresh login to start the socket connection."""
-        worker = SocketWorker(token, self)
+    @Slot(bool)
+    def toggleVpn(self, enabled):
+        """PUT active profile with vpnEnabled=enabled."""
+        token = self._get_token()
+        if not token:
+            print("[toggle] No token — cannot toggle VPN")
+            return
+        worker = ToggleWorker(token, self._active_profile_id, "vpnEnabled", enabled, self)
         self._thread_pool.start(worker)
 
     @Slot(bool)
-    def toggleVpn(self, enabled):
-        """Tell the server to toggle VPN state in the active profile."""
-        if self._active_socket and self._active_socket.connected:
-            self._active_socket.emit(
-                "vpn_toggle", {"enabled": enabled}, namespace="/desktop"
-            )
-
-    @Slot(bool)
     def toggleFirewall(self, enabled):
-        """Tell the server to toggle firewall state in the active profile."""
-        if self._active_socket and self._active_socket.connected:
-            self._active_socket.emit(
-                "firewall_toggle", {"enabled": enabled}, namespace="/desktop"
-            )
+        """PUT active profile with firewallEnabled=enabled."""
+        token = self._get_token()
+        if not token:
+            print("[toggle] No token — cannot toggle Firewall")
+            return
+        worker = ToggleWorker(token, self._active_profile_id, "firewallEnabled", enabled, self)
+        self._thread_pool.start(worker)
 
     @Slot()
     def handleLogout(self):
+        self._token = None
+        self._active_profile_id = None
         auth_file.unlink(missing_ok=True)
-        if self._active_socket:
-            try:
-                self._active_socket.disconnect()
-            except Exception:
-                pass
-            self._active_socket = None
         self.logout.emit()
         self.authenticationFinished.emit()
 
