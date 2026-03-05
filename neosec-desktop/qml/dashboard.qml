@@ -171,7 +171,7 @@ Item {
             height: 70
             radius: 12
             color: card
-            visible: profile !== null
+            visible: root.userProfile !== null
 
             Row {
                 anchors.verticalCenter: parent.verticalCenter
@@ -179,14 +179,18 @@ Item {
                 anchors.leftMargin: 24
                 spacing: 12
 
-                Rectangle { width: 10; height: 10; radius: 5; color: accent; anchors.verticalCenter: parent.verticalCenter }
+                Rectangle {
+                    width: 10; height: 10; radius: 5;
+                    color: profile ? accent : offClr;
+                    anchors.verticalCenter: parent.verticalCenter
+                }
                 Text {
-                    text: "Active Profile: "
+                    text: profile ? "Active Profile: " : "Status: "
                     font.pixelSize: 13; color: textMuted
                     anchors.verticalCenter: parent.verticalCenter
                 }
                 Text {
-                    text: profile ? (profile.name + "  [" + profile.profileType + "]") : ""
+                    text: profile ? (profile.name + "  [" + profile.profileType + "]") : "No Active Profile"
                     font.pixelSize: 13; font.weight: Font.Medium; color: textLight
                     anchors.verticalCenter: parent.verticalCenter
                 }

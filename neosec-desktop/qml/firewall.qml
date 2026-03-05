@@ -166,10 +166,19 @@ Item {
             }
         }
 
+          // ── Not connected hint ─────────────────────────────────
         Text {
-            visible: root.profile === null
-            text: "Connecting to server…"
+            visible: root.userProfile === null
+            text: "Connecting to server and loading profile…"
             font.pixelSize: 12
+            color: textMuted
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
+
+        Text {
+            visible: root.userProfile !== null && root.profile === null
+            text: "No active profile selected."
+            font.pixelSize: 13
             color: textMuted
             anchors.horizontalCenter: parent.horizontalCenter
         }

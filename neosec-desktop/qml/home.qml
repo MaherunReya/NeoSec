@@ -230,6 +230,7 @@ Page {
             Loader {
                 property var userProfile: page.userProfile
                 source: "dashboard.qml"
+                onUserProfileChanged: { if (item) item.userProfile = userProfile }
                 onLoaded: { if (item) item.userProfile = userProfile }
             }
         }
@@ -239,6 +240,7 @@ Page {
             Loader {
                 property var userProfile: page.userProfile
                 source: "vpn.qml"
+                onUserProfileChanged: { if (item) item.userProfile = userProfile }
                 onLoaded: { if (item) item.userProfile = userProfile }
             }
         }
@@ -248,6 +250,7 @@ Page {
             Loader {
                 property var userProfile: page.userProfile
                 source: "firewall.qml"
+                onUserProfileChanged: { if (item) item.userProfile = userProfile }
                 onLoaded: { if (item) item.userProfile = userProfile }
             }
         }
