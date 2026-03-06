@@ -37,16 +37,6 @@ const ConfirmModal = ({ message, onConfirm, onCancel, colors }) => {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3
-          style={{
-            margin: '0 0 16px 0',
-            color: colors.text,
-            fontSize: 18,
-            fontWeight: 600,
-          }}
-        >
-          localhost:3000 says
-        </h3>
         <p
           style={{
             margin: '0 0 24px 0',

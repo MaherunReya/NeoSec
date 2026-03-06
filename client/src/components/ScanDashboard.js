@@ -1,8 +1,5 @@
-// client/src/components/ScanDashboard.js
 import React, { useState, useEffect } from 'react';
 import { scanAPI, getErrorMessage } from '../services/api';
-
-// Toast component
 const Toast = ({ message, type, onClose, colors, theme }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, 5000);
