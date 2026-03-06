@@ -61,13 +61,13 @@ const AnimatedBackground = ({ theme }) => {
                 // Outer glow
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius * 2 * pulse, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(54, 226, 123, ${0.05 * pulse})`;
+                ctx.fillStyle = `rgba(54, 226, 123, ${0.02 * pulse})`;
                 ctx.fill();
                 
                 // Core
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(54, 226, 123, 0.15)';
+                ctx.fillStyle = 'rgba(54, 226, 123, 0.06)';
                 ctx.fill();
             }
         }
@@ -168,10 +168,10 @@ const AnimatedBackground = ({ theme }) => {
             }
         }
 
-        // Create grid of nodes - BIGGER SQUARES (15% bigger = fewer lines)
+        // Create grid of nodes - sparse, subtle background
         const createNodes = () => {
-            const cols = 10;  // Reduced from 12
-            const rows = 7;   // Reduced from 8
+            const cols = 7;   // Fewer columns
+            const rows = 5;   // Fewer rows
             const marginX = 0;
             const marginY = 0;
             const spaceX = canvas.width / (cols - 1);
@@ -188,8 +188,8 @@ const AnimatedBackground = ({ theme }) => {
 
         // Create horizontal and vertical lines - RANDOM DIRECTIONS
         const createLines = () => {
-            const cols = 10;
-            const rows = 7;
+            const cols = 7;
+            const rows = 5;
 
             // Create connections between nearby nodes in random directions
             nodes.forEach((node, i) => {

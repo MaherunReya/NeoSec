@@ -38,6 +38,13 @@ const getProfiles = async (req, res) => {
     });
   } catch (error) {
     console.error('Get profiles error:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
+    let errorMessage = 'Error fetching profiles';
+    if (error.original && error.original.message) {
+      errorMessage = `Database error: ${error.original.message}`;
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Error fetching profiles',
@@ -87,9 +94,7 @@ const createProfile = async (req, res) => {
       ...req.body,
       userId: req.user.id
     };
-
     const profile = await Profile.create(profileData);
-
     await createLog(
       profile.id,
       req.user.id,
@@ -98,7 +103,6 @@ const createProfile = async (req, res) => {
       req,
       `Profile "${profile.name}" created`
     );
-
     res.status(201).json({
       success: true,
       message: 'Profile created successfully',

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
+import HomePage from './components/HomePage';
 import { authAPI, dashboardAPI, adminAPI, getErrorMessage } from './services/api';
 import './index.css';
 
@@ -49,7 +50,7 @@ import ShareManagement from './components/ShareManagement';
 import SharedProfileViewer from './components/SharedProfileViewer';
 
 function App() {
-    
+
     // Custom Hooks
     const { theme, setTheme, palette } = useTheme();
     const { toasts, showToast } = useToastManager();
@@ -68,6 +69,7 @@ function App() {
         return localStorage.getItem('currentView') || 'dashboard';
     })();
     const [activeTab, setActiveTab] = useState('login');
+    const [showHome, setShowHome] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // User & Auth State
@@ -147,7 +149,12 @@ function App() {
             if (authAPI.isAuthenticated()) {
                 try {
                     const currentUser = authAPI.getCurrentUser();
-                    if (currentUser) setUser(currentUser);
+                    if (currentUser) {
+                        setUser(currentUser);
+                        if (typeof window !== 'undefined' && !window.location.search.includes('home=true')) {
+                            setShowHome(false);
+                        }
+                    }
                 } catch (err) {
                     console.error('Auth check error:', err);
                     authAPI.logout();
@@ -157,12 +164,12 @@ function App() {
         };
         checkAuth();
     }, []);
-    
+
     useEffect(() => {
-    window.setCurrentView = setCurrentView;
-    return () => {
-        delete window.setCurrentView;
-    };
+        window.setCurrentView = setCurrentView;
+        return () => {
+            delete window.setCurrentView;
+        };
     }, []);
 
     useEffect(() => {
@@ -310,7 +317,6 @@ function App() {
         showToast('Logged out', 'info');
     };
 
-    
 
     // Loading State
     if (loading) {
@@ -329,78 +335,89 @@ function App() {
         );
     }
 
-      // PUBLIC ROUTE: Shared Profile Viewer
+    // PUBLIC ROUTE: Shared Profile Viewer
     if (isShareProfilePage) {
         const token = pathname.split('/shared-profiles/')[1];
         return <SharedProfileViewer token={token} theme={theme} palette={palette} />;
     }
 
     // PROTECTED ROUTE: Share Management
-if (isShareManagementPage) {
-    if (loading) {
+    if (isShareManagementPage) {
+        if (loading) {
+            return (
+                <div style={{
+                    minHeight: '100vh',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: palette.bgMain,
+                    color: palette.accent,
+                    fontSize: '18px'
+                }}>
+                    Loading...
+                </div>
+            );
+        }
+
+        if (!user) {
+            window.location.href = '/';
+            return null;
+        }
+
         return (
-            <div style={{
-                minHeight: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: palette.bgMain,
-                color: palette.accent,
-                fontSize: '18px'
-            }}>
-                Loading...
-            </div>
+            <>
+                <div style={{
+                    minHeight: '100vh',
+                    backgroundColor: palette.bgMain,
+                    display: 'flex'
+                }}>
+                    <Sidebar
+                        user={user}
+                        theme={theme}
+                        palette={palette}
+                        currentView={currentView}
+                        setCurrentView={setCurrentView}
+                        setTheme={setTheme}
+                        isMobile={isMobile}
+                        isTablet={isTablet}
+                        sidebarOpen={sidebarOpen}
+                        setSidebarOpen={setSidebarOpen}
+                        handleLogout={handleLogout}
+                        onGoHome={() => setShowHome(true)}
+                    />
+                    <div style={{
+                        flex: 1,
+                        padding: isMobile ? '16px' : isTablet ? '24px' : '40px',
+                        paddingTop: isMobile ? '64px' : (isTablet ? '24px' : '40px'),
+                        overflowY: 'auto',
+                        backgroundColor: palette.bgMain,
+                        marginLeft: isMobile ? (sidebarOpen ? '260px' : '0') : '260px',
+                        transition: 'all 0.3s ease',
+                        height: '100vh'
+                    }}>
+                        <ShareManagement theme={theme} palette={palette} />
+                    </div>
+                </div>
+                <Toast toasts={toasts} palette={palette} />
+            </>
         );
     }
-    
-    if (!user) {
-        window.location.href = '/';
-        return null;
+
+    // Home Page (landing)
+    if (showHome) {
+        return (
+            <>
+                <HomePage user={user} onGetStarted={() => {
+                    setShowHome(false);
+                    if (typeof window !== 'undefined' && window.location.search.includes('home=true')) {
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                }} />
+                <Toast toasts={toasts} palette={palette} />
+            </>
+        );
     }
-    
-    return (
-        <>
-            <div style={{
-                minHeight: '100vh',
-                backgroundColor: palette.bgMain,
-                display: 'flex'
-            }}>
-                <Sidebar
-                    user={user}
-                    theme={theme}
-                    palette={palette}
-                    currentView={currentView}
-                    setCurrentView={setCurrentView}
-                    setTheme={setTheme}
-                    isMobile={isMobile}
-                    isTablet={isTablet}
-                    sidebarOpen={sidebarOpen}
-                    setSidebarOpen={setSidebarOpen}
-                    handleLogout={handleLogout}
-                />
-                <FloatingTopNav
-                    user={user}
-                    currentView={currentView}
-                    setCurrentView={setCurrentView}
-                    isMobile={isMobile}
-                />
-                <div style={{
-                    flex: 1,
-                    padding: isMobile ? '16px' : isTablet ? '24px' : '40px',
-                    paddingTop: isMobile ? '64px' : '96px',
-                    overflowY: 'auto',
-                    backgroundColor: palette.bgMain,
-                    marginLeft: isMobile ? (sidebarOpen ? '240px' : '0') : '72px',
-                    transition: 'all 0.3s ease',
-                    height: '100vh'
-                }}>
-                    <ShareManagement theme={theme} palette={palette} />
-                </div>
-            </div>
-            <Toast toasts={toasts} palette={palette} />
-        </>
-    );
-}
+
     // Authenticated UI
     if (user) {
         return (
@@ -423,6 +440,7 @@ if (isShareManagementPage) {
                         sidebarOpen={sidebarOpen}
                         setSidebarOpen={setSidebarOpen}
                         handleLogout={handleLogout}
+                        onGoHome={() => setShowHome(true)}
                     />
                     <FloatingTopNav
                         user={user}
@@ -430,7 +448,6 @@ if (isShareManagementPage) {
                         setCurrentView={setCurrentView}
                         isMobile={isMobile}
                     />
-                    
 
                     {/* Main Content */}
                     <div style={{
@@ -442,7 +459,7 @@ if (isShareManagementPage) {
                         color: palette.text,
                         marginLeft: isMobile ? (sidebarOpen ? '240px' : '0') : '72px',
                         transition: 'background-color 0.3s ease, color 0.3s ease, padding 0.3s ease, margin-left 0.3s ease, padding-top 0.3s ease',
-                        height: '100vh'  
+                        height: '100vh'
                     }}>
                         {/* Dashboard View */}
                         {currentView === 'dashboard' && (
@@ -487,7 +504,7 @@ if (isShareManagementPage) {
 
                         {/* Share Management View */}
                         {currentView === 'share-management' && (
-                        <ShareManagement theme={theme} palette={palette} />
+                            <ShareManagement theme={theme} palette={palette} />
                         )}
 
                         {/* SUBCRIPTION View */}
@@ -601,25 +618,26 @@ if (isShareManagementPage) {
         );
     }
 
+
     // Login/Register UI
     return (
-    <>
-        {activeTab === 'login' ? (
-            <Login
-                onSwitchToRegister={() => setActiveTab('register')}
-                onLoginSuccess={handleLoginSuccess}
-            />
-        ) : (
-            <Register
-                onSwitchToLogin={() => setActiveTab('login')}
-            />
-        )}
+        <>
+            {activeTab === 'login' ? (
+                <Login
+                    onSwitchToRegister={() => setActiveTab('register')}
+                    onLoginSuccess={handleLoginSuccess}
+                />
+            ) : (
+                <Register
+                    onSwitchToLogin={() => setActiveTab('login')}
+                />
+            )}
 
-        {/* Toast Component */}
-        <Toast toasts={toasts} palette={palette} />
-    </>
-    
-);
+            {/* Toast Component */}
+            <Toast toasts={toasts} palette={palette} />
+        </>
+
+    );
 }
 
 export default App;

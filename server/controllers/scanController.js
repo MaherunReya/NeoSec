@@ -22,16 +22,11 @@ exports.scanUrl = async (req, res) => {
   try {
     const { url } = req.body;
     const userId = req.user.id;
-
     if (!url) {
       return res.status(400).json({ message: "URL is required" });
     }
-
-    // Submit URL to VT
     const vtRes = await vtScanUrl(url);
     const scanId = vtRes.data.id;
-
-    // Save initial record (no fullReportUrl yet because analysis not ready)
     await ScanHistory.create({
       userId,
       scanType: 'URL',
@@ -40,7 +35,6 @@ exports.scanUrl = async (req, res) => {
       status: 'SCANNING',
       permalink: null
     });
-
     return res.status(202).json({
       message: 'URL submitted',
       scanId
@@ -62,20 +56,14 @@ exports.getScanStatus = async (req, res) => {
 
     const record = await ScanHistory.findOne({ where: { userId, scanId } });
     if (!record) return res.status(404).json({ message: "Not found" });
-
-    // If already completed, return DB entry
     if (record.status === 'COMPLETED') {
       return res.json(record);
     }
-
-    // Check VirusTotal status
     const analysis = await getAnalysis(scanId);
     const status = analysis.data.attributes.status;
 
     if (status === 'completed') {
       const stats = extractStats(analysis);
-
-      // (VT returns GUI URL ID inside meta.url_info.id)
       let fullReportUrl = null;
       try {
         fullReportUrl =

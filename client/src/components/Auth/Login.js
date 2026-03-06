@@ -62,12 +62,21 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
             alignItems: 'center',
             justifyContent: 'center',
             padding: '20px',
-            position: 'relative'
-            
+            position: 'relative',
+            overflow: 'hidden'
         }}>
+            {/* Header/Logo mapping */}
+            <div style={{ position: 'absolute', top: 30, left: 40, display: 'flex', alignItems: 'center', gap: '9px', zIndex: 10 }}>
+                <div style={{ width: 32, height: 32, background: '#36E27B', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" strokeWidth="2.5">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                </div>
+                <span onClick={() => window.location.href = '/?home=true'} style={{ color: '#fff', fontWeight: '800', fontSize: '18px', letterSpacing: '.8px', cursor: 'pointer' }}>NeoSec</span>
+            </div>
 
-            {/* Add the animated background */}
-            <AnimatedBackground theme={theme='dark'} />
+            {/* Animated Background */}
+            <AnimatedBackground theme="dark" />
 
             {/* Success Toast - Outside the box */}
             {showSuccessToast && (

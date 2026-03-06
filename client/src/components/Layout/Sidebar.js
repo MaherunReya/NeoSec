@@ -20,7 +20,7 @@ const PRIMARY_ITEMS = [
   { key: 'subscription', label: 'Subscription', icon: FiCreditCard }
 ];
 
-function Sidebar({ user, palette, theme, setTheme, currentView, setCurrentView, isMobile, sidebarOpen, setSidebarOpen, handleLogout }) {
+function Sidebar({ user, palette, theme, setTheme, currentView, setCurrentView, isMobile, sidebarOpen, setSidebarOpen, handleLogout, onGoHome }) {
   const sidebarWidth = isMobile ? (sidebarOpen ? 240 : 0) : 72;
   const isLight = theme === 'light';
   const sidebarBg = isLight ? 'rgba(255, 255, 255, 0.82)' : 'rgba(24, 24, 24, 0.6)';
@@ -107,7 +107,7 @@ function Sidebar({ user, palette, theme, setTheme, currentView, setCurrentView, 
           )}
 
           <button
-            onClick={() => setCurrentView('dashboard')}
+            onClick={onGoHome}
             style={{
               width: 38,
               height: 38,
@@ -122,7 +122,7 @@ function Sidebar({ user, palette, theme, setTheme, currentView, setCurrentView, 
               cursor: 'pointer',
               flexShrink: 0
             }}
-            title="NeoSec"
+            title="NeoSec Home"
           >
             <FiShield size={20} />
           </button>
