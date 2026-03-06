@@ -371,6 +371,8 @@ if (isShareManagementPage) {
                     user={user}
                     currentView={currentView}
                     setCurrentView={setCurrentView}
+                    theme={theme}
+                    setTheme={setTheme}
                     isMobile={isMobile}
                 />
                 <div style={{
@@ -417,6 +419,8 @@ if (isShareManagementPage) {
                         user={user}
                         currentView={currentView}
                         setCurrentView={setCurrentView}
+                        theme={theme}
+                        setTheme={setTheme}
                         isMobile={isMobile}
                     />
                     

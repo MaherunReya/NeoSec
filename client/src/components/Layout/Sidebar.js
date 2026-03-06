@@ -5,7 +5,9 @@ import {
   FiLock,
   FiLogOut,
   FiMenu,
+  FiMoon,
   FiShield,
+  FiSun,
   FiWifi,
   FiX
 } from 'react-icons/fi';
@@ -18,8 +20,16 @@ const PRIMARY_ITEMS = [
   { key: 'subscription', label: 'Subscription', icon: FiCreditCard }
 ];
 
-function Sidebar({ user, palette, currentView, setCurrentView, isMobile, sidebarOpen, setSidebarOpen, handleLogout }) {
+function Sidebar({ user, palette, theme, setTheme, currentView, setCurrentView, isMobile, sidebarOpen, setSidebarOpen, handleLogout }) {
   const sidebarWidth = isMobile ? (sidebarOpen ? 240 : 0) : 72;
+  const isLight = theme === 'light';
+  const sidebarBg = isLight ? 'rgba(255, 255, 255, 0.82)' : 'rgba(15, 23, 42, 0.46)';
+  const sidebarBorder = isLight ? '1px solid rgba(15,23,42,0.10)' : '1px solid rgba(255,255,255,0.16)';
+  const sidebarShadow = isLight ? '0 10px 30px rgba(15, 23, 42, 0.10)' : '0 10px 30px rgba(2, 6, 23, 0.28)';
+  const inactiveNavColor = isLight ? '#334155' : '#9ca3af';
+  const closeBtnColor = isLight ? '#334155' : '#d1d5db';
+  const secondaryBtnBorder = isLight ? '1px solid rgba(15,23,42,0.16)' : '1px solid rgba(255,255,255,0.14)';
+  const secondaryBtnColor = isLight ? '#334155' : '#d1d5db';
 
   return (
     <>
@@ -68,8 +78,11 @@ function Sidebar({ user, palette, currentView, setCurrentView, isMobile, sidebar
           top: 0,
           bottom: 0,
           width: sidebarWidth,
-          backgroundColor: '#111827',
-          borderRight: '1px solid rgba(255,255,255,0.08)',
+          backgroundColor: sidebarBg,
+          backdropFilter: 'blur(16px) saturate(145%)',
+          WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+          borderRight: sidebarBorder,
+          boxShadow: sidebarShadow,
           zIndex: 1000,
           transition: 'width 0.28s ease, transform 0.28s ease',
           transform: isMobile && !sidebarOpen ? 'translateX(-240px)' : 'translateX(0)',
@@ -84,7 +97,7 @@ function Sidebar({ user, palette, currentView, setCurrentView, isMobile, sidebar
                 alignSelf: 'flex-end',
                 border: 'none',
                 background: 'transparent',
-                color: '#d1d5db',
+                color: closeBtnColor,
                 cursor: 'pointer',
                 marginBottom: 8
               }}
@@ -131,7 +144,7 @@ function Sidebar({ user, palette, currentView, setCurrentView, isMobile, sidebar
                       borderRadius: 12,
                       padding: '8px 4px',
                       backgroundColor: active ? '#16a34a' : 'transparent',
-                      color: active ? '#fff' : '#9ca3af',
+                      color: active ? '#fff' : inactiveNavColor,
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -169,13 +182,32 @@ function Sidebar({ user, palette, currentView, setCurrentView, isMobile, sidebar
             </button>
 
             <button
+              onClick={() => setTheme((prevTheme) => (prevTheme === 'dark' ? 'light' : 'dark'))}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              style={{
+                width: 34,
+                height: 30,
+                borderRadius: 8,
+                border: secondaryBtnBorder,
+                backgroundColor: 'transparent',
+                color: secondaryBtnColor,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              {theme === 'dark' ? <FiSun size={14} /> : <FiMoon size={14} />}
+            </button>
+
+            <button
               onClick={handleLogout}
               title="Logout"
               style={{
                 width: 34,
                 height: 30,
                 borderRadius: 8,
-                border: '1px solid rgba(255,255,255,0.14)',
+                border: secondaryBtnBorder,
                 backgroundColor: 'transparent',
                 color: '#f87171',
                 display: 'flex',
