@@ -93,6 +93,7 @@ const connectDB = async () => {
             'feature_toggles',
             'role_templates',
             'mfa_settings',
+            'user_settings',
             'impersonation_sessions',
             'blocklist_ips',
             'activity_logs'

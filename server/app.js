@@ -25,6 +25,7 @@ const FeatureToggle = require('./models/FeatureToggle');
 const RoleTemplate = require('./models/RoleTemplate');
 const MFASettings = require('./models/MFASettings');
 const ImpersonationSession = require('./models/ImpersonationSession');
+const UserSettings = require('./models/UserSettings');
 
 // NEW: Add Module 3 models
 const BlocklistIP = require('./models/BlocklistIP');
@@ -56,6 +57,7 @@ const mfaRoutes = require('./routes/mfaRoutes');
 const impersonationRoutes = require('./routes/impersonationRoutes');
 const sharedProfileRoutes = require('./routes/sharedProfileRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
 
 // Initialize Express app
 const app = express();
@@ -125,6 +127,7 @@ const dataTransferRoutes = require('./routes/dataTransferRoutes');
 app.use('/api/data-transfer', dataTransferRoutes);
 app.use('/api/auth/shared-profiles', sharedProfileRoutes);
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // New Module 1 additional features routes
 app.use('/api/audit', auditRoutes);

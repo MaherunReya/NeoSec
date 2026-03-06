@@ -14,6 +14,7 @@ import { useScreenSize } from './hooks/useScreenSize';
 
 // Layout Components
 import Sidebar from './components/Layout/Sidebar';
+import FloatingTopNav from './components/Layout/FloatingTopNav';
 import DashboardView from './components/Views/DashboardView';
 import AdminUsersView from './components/Views/AdminUsersView';
 import Toast from './components/Common/Toast';
@@ -21,6 +22,7 @@ import Toast from './components/Common/Toast';
 // Feature Components
 import ScanDashboard from './components/ScanDashboard';
 import ProfileManager from './components/ProfileManager';
+import AccountSettings from './components/AccountSettings';
 import FirewallRuleManagement from './components/FirewallRuleManagement';
 import AdminAuditTrail from './components/AdminAuditTrail';
 import SystemHealthMetrics from './components/SystemHealthMetrics';
@@ -37,7 +39,7 @@ import VpnManagement from './components/VpnManagement';
 
 // Hierarchy Components
 import Subscription from './components/Hierarchy/Subscription';
-import Groups from './components/Hierarchy/Groups';
+import GroupManagement from './components/Hierarchy/GroupManagement';
 import Invitations from './components/Hierarchy/Invitations';
 import Memberships from './components/Hierarchy/Memberships';
 
@@ -53,7 +55,17 @@ function App() {
     const { isMobile, isTablet } = useScreenSize();
 
     // UI State
-    const initialView = (typeof window !== 'undefined' && localStorage.getItem('currentView')) || 'dashboard';
+    const initialView = (() => {
+        if (typeof window === 'undefined') return 'dashboard';
+
+        const params = new URLSearchParams(window.location.search);
+        const viewFromQuery = params.get('view');
+        if (viewFromQuery) return viewFromQuery;
+
+        if (window.location.pathname === '/subscription') return 'subscription';
+
+        return localStorage.getItem('currentView') || 'dashboard';
+    })();
     const [activeTab, setActiveTab] = useState('login');
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -152,6 +164,39 @@ function App() {
     };
     }, []);
 
+    useEffect(() => {
+        const handleUserUpdated = (event) => {
+            const updated = event?.detail;
+            if (updated) {
+                setUser(updated);
+                localStorage.setItem('user', JSON.stringify(updated));
+            }
+        };
+
+        window.addEventListener('neosec-user-updated', handleUserUpdated);
+        return () => window.removeEventListener('neosec-user-updated', handleUserUpdated);
+    }, []);
+
+    const refreshDashboardData = useCallback(async (withLoading = true) => {
+        if (!user) return;
+
+        try {
+            if (withLoading) setDashboardLoading(true);
+            setDashboardError(null);
+            const response = await dashboardAPI.getDashboard();
+            if (response.success) {
+                setDashboardData(response.data);
+            } else {
+                setDashboardError(response.message || 'Failed to load dashboard data');
+            }
+        } catch (error) {
+            console.error('Dashboard fetch error:', error);
+            setDashboardError(getErrorMessage(error, 'Failed to load dashboard data'));
+        } finally {
+            if (withLoading) setDashboardLoading(false);
+        }
+    }, [user]);
+
     // Persist currentView and validate for role
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -164,27 +209,10 @@ function App() {
 
     // Fetch dashboard data when user is logged in
     useEffect(() => {
-        const fetchDashboard = async () => {
-            if (user && currentView === 'dashboard') {
-                try {
-                    setDashboardLoading(true);
-                    setDashboardError(null);
-                    const response = await dashboardAPI.getDashboard();
-                    if (response.success) {
-                        setDashboardData(response.data);
-                    } else {
-                        setDashboardError(response.message || 'Failed to load dashboard data');
-                    }
-                } catch (error) {
-                    console.error('Dashboard fetch error:', error);
-                    setDashboardError(getErrorMessage(error, 'Failed to load dashboard data'));
-                } finally {
-                    setDashboardLoading(false);
-                }
-            }
-        };
-        fetchDashboard();
-    }, [user, currentView]);
+        if (user && currentView === 'dashboard') {
+            refreshDashboardData(true);
+        }
+    }, [user, currentView, refreshDashboardData]);
 
     // Admin Data Fetch
     useEffect(() => {
@@ -349,13 +377,19 @@ if (isShareManagementPage) {
                     setSidebarOpen={setSidebarOpen}
                     handleLogout={handleLogout}
                 />
+                <FloatingTopNav
+                    user={user}
+                    currentView={currentView}
+                    setCurrentView={setCurrentView}
+                    isMobile={isMobile}
+                />
                 <div style={{
                     flex: 1,
                     padding: isMobile ? '16px' : isTablet ? '24px' : '40px',
-                    paddingTop: isMobile ? '64px' : (isTablet ? '24px' : '40px'),
+                    paddingTop: isMobile ? '64px' : '96px',
                     overflowY: 'auto',
                     backgroundColor: palette.bgMain,
-                    marginLeft: isMobile ? (sidebarOpen ? '260px' : '0') : '260px',
+                    marginLeft: isMobile ? (sidebarOpen ? '240px' : '0') : '72px',
                     transition: 'all 0.3s ease',
                     height: '100vh'
                 }}>
@@ -389,17 +423,23 @@ if (isShareManagementPage) {
                         setSidebarOpen={setSidebarOpen}
                         handleLogout={handleLogout}
                     />
+                    <FloatingTopNav
+                        user={user}
+                        currentView={currentView}
+                        setCurrentView={setCurrentView}
+                        isMobile={isMobile}
+                    />
                     
 
                     {/* Main Content */}
                     <div style={{
                         flex: 1,
                         padding: isMobile ? '16px' : isTablet ? '24px' : '40px',
-                        paddingTop: isMobile ? '64px' : (isTablet ? '24px' : '40px'),
+                        paddingTop: isMobile ? '64px' : '96px',
                         overflowY: 'auto',
                         backgroundColor: palette.bgMain,
                         color: palette.text,
-                        marginLeft: isMobile ? (sidebarOpen ? '260px' : '0') : '260px',  
+                        marginLeft: isMobile ? (sidebarOpen ? '240px' : '0') : '72px',
                         transition: 'background-color 0.3s ease, color 0.3s ease, padding 0.3s ease, margin-left 0.3s ease, padding-top 0.3s ease',
                         height: '100vh'  
                     }}>
@@ -415,6 +455,7 @@ if (isShareManagementPage) {
                                 isMobile={isMobile}
                                 isTablet={isTablet}
                                 setCurrentView={setCurrentView}
+                                onRefreshDashboard={() => refreshDashboardData(false)}
                             />
                         )}
 
@@ -433,6 +474,11 @@ if (isShareManagementPage) {
                             <ProfileManager theme={theme} palette={palette} />
                         )}
 
+                        {/* Account Settings View */}
+                        {currentView === 'account-settings' && (
+                            <AccountSettings theme={theme} palette={palette} />
+                        )}
+
                         {/* Scan View */}
                         {currentView === 'scan' && (
                             <ScanDashboard theme={theme} palette={palette} />
@@ -447,6 +493,8 @@ if (isShareManagementPage) {
                         {currentView === "subscription" && (
                         <Subscription
                             user={user}
+                            theme={theme}
+                            palette={palette}
                             onUpgradeSuccess={(updatedUser) => {
                                 setUser(updatedUser);
                                 localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -454,9 +502,9 @@ if (isShareManagementPage) {
                         />
                         )}
 
-                        {currentView === "groups" && user.accountType === "leader" && <Groups user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
-                        {currentView === "invitations" && <Invitations />}
-                        {currentView === "memberships" && <Memberships />}
+                        {currentView === "groups" && user.accountType === "leader" && <GroupManagement user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
+                        {currentView === "invitations" && <Invitations theme={theme} palette={palette} />}
+                        {currentView === "memberships" && <Memberships theme={theme} palette={palette} />}
 
 
                         {/* Audit View */}

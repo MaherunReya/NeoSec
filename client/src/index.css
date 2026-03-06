@@ -10,6 +10,74 @@
    ========================================= */
 @import './styles/theme.css';
 
+:root {
+  --font-size: 16px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+}
+
+html {
+  font-size: clamp(15px, 0.35vw + 14px, var(--font-size));
+}
+
+@layer base {
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.45;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.45;
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.45;
+  }
+
+  h4,
+  p,
+  label,
+  button,
+  input,
+  select,
+  textarea {
+    font-size: var(--text-base);
+    line-height: 1.5;
+  }
+
+  p,
+  input,
+  select,
+  textarea {
+    font-weight: var(--font-weight-normal);
+  }
+
+  label,
+  button,
+  h4 {
+    font-weight: var(--font-weight-medium);
+  }
+
+  .text-sm {
+    font-size: var(--text-sm);
+  }
+
+  .text-xs {
+    font-size: var(--text-xs);
+  }
+}
+
 /* =========================================
    🌈 GLOBAL RESET & BODY
    ========================================= */
@@ -62,13 +130,13 @@ code {
 }
 
 .auth-header h1 {
-  font-size: 2.5rem;
+  font-size: var(--text-2xl);
   margin-bottom: 10px;
-  font-weight: 700;
+  font-weight: var(--font-weight-medium);
 }
 
 .auth-header p {
-  font-size: 1rem;
+  font-size: var(--text-base);
   opacity: 0.9;
 }
 
@@ -82,8 +150,8 @@ code {
   padding: 15px;
   background: none;
   border: none;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   color: #666;
   transition: all 0.3s ease;
@@ -112,7 +180,7 @@ code {
 .auth-form-container h2 {
   margin-bottom: 25px;
   color: #333;
-  font-size: 1.8rem;
+  font-size: var(--text-xl);
 }
 
 .auth-form {
@@ -128,16 +196,16 @@ code {
 }
 
 .form-group label {
-  font-weight: 600;
+  font-weight: var(--font-weight-medium);
   color: #555;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
 .form-group input {
   padding: 12px 15px;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: var(--text-base);
   transition: all 0.3s ease;
   outline: none;
 }
@@ -152,8 +220,8 @@ code {
   padding: 12px 24px;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: all 0.3s ease;
   outline: none;
@@ -191,7 +259,7 @@ code {
   border: 1px solid #fcc;
   border-radius: 8px;
   color: #c33;
-  font-size: 0.95rem;
+  font-size: var(--text-sm);
   margin-bottom: 10px;
 }
 
@@ -201,7 +269,7 @@ code {
   border: 1px solid #cfc;
   border-radius: 8px;
   color: #3c3;
-  font-size: 0.95rem;
+  font-size: var(--text-sm);
   margin-bottom: 10px;
 }
 
@@ -219,7 +287,7 @@ code {
   text-align: center;
   margin-top: 20px;
   color: #666;
-  font-size: 0.95rem;
+  font-size: var(--text-sm);
 }
 
 .link-button {
@@ -257,8 +325,8 @@ code {
 }
 
 .dashboard-header h1 {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-medium);
 }
 
 .dashboard-content {
@@ -275,12 +343,12 @@ code {
 .user-info h2 {
   margin-bottom: 15px;
   color: #333;
-  font-size: 1.5rem;
+  font-size: var(--text-xl);
 }
 
 .user-info p {
   margin-bottom: 10px;
-  font-size: 1rem;
+  font-size: var(--text-base);
   color: #555;
 }
 
@@ -293,8 +361,8 @@ code {
 .loading {
   text-align: center;
   color: white;
-  font-size: 1.2rem;
-  font-weight: 600;
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-medium);
 }
 
 /* Responsive */
@@ -304,7 +372,7 @@ code {
   }
 
   .auth-header h1 {
-    font-size: 2rem;
+    font-size: var(--text-xl);
   }
 
   .dashboard-header {
@@ -314,7 +382,7 @@ code {
   }
 
   .dashboard-header h1 {
-    font-size: 1.5rem;
+    font-size: var(--text-xl);
   }
 }
 

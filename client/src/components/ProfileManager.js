@@ -1,2457 +1,1709 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import api from '../services/api';
-import ShareCreationModal from './ShareCreationModal';
-import countries from "i18n-iso-countries";
-import enLocale from "i18n-iso-countries/langs/en.json";
-import vpnAPI from '../services/vpnAPI';
-import { firewallAPI } from '../services/api';
-countries.registerLocale(enLocale);
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import api, { getErrorMessage } from '../services/api';
+import {
+  FiActivity,
+  FiAlertTriangle,
+  FiCalendar,
+  FiCheckCircle,
+  FiClock,
+  FiEdit2,
+  FiInfo,
+  FiLayers,
+  FiMail,
+  FiMapPin,
+  FiMoreVertical,
+  FiPlus,
+  FiPower,
+  FiSearch,
+  FiShare2,
+  FiShield,
+  FiTrash2,
+  FiUsers,
+  FiWifi,
+  FiWifiOff,
+  FiX,
+  FiZap,
+  FiZapOff
+} from 'react-icons/fi';
 
-const ConfirmModal = ({ message, onConfirm, onCancel, colors }) => {
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10001,
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          backgroundColor: colors.bgCard,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 12,
-          padding: 24,
-          maxWidth: 400,
-          width: '90%',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3
-          style={{
-            margin: '0 0 16px 0',
-            color: colors.text,
-            fontSize: 18,
-            fontWeight: 600,
-          }}
-        >
-          localhost:3000 says
-        </h3>
-        <p
-          style={{
-            margin: '0 0 24px 0',
-            color: colors.textMuted,
-            fontSize: 14,
-            lineHeight: 1.5,
-          }}
-        >
-          {message}
-        </p>
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            justifyContent: 'flex-end',
-          }}
-        >
-          <button
-            onClick={onConfirm}
-            style={{
-              padding: '10px 20px',
-              borderRadius: 8,
-              border: 'none',
-              backgroundColor: colors.accent,
-              color: '#ffffff',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            OK
-          </button>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: '10px 20px',
-              borderRadius: 8,
-              border: 'none',
-              backgroundColor: colors.danger,
-              color: '#ffffff',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Toast notification component
-const Toast = ({message, type, onClose, colors = {}, theme = 'dark' }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 5000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  const getBgColor = () => {
-    if (type === 'success') return theme === 'dark' ? '#1a3a2a' : 'rgba(31,164,90,0.1)';
-    if (type === 'error') return theme === 'dark' ? '#2A1515' : 'rgba(212,24,61,0.08)';
-    return theme === 'dark' ? '#2a2a1a' : 'rgba(240,165,0,0.1)';
-  };
-
-  const getTextColor = () => {
-    if (type === 'success') return theme === 'dark' ? '#7fdf9f' : colors.accent;
-    if (type === 'error') return theme === 'dark' ? '#FFB3B3' : colors.danger;
-    return colors.warning;
-  };
-
-  const getBorderColor = () => {
-    if (type === 'success') return colors.accent || '#36E27B';
-    if (type === 'error') return colors.danger || '#e04848';
-    return colors.warning || '#f0a500';
-  };
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        padding: '16px 20px',
-        backgroundColor: getBgColor(),
-        border: `1px solid ${getBorderColor()}`,
-        borderRadius: '8px',
-        color: getTextColor(),
-        fontSize: '14px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        zIndex: 10000,
-        maxWidth: '400px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '12px',
-        animation: 'slideIn 0.3s ease-out',
-      }}
-    >
-      <span>{message}</span>
-      <button
-        onClick={onClose}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: getTextColor(),
-          cursor: 'pointer',
-          fontSize: '18px',
-          padding: 0,
-          lineHeight: 1,
-        }}
-      >
-        ×
-      </button>
-
-      <style>
-        {`
-          @keyframes slideIn {
-            from {
-              transform: translateX(100%);
-              opacity: 0;
-            }
-            to {
-              transform: translateX(0);
-              opacity: 1;
-            }
-          }
-        `}
-      </style>
-    </div>
-  );
-};
-
-
-// Same idea as App.js / ScanDashboard
-const darkPalette = {
-  bgMain: '#121212',
-  bgCard: '#181818',
-  bgPanel: '#0a0a0a',
+const defaultPalette = {
+  bgMain: '#111827',
+  bgCard: '#1f2937',
+  bgPanel: '#111827',
   text: '#ffffff',
-  textMuted: '#9aa3b5',
-  border: '#242424',
-  accent: '#36E27B',
-  accentSoft: 'rgba(54,226,123,0.12)',
-  warning: '#f0a500',
-  danger: '#e04848',
-  inputBg: '#18181b',
-  inputBorder: '#27272a',
+  textMuted: '#9ca3af',
+  border: '#374151',
+  accent: '#4ade80',
+  accentSoft: 'rgba(74,222,128,0.18)',
+  warning: '#fbbf24',
+  danger: '#f87171',
+  inputBg: '#1f2937',
+  inputBorder: '#374151'
 };
 
 const lightPalette = {
-  bgMain: '#f6f8fb',
+  bgMain: '#f9fafb',
   bgCard: '#ffffff',
-  bgPanel: '#eef3f8',
-  text: '#0b172a',
-  textMuted: '#5b6b7a',
-  border: '#d9e2ec',
-  accent: '#1fa45a',
-  accentSoft: '#e6f4ed',
+  bgPanel: '#f3f4f6',
+  text: '#111827',
+  textMuted: '#6b7280',
+  border: '#e5e7eb',
+  accent: '#16a34a',
+  accentSoft: '#dcfce7',
   warning: '#d97706',
   danger: '#d4183d',
-  inputBg: '#ffffff',
-  inputBorder: '#d9e2ec',
+  inputBg: '#f9fafb',
+  inputBorder: '#e5e7eb'
 };
 
-const makeStyles = (c) => ({
-  container: {
-    padding: 20,
-    maxWidth: 1400,
-    margin: '0 auto',
-    color: c.text,
-    fontFamily: 'sans-serif',
-  },
-  headerTitle: {
-    margin: 0,
-    color: c.text,
-    fontSize: 30,
-    fontWeight: 700,
-  },
-  logsSection: {
-    backgroundColor: c.bgCard,
-    border: `1px solid ${c.border}`,
-    borderRadius: 12,
-    padding: 24,
-    marginBottom: 24,
-  },
-  logsEmpty: {
-    textAlign: 'center',
-    color: c.textMuted,
-    padding: 20,
-  },
-  logCard: {
-    backgroundColor: c.bgPanel,
-    border: `1px solid ${c.border}`,
-    borderRadius: 8,
-    padding: 16,
-  },
-  logDate: {
-    fontSize: 14,
-    color: c.accent,
-    fontFamily: 'monospace',
-  },
-  logDescription: {
-    color: c.textMuted,
-    marginTop: 4,
-    fontSize: 14,
-  },
-  profileFormContainer: {
-    backgroundColor: c.bgCard,
-    border: `1px solid ${c.border}`,
-    borderRadius: 8,
-    padding: 24,
-    marginBottom: 28,
-  },
-  formSection: {
-    backgroundColor: c.bgPanel,
-    border: `1px solid ${c.border}`,
-    borderRadius: 8,
-    padding: 20,
-  },
-  formInput: {
-    width: '100%',
-    padding: 8,
-    backgroundColor: c.inputBg,
-    border: `1px solid ${c.inputBorder}`,
-    borderRadius: 8,
-    fontSize: 14,
-    color: c.text,
-  },
-  textArea: {
-    width: '100%',
-    padding: 8,
-    backgroundColor: c.inputBg,
-    border: `1px solid ${c.inputBorder}`,
-    borderRadius: 8,
-    fontSize: 14,
-    color: c.text,
-    resize: 'vertical',
-    fontFamily: 'inherit',
-  },
-  select: {
-    width: '100%',
-    padding: 8,
-    backgroundColor: c.inputBg,
-    border: `1px solid ${c.inputBorder}`,
-    borderRadius: 8,
-    fontSize: 14,
-    color: c.text,
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    fontSize: 14,
-    color: c.text,
-  },
-  fieldHint: {
-    display: 'block',
-    marginTop: 4,
-    color: c.textMuted,
-    fontSize: 12,
-  },
-  profileCard: {
-    backgroundColor: c.bgCard,
-    border: `1px solid ${c.border}`,
-    borderRadius: 12,
-    padding: 20,
-  },
-  settingsSummary: {
-  marginTop: 16,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 6,
-  maxWidth: 420,
-},
+const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const scheduleTypeMap = {
+  NONE: 'none',
+  TIME: 'time',
+  CONDITION: 'geolocation',
+  BOTH: 'both'
+};
+const scheduleTypeReverseMap = {
+  none: 'NONE',
+  time: 'TIME',
+  geolocation: 'CONDITION',
+  both: 'BOTH'
+};
 
-  profileCardActive: (isActive) =>
-    isActive
-      ? {
-        backgroundColor: c.bgCard,
-        border: `1px solid ${c.accent}`,
-        borderRadius: 12,
-        padding: 20,
-      }
-      : undefined,
-  profileDescription: {
-    color: c.textMuted,
-  },
-  profileMeta: {
-    fontSize: 12,
-    color: c.textMuted,
-    marginTop: 12,
-  },
-  statusEnabled: {
-    color: c.accent,
-  },
-  statusDisabled: {
-    color: c.danger,
-  },
+const profileTypeOptions = ['Work Mode', 'Public WiFi Mode', 'Home Mode', 'Custom'];
+const vpnProtocolOptions = ['OpenVPN', 'WireGuard', 'IKEv2'];
+
+const toTitle = (text = '') => {
+  const normalized = String(text || '').replace(/_/g, ' ').toLowerCase();
+  return normalized.replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const formatDateTime = (value) => {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  return date.toLocaleString();
+};
+
+const formatDateOnly = (value) => {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  return date.toLocaleDateString();
+};
+
+const getActionColor = (action, isDark) => {
+  if (action === 'CREATED') return { bg: isDark ? 'rgba(59,130,246,0.28)' : '#dbeafe', fg: isDark ? '#60a5fa' : '#1d4ed8' };
+  if (action === 'UPDATED') return { bg: isDark ? 'rgba(217,119,6,0.28)' : '#fef3c7', fg: isDark ? '#fbbf24' : '#b45309' };
+  if (action === 'DELETED') return { bg: isDark ? 'rgba(220,38,38,0.28)' : '#fee2e2', fg: isDark ? '#f87171' : '#b91c1c' };
+  if (action === 'ACTIVATED' || action === 'AUTO_ACTIVATED') return { bg: isDark ? 'rgba(22,163,74,0.28)' : '#dcfce7', fg: isDark ? '#4ade80' : '#15803d' };
+  if (action === 'DEACTIVATED') return { bg: isDark ? '#374151' : '#f3f4f6', fg: isDark ? '#d1d5db' : '#374151' };
+  if (action === 'SCHEDULED' || action === 'SHARED') return { bg: isDark ? 'rgba(147,51,234,0.28)' : '#f3e8ff', fg: isDark ? '#c084fc' : '#7e22ce' };
+  return { bg: isDark ? '#374151' : '#f3f4f6', fg: isDark ? '#9ca3af' : '#6b7280' };
+};
+
+const getTypeColor = (profileType, isDark) => {
+  const type = String(profileType || '').toLowerCase();
+  if (type.includes('enhanced')) return { bg: isDark ? 'rgba(147,51,234,0.28)' : '#f3e8ff', fg: isDark ? '#c084fc' : '#7e22ce' };
+  if (type.includes('custom')) return { bg: isDark ? 'rgba(217,119,6,0.28)' : '#fef3c7', fg: isDark ? '#fbbf24' : '#b45309' };
+  return { bg: isDark ? 'rgba(37,99,235,0.28)' : '#dbeafe', fg: isDark ? '#60a5fa' : '#1d4ed8' };
+};
+
+const getFeatureTone = (enabled, kind, isDark) => {
+  if (!enabled) {
+    return {
+      bg: isDark ? '#1f2937' : '#f9fafb',
+      fg: '#6b7280'
+    };
+  }
+  if (kind === 'vpn') return { bg: isDark ? 'rgba(22,163,74,0.16)' : '#f0fdf4', fg: isDark ? '#4ade80' : '#15803d' };
+  if (kind === 'firewall') return { bg: isDark ? 'rgba(37,99,235,0.16)' : '#eff6ff', fg: isDark ? '#60a5fa' : '#1d4ed8' };
+  return { bg: isDark ? 'rgba(147,51,234,0.16)' : '#faf5ff', fg: isDark ? '#c084fc' : '#7e22ce' };
+};
+
+const createEmptyFormData = () => ({
+  name: '',
+  description: '',
+  profileType: 'Custom',
+  vpnEnabled: false,
+  vpnServer: '',
+  vpnProtocol: 'OpenVPN',
+  vpnPort: '',
+  vpnUsername: '',
+  firewallRuleId: 'none',
+  defaultFirewallAction: 'DENY',
+  schedule: {
+    enabled: false,
+    type: 'none',
+    startTime: '09:00',
+    endTime: '17:00',
+    activeDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+    geoCountries: [],
+    autoActivate: false
+  }
 });
 
-const ProfileManager = ({ theme = 'dark', palette }) => {
-  const colors = palette || (theme === 'light' ? lightPalette : darkPalette);
-  const styles = makeStyles(colors);
+const Modal = ({ children, onClose }) => (
+  <div
+    onClick={onClose}
+    style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+      padding: 16
+    }}
+  >
+    <div onClick={(event) => event.stopPropagation()}>{children}</div>
+  </div>
+);
+
+function ProfileManager({ theme = 'dark', palette }) {
+  const colors = palette || (theme === 'light' ? lightPalette : defaultPalette);
+  const isDark = theme !== 'light';
+
   const [profiles, setProfiles] = useState([]);
-  const [logs, setLogs] = useState([]);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [firewallRulesets, setFirewallRulesets] = useState([]);
+  const [shareLinks, setShareLinks] = useState([]);
+
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [showLogs, setShowLogs] = useState(false);
+  const [showActivityLogs, setShowActivityLogs] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showManageSharesDialog, setShowManageSharesDialog] = useState(false);
+
   const [editingProfile, setEditingProfile] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [shareTarget, setShareTarget] = useState(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  const [formData, setFormData] = useState(createEmptyFormData());
+
   const [toast, setToast] = useState(null);
-  const [confirmModal, setConfirmModal] = useState(null);
-  const [firewallRules, setFirewallRules] = useState([]);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [sharingProfile, setSharingProfile] = useState(null);
-  const [showShareManagement, setShowShareManagement] = useState(false);
-  const [vpnConfigs, setVpnConfigs] = useState([]);
+  const [error, setError] = useState('');
 
-
-const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-  };
-
-
-  const showConfirm = (message) => {
-    return new Promise((resolve) => {
-      setConfirmModal({
-        message,
-        onConfirm: () => {
-          setConfirmModal(null);
-          resolve(true);
-        },
-        onCancel: () => {
-          setConfirmModal(null);
-          resolve(false);
-        },
-      });
-    });
-  };
-
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    profileType: 'Custom',
-
-    // VPN
-    vpnEnabled: false,
-    vpnServer: '',
-    vpnConfigId: '',
-    vpnProtocol: 'OpenVPN',
-    vpnPort: '',
-    vpnUsername: '',
-
-    // Firewall
-    firewallEnabled: true,
-    defaultFirewallAction: 'DENY',
-    firewallRuleId: '',
-
-    // Scheduling
-    isScheduled: false,
-    scheduleType: 'NONE',
-    scheduleStartTime: '',
-    scheduleEndTime: '',
-    scheduleDays: [],
-    scheduleCondition: '',
-    autoActivate: false,
-
-    geoLocationCountries: [], 
+  const [shareForm, setShareForm] = useState({
+    permissions: 'VIEW',
+    password: '',
+    expiresInDays: '',
+    maxAccess: ''
   });
 
-  const fetchProfiles = useCallback(async () => {
-  try {
-    const response = await api.get('/profiles');
-    setProfiles(response.data.profiles);
-    setLoading(false);
-  } catch (error) {
-    console.error('Error fetching profiles:', error);
-    setLoading(false);
-  }
-}, []);
+  const [geoSearch, setGeoSearch] = useState('');
+  const [showGeoDropdown, setShowGeoDropdown] = useState(false);
+  const geoInputRef = useRef(null);
 
-const fetchLogs = useCallback(async () => {
-  try {
-    const response = await api.get('/profiles/logs/all');
-    setLogs(response.data.logs);
-  } catch (error) {
-    console.error('Error fetching logs:', error);
-  }
-}, []);
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = setTimeout(() => setToast(null), 3200);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
-const fetchFirewallRules = useCallback(async () => {
-  try {
-    const res = await firewallAPI.getRules();
-    if (res.success) setFirewallRules(res.data || []);
-  } catch (error) {
-    console.error('Error fetching firewall rules:', error);
-  }
-}, []);
+  useEffect(() => {
+    const loadAll = async () => {
+      try {
+        setLoading(true);
+        setError('');
 
-const fetchVpnConfigs = useCallback(async () => {
-  try {
-    const res = await vpnAPI.getConfigs();
-    if (res.success) setVpnConfigs(res.data || []);
-  } catch (error) {
-    console.error('Error fetching VPN configs:', error);
-  }
-}, []);
+        const [profilesRes, logsRes, firewallRes, sharesRes] = await Promise.all([
+          api.get('/profiles'),
+          api.get('/profiles/logs/all'),
+          api.get('/firewall'),
+          api.get('/auth/shared-profiles/my/shares')
+        ]);
 
-useEffect(() => {
-  fetchProfiles();
-  fetchLogs();
-  fetchFirewallRules();
-  fetchVpnConfigs();
-
-  const handleClickOutside = (e) => {
-    if (!e.target.closest('.country-input-container')) {
-      setShowCountrySuggestions(false);
-    }
-  };
-
-  document.addEventListener('mousedown', handleClickOutside);
-  return () => document.removeEventListener('mousedown', handleClickOutside);
-}, [fetchProfiles, fetchLogs, fetchFirewallRules, fetchVpnConfigs]);
-
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value,
-    });
-  };
-
-  const handleDayToggle = (day) => {
-    const days = formData.scheduleDays || [];
-    if (days.includes(day)) {
-      setFormData({
-        ...formData,
-        scheduleDays: days.filter((d) => d !== day),
-      });
-    } else {
-      setFormData({
-        ...formData,
-        scheduleDays: [...days, day],
-      });
-    }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const submitData = {
-        ...formData,
-
-        vpnPort:
-          formData.vpnPort && !isNaN(formData.vpnPort)
-            ? parseInt(formData.vpnPort)
-            : null,
-        vpnConfigId: formData.vpnConfigId || null,
-
-        firewallRules: formData.firewallRuleId ? [formData.firewallRuleId] : [],
-
-        allowedIps: formData.allowedIps
-          ? formData.allowedIps
-            .split(',')
-            .map((ip) => ip.trim())
-            .filter((ip) => ip !== '')
-          : [],
-
-        blockedIps: formData.blockedIps
-          ? formData.blockedIps
-            .split(',')
-            .map((ip) => ip.trim())
-            .filter((ip) => ip !== '')
-          : [],
-
-        allowedPorts: formData.allowedPorts
-          ? formData.allowedPorts
-            .split(',')
-            .map((p) => p.trim())
-            .filter((p) => p !== '' && !isNaN(p))
-            .map(Number)
-          : [],
-
-        blockedPorts: formData.blockedPorts
-          ? formData.blockedPorts
-            .split(',')
-            .map((p) => p.trim())
-            .filter((p) => p !== '' && !isNaN(p))
-            .map(Number)
-          : [],
-      };
-
-      if (editingProfile) {
-        await api.put(`/profiles/${editingProfile.id}`, submitData);
-        showToast('Profile updated successfully!','success');
-      } else {
-        await api.post(`/profiles`, submitData);
-        showToast('Profile created successfully!', 'success');
+        setProfiles(profilesRes.data?.profiles || []);
+        setActivityLogs(logsRes.data?.logs || []);
+        setFirewallRulesets(firewallRes.data?.data || []);
+        setShareLinks(sharesRes.data?.data || []);
+      } catch (loadError) {
+        setError(getErrorMessage(loadError, 'Failed to load security profile manager data'));
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setShowForm(false);
-      setEditingProfile(null);
-      resetForm();
-      fetchProfiles();
-      fetchLogs();
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      showToast(
-        'Error saving profile: ' +
-        (error.response?.data?.message || error.message),
-        'error'
-      );
-    }
+    loadAll();
+  }, []);
+
+  useEffect(() => {
+    const closeGeoDropdownOnOutside = (event) => {
+      if (!geoInputRef.current) return;
+      if (!geoInputRef.current.contains(event.target)) {
+        setShowGeoDropdown(false);
+      }
+    };
+
+    window.addEventListener('mousedown', closeGeoDropdownOnOutside);
+    return () => window.removeEventListener('mousedown', closeGeoDropdownOnOutside);
+  }, []);
+
+  const filteredProfiles = useMemo(() => {
+    return profiles.filter((profile) => {
+      const query = searchQuery.trim().toLowerCase();
+      const inName = String(profile.name || '').toLowerCase().includes(query);
+      const inDescription = String(profile.description || '').toLowerCase().includes(query);
+      const matchesSearch = !query || inName || inDescription;
+
+      const profileType = String(profile.profileType || '').toLowerCase();
+      const matchesType = filterType === 'all' || profileType === filterType;
+
+      const matchesStatus =
+        filterStatus === 'all' ||
+        (filterStatus === 'active' && profile.isActive) ||
+        (filterStatus === 'inactive' && !profile.isActive);
+
+      return matchesSearch && matchesType && matchesStatus;
+    });
+  }, [profiles, searchQuery, filterType, filterStatus]);
+
+  const activeCount = useMemo(() => profiles.filter((profile) => profile.isActive).length, [profiles]);
+  const totalShares = useMemo(
+    () => shareLinks.filter((link) => link.isActive && !link.revokedAt).length,
+    [shareLinks]
+  );
+
+  const filteredCountries = useMemo(() => {
+    const allCountries = [
+      'United States', 'Canada', 'United Kingdom', 'Germany', 'France', 'Japan', 'Australia',
+      'Netherlands', 'Singapore', 'Switzerland', 'Sweden', 'Norway', 'South Korea', 'Brazil',
+      'India', 'Ireland', 'Finland', 'Denmark', 'New Zealand', 'Belgium', 'Austria', 'Italy',
+      'Spain', 'Portugal', 'Bangladesh', 'Malaysia', 'Thailand', 'UAE', 'Qatar'
+    ];
+
+    const query = geoSearch.trim().toLowerCase();
+    if (!query) return allCountries.filter((country) => !formData.schedule.geoCountries.includes(country));
+
+    return allCountries
+      .filter((country) => country.toLowerCase().includes(query))
+      .filter((country) => !formData.schedule.geoCountries.includes(country));
+  }, [geoSearch, formData.schedule.geoCountries]);
+
+  const resetForm = () => {
+    setEditingProfile(null);
+    setFormData(createEmptyFormData());
+    setGeoSearch('');
+    setShowGeoDropdown(false);
   };
 
-  const handleEdit = (profile) => {
+  const openCreate = () => {
+    resetForm();
+    setShowForm(true);
+  };
+
+  const openEdit = (profile) => {
     setEditingProfile(profile);
     setFormData({
-      name: profile.name,
+      name: profile.name || '',
       description: profile.description || '',
-      profileType: profile.profileType,
-
-      vpnEnabled: profile.vpnEnabled,
+      profileType: profile.profileType || 'Custom',
+      vpnEnabled: Boolean(profile.vpnEnabled),
       vpnServer: profile.vpnServer || '',
-      vpnConfigId: profile.vpnConfigId || '',
       vpnProtocol: profile.vpnProtocol || 'OpenVPN',
-      vpnPort: profile.vpnPort || '',
+      vpnPort: profile.vpnPort ? String(profile.vpnPort) : '',
       vpnUsername: profile.vpnUsername || '',
-
-    firewallEnabled: profile.firewallEnabled,
-    defaultFirewallAction: profile.defaultFirewallAction || 'DENY',
-    firewallRuleId: Array.isArray(profile.firewallRules) && profile.firewallRules.length > 0
-      ? (typeof profile.firewallRules[0] === 'string' 
-          ? profile.firewallRules[0] 
-          : profile.firewallRules[0].id)
-      : '', 
-
-
-      dnsEnabled: profile.dnsEnabled,
-      primaryDns: profile.primaryDns || '',
-      secondaryDns: profile.secondaryDns || '',
-      dnsSecurity: profile.dnsSecurity,
-
-      allowedIps: Array.isArray(profile.allowedIps)
-        ? profile.allowedIps.join(', ')
-        : '',
-      blockedIps: Array.isArray(profile.blockedIps)
-        ? profile.blockedIps.join(', ')
-        : '',
-      allowedPorts: Array.isArray(profile.allowedPorts)
-        ? profile.allowedPorts.join(', ')
-        : '',
-      blockedPorts: Array.isArray(profile.blockedPorts)
-        ? profile.blockedPorts.join(', ')
-        : '',
-
-      isScheduled: profile.isScheduled,
-      scheduleType: profile.scheduleType || 'NONE',
-      scheduleStartTime: profile.scheduleStartTime || '',
-      scheduleEndTime: profile.scheduleEndTime || '',
-      scheduleDays: profile.scheduleDays || [],
-      scheduleCondition: profile.scheduleCondition || '',
-      autoActivate: profile.autoActivate,
-
-      geoLocationCountries: profile.geoLocationCountries || [],
+      firewallRuleId:
+        Array.isArray(profile.firewallRules) && profile.firewallRules.length > 0
+          ? String(profile.firewallRules[0])
+          : 'none',
+      defaultFirewallAction: profile.defaultFirewallAction || 'DENY',
+      schedule: {
+        enabled: Boolean(profile.isScheduled),
+        type: scheduleTypeMap[profile.scheduleType] || 'none',
+        startTime: profile.scheduleStartTime || '09:00',
+        endTime: profile.scheduleEndTime || '17:00',
+        activeDays: Array.isArray(profile.scheduleDays) ? profile.scheduleDays : [],
+        geoCountries: Array.isArray(profile.geoLocationCountries) ? profile.geoLocationCountries : [],
+        autoActivate: Boolean(profile.autoActivate)
+      }
     });
     setShowForm(true);
   };
 
-  const handleDeactivate = async (id) => {
-    const confirmed = await showConfirm('Are you sure you want to deactivate this profile?');
-    if (confirmed) {
-      try {
-        await api.put(`/profiles/${id}/deactivate`, {});
-        showToast('Profile deactivated successfully!');
-        fetchProfiles();
-        fetchLogs();
-      } catch (error) {
-        console.error('Error deactivating profile:', error);
-        showToast('Error deactivating profile', 'error');
-      }
-    }
-  };
-
-  const handleDelete = async (id) => {
-    const confirmed = await showConfirm('Are you sure you want to delete this profile?');
-    if (confirmed) {
-      try {
-        await api.delete(`/profiles/${id}`);
-        showToast('Profile deleted successfully!', 'success');
-        fetchProfiles();
-        fetchLogs();
-      } catch (error) {
-        console.error('Error deleting profile:', error);
-        showToast('Error deleting profile', 'error');
-      }
-    }
-  };
-
-  const handleActivate = async (id) => {
-    try {
-      await api.put(`/profiles/${id}/activate`, {});
-      showToast('Profile activated successfully!', 'success');
-      fetchProfiles();
-      fetchLogs();
-    } catch (error) {
-      console.error('Error activating profile:', error);
-      showToast('Error activating profile', 'error');
-    }
-  };
-
-const [countryInputValue, setCountryInputValue] = useState('');
-const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
-
-const getAllCountryNames = () => {
-  const countryObj = countries.getNames("en", { select: "official" });
-  return Object.values(countryObj).sort();
-};
-
-const getFilteredCountries = () => {
-  if (!countryInputValue) return [];
-  const allCountries = getAllCountryNames();
-  return allCountries.filter(country =>
-    country.toLowerCase().includes(countryInputValue.toLowerCase())
-  ).slice(0, 10);
-};
-
-const handleAddCountry = (country) => {
-  const trimmedCountry = country.trim();
-  if (trimmedCountry && !formData.geoLocationCountries.includes(trimmedCountry)) {
-    setFormData({
-      ...formData,
-      geoLocationCountries: [...formData.geoLocationCountries, trimmedCountry],
-    });
-    setCountryInputValue('');
-    setShowCountrySuggestions(false);
-  }
-};
-
-const handleRemoveCountry = (countryToRemove) => {
-  setFormData({
-    ...formData,
-    geoLocationCountries: formData.geoLocationCountries.filter(c => c !== countryToRemove),
-  });
-};
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      profileType: 'Custom',
-      vpnEnabled: false,
-      vpnConfigId: '',
-      vpnServer: '',
-      vpnProtocol: 'OpenVPN',
-      vpnPort: '',
-      vpnUsername: '',
+  const payloadFromForm = () => {
+    return {
+      name: formData.name.trim(),
+      description: formData.description.trim(),
+      profileType: formData.profileType,
+      vpnEnabled: formData.vpnEnabled,
+      vpnServer: formData.vpnEnabled ? formData.vpnServer.trim() || null : null,
+      vpnProtocol: formData.vpnEnabled ? formData.vpnProtocol : null,
+      vpnPort: formData.vpnEnabled && formData.vpnPort ? parseInt(formData.vpnPort, 10) : null,
+      vpnUsername: formData.vpnEnabled ? formData.vpnUsername.trim() || null : null,
       firewallEnabled: true,
-      defaultFirewallAction: 'DENY',
-      firewallRuleId: '',
-      dnsEnabled: false,
-      primaryDns: '',
-      secondaryDns: '',
-      allowedIps: '',
-      blockedIps: '',
-      allowedPorts: '',
-      blockedPorts: '',
-      isScheduled: false,
-      scheduleType: 'NONE',
-      scheduleStartTime: '',
-      scheduleEndTime: '',
-      scheduleDays: [],
-      scheduleCondition: '',
-      autoActivate: false,
-      geoLocationCountries: [],
+      firewallRules: formData.firewallRuleId === 'none' ? [] : [formData.firewallRuleId],
+      defaultFirewallAction: formData.defaultFirewallAction,
+      isScheduled: formData.schedule.enabled,
+      scheduleType: formData.schedule.enabled ? scheduleTypeReverseMap[formData.schedule.type] : 'NONE',
+      scheduleStartTime:
+        formData.schedule.enabled && (formData.schedule.type === 'time' || formData.schedule.type === 'both')
+          ? formData.schedule.startTime
+          : null,
+      scheduleEndTime:
+        formData.schedule.enabled && (formData.schedule.type === 'time' || formData.schedule.type === 'both')
+          ? formData.schedule.endTime
+          : null,
+      scheduleDays:
+        formData.schedule.enabled && (formData.schedule.type === 'time' || formData.schedule.type === 'both')
+          ? formData.schedule.activeDays
+          : [],
+      geoLocationCountries:
+        formData.schedule.enabled && (formData.schedule.type === 'geolocation' || formData.schedule.type === 'both')
+          ? formData.schedule.geoCountries
+          : [],
+      autoActivate: formData.schedule.enabled ? formData.schedule.autoActivate : false
+    };
+  };
+
+  const saveProfile = async () => {
+    if (!formData.name.trim()) {
+      setToast({ type: 'error', message: 'Profile name is required' });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+
+      const payload = payloadFromForm();
+      if (editingProfile) {
+        const response = await api.put(`/profiles/${editingProfile.id}`, payload);
+        const updated = response.data?.profile;
+        setProfiles((prev) => prev.map((item) => (item.id === editingProfile.id ? updated : item)));
+        setToast({ type: 'success', message: 'Profile updated successfully' });
+      } else {
+        const response = await api.post('/profiles', payload);
+        const created = response.data?.profile;
+        setProfiles((prev) => [created, ...prev]);
+        setToast({ type: 'success', message: 'Profile created successfully' });
+      }
+
+      const logsResponse = await api.get('/profiles/logs/all');
+      setActivityLogs(logsResponse.data?.logs || []);
+
+      setShowForm(false);
+      resetForm();
+    } catch (saveError) {
+      setToast({ type: 'error', message: getErrorMessage(saveError, 'Failed to save profile') });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (profile) => {
+    try {
+      if (profile.isActive) {
+        await api.put(`/profiles/${profile.id}/deactivate`, {});
+        setToast({ type: 'success', message: 'Profile deactivated successfully' });
+      } else {
+        await api.put(`/profiles/${profile.id}/activate`, {});
+        setToast({ type: 'success', message: 'Profile activated successfully' });
+      }
+
+      const [profilesRes, logsRes] = await Promise.all([api.get('/profiles'), api.get('/profiles/logs/all')]);
+      setProfiles(profilesRes.data?.profiles || []);
+      setActivityLogs(logsRes.data?.logs || []);
+    } catch (actionError) {
+      setToast({ type: 'error', message: getErrorMessage(actionError, 'Failed to update profile status') });
+    }
+  };
+
+  const requestDelete = (profile) => {
+    setDeleteTarget(profile);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.delete(`/profiles/${deleteTarget.id}`);
+      setProfiles((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+      setToast({ type: 'success', message: 'Profile deleted successfully' });
+
+      const logsRes = await api.get('/profiles/logs/all');
+      setActivityLogs(logsRes.data?.logs || []);
+    } catch (deleteError) {
+      setToast({ type: 'error', message: getErrorMessage(deleteError, 'Failed to delete profile') });
+    } finally {
+      setShowDeleteDialog(false);
+      setDeleteTarget(null);
+    }
+  };
+
+  const openShareDialog = (profile) => {
+    setShareTarget(profile);
+    setShareForm({ permissions: 'VIEW', password: '', expiresInDays: '', maxAccess: '' });
+    setShowShareDialog(true);
+  };
+
+  const createShareLink = async () => {
+    if (!shareTarget) return;
+
+    try {
+      const response = await api.post('/auth/shared-profiles', {
+        profileId: shareTarget.id,
+        permissions: shareForm.permissions,
+        password: shareForm.password.trim() || undefined,
+        expiresInDays: shareForm.expiresInDays ? parseInt(shareForm.expiresInDays, 10) : undefined,
+        maxAccess: shareForm.maxAccess ? parseInt(shareForm.maxAccess, 10) : undefined
+      });
+
+      const created = response.data?.data;
+      if (created?.shareToken) {
+        const shareUrl = `${window.location.origin}/shared-profiles/${created.shareToken}`;
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          setToast({ type: 'success', message: 'Share link created and copied to clipboard' });
+        } catch {
+          setToast({ type: 'success', message: 'Share link created successfully' });
+        }
+      }
+
+      const sharesRes = await api.get('/auth/shared-profiles/my/shares');
+      setShareLinks(sharesRes.data?.data || []);
+
+      setShowShareDialog(false);
+      setShareTarget(null);
+    } catch (shareError) {
+      setToast({ type: 'error', message: getErrorMessage(shareError, 'Failed to create share link') });
+    }
+  };
+
+  const revokeShareLink = async (shareId) => {
+    try {
+      await api.put(`/auth/shared-profiles/${shareId}/revoke`);
+      const sharesRes = await api.get('/auth/shared-profiles/my/shares');
+      setShareLinks(sharesRes.data?.data || []);
+      setToast({ type: 'success', message: 'Share link revoked successfully' });
+    } catch (revokeError) {
+      setToast({ type: 'error', message: getErrorMessage(revokeError, 'Failed to revoke share link') });
+    }
+  };
+
+  const deleteShareLink = async (shareId) => {
+    try {
+      await api.delete(`/auth/shared-profiles/${shareId}`);
+      setShareLinks((prev) => prev.filter((link) => link.id !== shareId));
+      setToast({ type: 'success', message: 'Share link deleted successfully' });
+    } catch (deleteError) {
+      setToast({ type: 'error', message: getErrorMessage(deleteError, 'Failed to delete share link') });
+    }
+  };
+
+  const toggleDay = (day) => {
+    setFormData((prev) => {
+      const hasDay = prev.schedule.activeDays.includes(day);
+      return {
+        ...prev,
+        schedule: {
+          ...prev.schedule,
+          activeDays: hasDay
+            ? prev.schedule.activeDays.filter((item) => item !== day)
+            : [...prev.schedule.activeDays, day]
+        }
+      };
     });
   };
 
-
-  const handleCancel = () => {
-    setShowForm(false);
-    setEditingProfile(null);
-    resetForm();
+  const addCountry = (country) => {
+    setFormData((prev) => ({
+      ...prev,
+      schedule: {
+        ...prev.schedule,
+        geoCountries: [...prev.schedule.geoCountries, country]
+      }
+    }));
+    setGeoSearch('');
+    setShowGeoDropdown(false);
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleString();
-  };
-
-  const getActionBadgeClass = (action) => {
-    switch (action) {
-      case 'CREATED':
-        return 'badge-created';
-      case 'UPDATED':
-        return 'badge-updated';
-      case 'DELETED':
-        return 'badge-deleted';
-      case 'ACTIVATED':
-        return 'badge-activated';
-      case 'DEACTIVATED':
-        return 'badge-deactivated';
-      default:
-        return 'badge-default';
-    }
+  const removeCountry = (country) => {
+    setFormData((prev) => ({
+      ...prev,
+      schedule: {
+        ...prev.schedule,
+        geoCountries: prev.schedule.geoCountries.filter((item) => item !== country)
+      }
+    }));
   };
 
   if (loading) {
     return (
-      <div className="loading-container" style={{ color: colors.text }}>
-        Loading profiles...
+      <div style={{ color: colors.text, maxWidth: 1200, margin: '0 auto' }}>
+        <h2 style={{ margin: 0 }}>Loading Security Profile Manager...</h2>
       </div>
     );
   }
 
-
   return (
-    <div className="profile-manager" style={styles.container}>
-      {/* Confirmation Modal */}
-      {confirmModal && (
-        <ConfirmModal
-          message={confirmModal.message}
-          onConfirm={confirmModal.onConfirm}
-          onCancel={confirmModal.onCancel}
-          colors={colors}
-        />
-      )}
-
-      {/* Toast notifications */}
+    <div style={{ maxWidth: 1280, margin: '0 auto', color: colors.text, backgroundColor: colors.bgMain, padding: '4px 0 20px' }}>
       {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-          colors={colors}
-          theme={theme}
-        />
+        <div
+          style={{
+            position: 'fixed',
+            top: 92,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 10000,
+            padding: '10px 14px',
+            borderRadius: 8,
+            border: `1px solid ${toast.type === 'error' ? colors.danger : colors.accent}`,
+            backgroundColor: toast.type === 'error' ? 'rgba(239,68,68,0.15)' : colors.accentSoft,
+            color: toast.type === 'error' ? colors.danger : colors.text
+          }}
+        >
+          {toast.message}
+        </div>
       )}
 
+      {error && (
+        <div
+          style={{
+            marginBottom: 12,
+            borderRadius: 8,
+            border: `1px solid ${colors.danger}`,
+            backgroundColor: 'rgba(239,68,68,0.12)',
+            color: colors.danger,
+            padding: 12
+          }}
+        >
+          {error}
+        </div>
+      )}
 
-      {/* Header */}
       <div
-        className="pm-header"
         style={{
+          backgroundColor: colors.bgCard,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 14,
+          padding: 20,
+          marginBottom: 14,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 24,
           gap: 16,
-          flexWrap: 'wrap',
+          flexWrap: 'wrap'
         }}
       >
-        <h2 style={styles.headerTitle}>Security Profile Management</h2>
-
-         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <button
-            onClick={() => {
-              // Navigate to share management view
-              if (window.setCurrentView) {
-                window.setCurrentView('share-management');
-              } else {
-                // Fallback: open in new window
-                window.location.href = '/share-management';
-              }
-            }} 
-            style={{
-              padding: '10px 18px',
-              borderRadius: 999,
-              border: `1px solid ${colors.accent}`,
-              backgroundColor: 'transparent',
-              color: colors.accent,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Manage All Shares
-          </button>
-                    
-          <button
-            onClick={() => setShowLogs(!showLogs)}
-            style={{
-              padding: '10px 18px',
-              borderRadius: 999,
-              border: `1px solid ${colors.border}`,
-              backgroundColor: showLogs ? colors.accentSoft : colors.bgCard,
-              color: colors.text,
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            {showLogs ? 'Hide Logs' : 'View Activity Logs'}
-          </button>
-
-          <button
-            onClick={() => setShowForm(true)}
-            style={{
-              padding: '10px 20px',
-              borderRadius: 999,
-              border: 'none',
-              backgroundColor: colors.accent,
-              color: theme === 'dark' ? '#121212' : '#ffffff',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow: '0 4px 10px rgba(0,0,0,0.12)',
-            }}
-          >
-            Create New Profile
-          </button>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <FiLayers size={24} color={colors.accent} />
+            Security Profile Manager
+          </h1>
+          <p style={{ margin: '6px 0 0 0', color: colors.textMuted }}>
+            Create, manage, and deploy bundled security configurations
+          </p>
         </div>
       </div>
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <button
+            onClick={openCreate}
+            style={{
+              border: 'none',
+              borderRadius: 8,
+              padding: '10px 14px',
+              backgroundColor: colors.accent,
+              color: '#fff',
+              cursor: 'pointer',
+              fontWeight: 500,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8
+            }}
+          >
+            <FiPlus size={14} />
+            Create New Profile
+          </button>
+        <button
+          onClick={() => setShowActivityLogs((prev) => !prev)}
+          style={{
+            border: `1px solid ${colors.border}`,
+            borderRadius: 8,
+            padding: '8px 12px',
+            backgroundColor: colors.bgCard,
+            color: colors.text,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
+          }}
+        >
+          <FiClock size={14} />
+          {showActivityLogs ? 'Hide Activity Logs' : 'View Activity Logs'}
+        </button>
+        <button
+          onClick={() => setShowManageSharesDialog(true)}
+          style={{
+            border: `1px solid ${colors.border}`,
+            borderRadius: 8,
+            padding: '8px 12px',
+            backgroundColor: colors.bgCard,
+            color: colors.text,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
+          }}
+        >
+          <FiShare2 size={14} />
+          Manage All Shares
+          <span
+            style={{
+              borderRadius: 999,
+              padding: '2px 8px',
+              fontSize: 11,
+              backgroundColor: isDark ? 'rgba(22,163,74,0.25)' : '#dcfce7',
+              color: colors.accent
+            }}
+          >
+            {totalShares}
+          </span>
+        </button>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: colors.textMuted }}>
+          <FiShield size={14} />
+          {activeCount} of {profiles.length} profiles active
+        </div>
+      </div>
 
-      {/* Activity Logs Section */}
-      {showLogs && (
-        <div className="logs-section" style={styles.logsSection}>
-          <h3 style={{ marginTop: 0, marginBottom: 16, color: colors.text }}>
-            Activity Logs
-          </h3>
-          {logs.length === 0 ? (
-            <p className="no-logs" style={styles.logsEmpty}>
-              No activity logs yet.
-            </p>
-          ) : (
-            <div
-              className="logs-container"
-              style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+      {showActivityLogs && (
+        <div
+          style={{
+            marginBottom: 14,
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 14,
+            padding: 16
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ margin: 0, fontSize: 19, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <FiActivity size={18} color={colors.accent} />
+              Activity Log
+            </h3>
+            <button
+              onClick={() => setShowActivityLogs(false)}
+              style={{
+                border: `1px solid ${colors.border}`,
+                backgroundColor: 'transparent',
+                borderRadius: 6,
+                padding: '4px 8px',
+                cursor: 'pointer',
+                color: colors.text,
+                display: 'inline-flex',
+                alignItems: 'center'
+              }}
             >
-              {logs.map((log) => (
-                <div key={log.id} className="log-card" style={styles.logCard}>
-                  <div
-                    className="log-card-header"
-                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
+              <FiX size={14} />
+            </button>
+          </div>
+
+          <div style={{ marginTop: 12, maxHeight: 320, overflowY: 'auto', display: 'grid', gap: 8 }}>
+            {activityLogs.length === 0 && <div style={{ color: colors.textMuted }}>No activity yet.</div>}
+            {activityLogs.map((log) => {
+              const tone = getActionColor(log.action, isDark);
+              return (
+                <div
+                  key={log.id}
+                  style={{
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 10,
+                    padding: 10,
+                    backgroundColor: colors.bgPanel,
+                    display: 'flex',
+                    gap: 10,
+                    alignItems: 'flex-start'
+                  }}
+                >
+                  <span
+                    style={{
+                      borderRadius: 999,
+                      padding: '3px 8px',
+                      fontSize: 11,
+                      color: tone.fg,
+                      backgroundColor: tone.bg,
+                      border: `1px solid ${tone.fg}`
                     }}
                   >
-                    <span className="log-date" style={styles.logDate}>
-                      {formatDate(log.createdAt)}
-                    </span>
-
-                    <span
-                      className={`action-badge ${getActionBadgeClass(log.action)}`}
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: 999,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        letterSpacing: 0.5,
-                        backgroundColor:
-                          log.action === 'DEACTIVATED'
-                            ? 'rgba(249,115,22,0.12)'
-                            : colors.accentSoft,
-                        color:
-                          log.action === 'DEACTIVATED'
-                            ? '#f97316'
-                            : colors.accent,
-                      }}
-                    >
-                      {log.action}
-                    </span>
-                  </div>
-
-                  <div className="log-card-body">
-                    <p>
-                      <span className="log-label">Profile:</span>{' '}
-                      <span
-                        className={`log-profile ${!log.profile?.name ? 'deleted' : ''
-                          }`}
-                        style={{
-                          color: log.profile?.name ? colors.accent : colors.danger,
-                          fontWeight: 600,
-                          textDecoration: log.profile?.name ? 'underline' : 'none',
-                        }}
-                      >
-                        {log.profile?.name ||
-                          log.description?.match(/"([^"]+)"/)?.[1] ||
-                          'Deleted'}
+                    {toTitle(log.action)}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14 }}>
+                      <span style={{ color: colors.accent, fontWeight: 500 }}>
+                        {log.profile?.name || 'Unknown Profile'}
                       </span>
-                    </p>
-
-                    <p>
-                      <span className="log-label">User:</span>{' '}
-                      <span className="log-email">{log.userEmail}</span>
-                    </p>
-
+                    </div>
                     {log.description && (
-                      <p
-                        className="log-description"
-                        style={styles.logDescription}
-                      >
-                        {log.description}
-                      </p>
+                      <div style={{ marginTop: 2, fontSize: 12, color: colors.textMuted }}>{log.description}</div>
                     )}
+                    <div style={{ marginTop: 4, fontSize: 11, color: colors.textMuted, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><FiClock size={11} />{formatDateTime(log.createdAt)}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><FiMail size={11} />{log.userEmail || 'Unknown User'}</span>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
       )}
 
-
-      {/* Profile Form */}
       {showForm && (
         <div
-          className="profile-form-container"
-          style={styles.profileFormContainer}
+          style={{
+            marginBottom: 14,
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${isDark ? '#14532d' : '#bbf7d0'}`,
+            borderRadius: 14,
+            padding: 16
+          }}
         >
-          <h3
-            style={{
-              marginTop: 0,
-              marginBottom: 16,
-              color: colors.text,
-              fontSize: 24,
-              fontWeight: 'bold',
-            }}
-          >
-            {editingProfile ? 'Edit Profile' : 'Create New Profile'}
-          </h3>
-          <form onSubmit={handleSubmit} className="profile-form">
-            {/* Basic Information */}
-            <div className="form-section" style={styles.formSection}>
-              <h4
-                style={{
-                  marginTop: 0,
-                  marginBottom: 16,
-                  color: colors.accent,
-                  fontSize: 18,
-                  fontWeight: 600,
-                }}
-              >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 19, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                {editingProfile ? <FiEdit2 size={18} color={colors.accent} /> : <FiPlus size={18} color={colors.accent} />}
+                {editingProfile ? 'Edit Profile' : 'Create New Profile'}
+              </h3>
+              <div style={{ fontSize: 12, color: colors.textMuted, marginTop: 4 }}>
+                Configure VPN, firewall and scheduling rules
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowForm(false);
+                resetForm();
+              }}
+              style={{
+                border: `1px solid ${colors.border}`,
+                backgroundColor: 'transparent',
+                borderRadius: 6,
+                padding: '4px 8px',
+                cursor: 'pointer',
+                color: colors.text
+              }}
+            >
+              <FiX size={14} />
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gap: 18 }}>
+            <div>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: 15, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <FiInfo size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
                 Basic Information
               </h4>
-
-              <div className="form-group">
-                <label>Profile Name *</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  required
-                  className="form-input"
-                  style={styles.formInput}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: colors.textMuted }}>Profile Name *</label>
+                  <input
+                    value={formData.name}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
+                    placeholder="e.g., Corporate Office Standard"
+                    style={{
+                      width: '100%',
+                      marginTop: 4,
+                      borderRadius: 8,
+                      border: `1px solid ${colors.inputBorder}`,
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                      padding: '9px 10px'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: colors.textMuted }}>Profile Type</label>
+                  <select
+                    value={formData.profileType}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, profileType: event.target.value }))}
+                    style={{
+                      width: '100%',
+                      marginTop: 4,
+                      borderRadius: 8,
+                      border: `1px solid ${colors.inputBorder}`,
+                      backgroundColor: colors.inputBg,
+                      color: colors.text,
+                      padding: '9px 10px'
+                    }}
+                  >
+                    {profileTypeOptions.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-
-              <div className="form-group">
-                <label>Description</label>
+              <div style={{ marginTop: 10 }}>
+                <label style={{ fontSize: 12, color: colors.textMuted }}>Description</label>
                 <textarea
-                  name="description"
                   value={formData.description}
-                  onChange={handleInputChange}
-                  rows="3"
-                  className="form-textarea"
-                  style={styles.textArea}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))}
+                  rows={2}
+                  placeholder="Describe profile purpose..."
+                  style={{
+                    width: '100%',
+                    marginTop: 4,
+                    borderRadius: 8,
+                    border: `1px solid ${colors.inputBorder}`,
+                    backgroundColor: colors.inputBg,
+                    color: colors.text,
+                    padding: '9px 10px',
+                    resize: 'vertical'
+                  }}
                 />
               </div>
             </div>
 
-            {/* VPN Settings */}
-            <div className="form-section" style={styles.formSection}>
-              <h4
-                style={{
-                  marginTop: 0,
-                  marginBottom: 16,
-                  color: colors.accent,
-                  fontSize: 18,
-                  fontWeight: 600,
-                }}
-              >
-                VPN Settings
-              </h4>
-
-              <label
-                className="checkbox-label"
-                style={styles.checkboxLabel}
-              >
-                <input
-                  type="checkbox"
-                  name="vpnEnabled"
-                  checked={formData.vpnEnabled}
-                  onChange={handleInputChange}
-                />
-                <span>Enable VPN</span>
-              </label>
+            <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, fontSize: 15, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <FiWifi size={14} color={colors.accent} />
+                  VPN Settings
+                </h4>
+                <label style={{ fontSize: 12, color: colors.textMuted, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.vpnEnabled}
+                    onChange={(event) => setFormData((prev) => ({ ...prev, vpnEnabled: event.target.checked }))}
+                  />
+                  Enable VPN
+                </label>
+              </div>
 
               {formData.vpnEnabled && (
-                <div className="nested-fields" style={{ marginTop: 16 }}>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ 
-                      display: 'block', 
-                      marginBottom: 8, 
-                      color: colors.text, 
-                      fontWeight: 500 
-                    }}>
-                      Select VPN Configuration
-                    </label>
-                    <p style={{ 
-                      fontSize: 12, 
-                      color: colors.textMuted, 
-                      marginBottom: 12 
-                    }}>
-                      Choose a VPN configuration from your saved configs
-                    </p>
-                    
-                    {vpnConfigs.length === 0 ? (
-                      <p style={{ color: colors.textMuted, fontSize: 13 }}>
-                        No VPN configurations available. Create VPN configs in the VPN Management section first.
-                      </p>
-                    ) : (
-                      <div style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        gap: 10,
-                        maxHeight: 300,
-                        overflowY: 'auto',
-                        padding: 4
-                      }}>
-                        <label
-                          style={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: 12,
-                            padding: 12,
-                            borderRadius: 8,
-                            border: `2px solid ${!formData.vpnConfigId ? colors.accent : colors.border}`,
-                            backgroundColor: !formData.vpnConfigId
-                              ? (theme === 'dark' ? 'rgba(54,226,123,0.08)' : colors.accentSoft)
-                              : colors.bgPanel,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            if (formData.vpnConfigId) {
-                              e.currentTarget.style.borderColor = colors.textMuted;
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (formData.vpnConfigId) {
-                              e.currentTarget.style.borderColor = colors.border;
-                            }
-                          }}
-                        >
-                          <input
-                            type="radio"
-                            name="vpnConfigSelection"
-                            checked={!formData.vpnConfigId}
-                            onChange={() => {
-                              setFormData({
-                                ...formData,
-                                vpnConfigId: ''
-                              });
-                            }}
-                            style={{
-                              marginTop: 2,
-                              cursor: 'pointer',
-                              width: 16,
-                              height: 16,
-                              accentColor: colors.accent
-                            }}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ 
-                              fontSize: 14, 
-                              fontWeight: 700, 
-                              color: colors.text,
-                              marginBottom: 4
-                            }}>
-                              No VPN Configuration (Default)
-                            </div>
-                            <div style={{ fontSize: 12, color: colors.textMuted }}>
-                              Continue without VPN
-                            </div>
-                          </div>
-                        </label>
-                        
-                        {vpnConfigs.map((vpn, index) => {
-                          const isSelected = formData.vpnConfigId === vpn.id;
-                          return (
-                            <label
-                              key={vpn.id}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'flex-start',
-                                gap: 12,
-                                padding: 12,
-                                borderRadius: 8,
-                                border: `2px solid ${isSelected ? colors.accent : colors.border}`,
-                                backgroundColor: isSelected 
-                                  ? (theme === 'dark' ? 'rgba(54,226,123,0.08)' : colors.accentSoft)
-                                  : colors.bgPanel,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!isSelected) {
-                                  e.currentTarget.style.borderColor = colors.textMuted;
-                                }
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!isSelected) {
-                                  e.currentTarget.style.borderColor = colors.border;
-                                }
-                              }}
-                            >
-                              <input
-                                type="radio"
-                                name="vpnConfigSelection"
-                                checked={isSelected}
-                                onChange={() => {
-                                  setFormData({
-                                    ...formData,
-                                    vpnConfigId: vpn.id
-                                  });
-                                }}
-                                style={{
-                                  marginTop: 2,
-                                  cursor: 'pointer',
-                                  width: 16,
-                                  height: 16,
-                                  accentColor: colors.accent
-                                }}
-                              />
-                              
-                              <div style={{ flex: 1 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                                  <span
-                                    style={{
-                                      fontSize: 14,
-                                      fontWeight: 700,
-                                      color: colors.text,
-                                    }}
-                                  >
-                                    {vpn.name}
-                                  </span>
-                                  
-                                  <span
-                                    style={{
-                                      padding: '3px 10px',
-                                      borderRadius: 12,
-                                      fontSize: 11,
-                                      fontWeight: 600,
-                                      backgroundColor: theme === 'dark' ? '#1E402C' : '#e6f4ed',
-                                      color: theme === 'dark' ? '#36E27B' : '#1fa45a',
-                                    }}
-                                  >
-                                    {vpn.protocol}
-                                  </span>
-                                  
-                                  {vpn.isActive && (
-                                    <span
-                                      style={{
-                                        padding: '3px 8px',
-                                        borderRadius: 12,
-                                        fontSize: 11,
-                                        backgroundColor: colors.accentSoft,
-                                        color: colors.accent,
-                                        fontWeight: 600
-                                      }}
-                                    >
-                                      ● Active
-                                    </span>
-                                  )}
-                                </div>
-
-                                <div style={{ fontSize: 12, color: colors.textMuted, marginBottom: 3 }}>
-                                  <strong>File:</strong> {vpn.configFileName}
-                                </div>
-
-                                {vpn.description && (
-                                  <div
-                                    style={{
-                                      fontSize: 12,
-                                      fontStyle: 'italic',
-                                      color: colors.textMuted,
-                                      marginTop: 6,
-                                    }}
-                                  >
-                                    "{vpn.description}"
-                                  </div>
-                                )}
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
+                <div
+                  style={{
+                    marginTop: 10,
+                    backgroundColor: colors.bgPanel,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 10,
+                    padding: 10,
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))',
+                    gap: 10
+                  }}
+                >
+                  <div>
+                    <label style={{ fontSize: 12, color: colors.textMuted }}>Server Address</label>
+                    <input
+                      value={formData.vpnServer}
+                      onChange={(event) => setFormData((prev) => ({ ...prev, vpnServer: event.target.value }))}
+                      style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                    />
                   </div>
-
-                  {/* Selected VPN Summary */}
-                  {formData.vpnConfigId && vpnConfigs.find(v => v.id === formData.vpnConfigId) && (
-                    <div style={{ 
-                      marginTop: 16, 
-                      padding: 12, 
-                      backgroundColor: colors.bgCard,
-                      borderRadius: 8,
-                      border: `1px solid ${colors.accent}`
-                    }}>
-                      <div style={{ 
-                        fontSize: 13, 
-                        fontWeight: 600, 
-                        color: colors.text,
-                        marginBottom: 8,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6
-                      }}>
-                        <span>✓</span> Selected VPN Configuration
-                      </div>
-                      <div style={{ fontSize: 12, color: colors.textMuted }}>
-                        {(() => {
-                          const selectedVpn = vpnConfigs.find(v => v.id === formData.vpnConfigId);
-                          return (
-                            <div style={{ 
-                              padding: 8,
-                              backgroundColor: colors.bgPanel,
-                              borderRadius: 6,
-                              border: `1px solid ${colors.border}`
-                            }}>
-                              <div style={{ fontWeight: 600, color: colors.text, marginBottom: 4 }}>
-                                {selectedVpn.name}
-                              </div>
-                              <div>
-                                {selectedVpn.protocol} - {selectedVpn.configFileName}
-                                {selectedVpn.description && ` - ${selectedVpn.description}`}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  )}
+                  <div>
+                    <label style={{ fontSize: 12, color: colors.textMuted }}>Protocol</label>
+                    <select
+                      value={formData.vpnProtocol}
+                      onChange={(event) => setFormData((prev) => ({ ...prev, vpnProtocol: event.target.value }))}
+                      style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                    >
+                      {vpnProtocolOptions.map((protocol) => (
+                        <option key={protocol} value={protocol}>
+                          {protocol}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: colors.textMuted }}>Port</label>
+                    <input
+                      value={formData.vpnPort}
+                      onChange={(event) => setFormData((prev) => ({ ...prev, vpnPort: event.target.value }))}
+                      style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: colors.textMuted }}>Username</label>
+                    <input
+                      value={formData.vpnUsername}
+                      onChange={(event) => setFormData((prev) => ({ ...prev, vpnUsername: event.target.value }))}
+                      style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
-            {/* Firewall Rules Selection */}
-            <div className="form-section" style={styles.formSection}>
-              <h4
-                style={{
-                  marginTop: 0,
-                  marginBottom: 16,
-                  color: colors.accent,
-                  fontSize: 18,
-                  fontWeight: 600,
-                }}
-              >
-                Firewall Rules
+
+            <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 12 }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: 15, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <FiShield size={14} color={isDark ? '#60a5fa' : '#2563eb'} />
+                Firewall Rule Selection
               </h4>
-
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: 8, 
-                  color: colors.text, 
-                  fontWeight: 500 
-                }}>
-                  Select Firewall Rule to Apply
-                </label>
-                <p style={{ 
-                  fontSize: 12, 
-                  color: colors.textMuted, 
-                  marginBottom: 12 
-                }}>
-                  Choose one firewall rule configuration for this profile
-                </p>
-                
-                {firewallRules.length === 0 ? (
-                  <p style={{ color: colors.textMuted, fontSize: 13 }}>
-                    No firewall rules available. Create rules in the Firewall Management section first.
-                  </p>
-                ) : (
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: 10,
-                    maxHeight: 300,
-                    overflowY: 'auto',
-                    padding: 4
-                  }}>
-                    <label
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 12,
-                        padding: 12,
-                        borderRadius: 8,
-                        border: `2px solid ${!formData.firewallRuleId ? colors.accent : colors.border}`,
-                        backgroundColor: !formData.firewallRuleId
-                          ? (theme === 'dark' ? 'rgba(54,226,123,0.08)' : colors.accentSoft)
-                          : colors.bgPanel,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (formData.firewallRuleId) {
-                          e.currentTarget.style.borderColor = colors.textMuted;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (formData.firewallRuleId) {
-                          e.currentTarget.style.borderColor = colors.border;
-                        }
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name="firewallRuleSelection"
-                        checked={!formData.firewallRuleId}
-                        onChange={() => {
-                          setFormData({
-                            ...formData,
-                            firewallRuleId: ''
-                          });
-                        }}
-                        style={{
-                          marginTop: 2,
-                          cursor: 'pointer',
-                          width: 16,
-                          height: 16,
-                          accentColor: colors.accent
-                        }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ 
-                          fontSize: 14, 
-                          fontWeight: 700, 
-                          color: colors.text,
-                          marginBottom: 4
-                        }}>
-                          No Firewall Rule (Default)
-                        </div>
-                        <div style={{ fontSize: 12, color: colors.textMuted }}>
-                          Use system default firewall settings only
-                        </div>
-                      </div>
-                    </label>
-                    
-                    {firewallRules.map((rule, index) => {
-                      const isSelected = formData.firewallRuleId === rule.id;
-                      
-                      // Helper functions for display
-                      const getProtocolText = (protocol) => {
-                        if (protocol === 0) return 'TCP';
-                        if (protocol === 1) return 'UDP';
-                        if (protocol === 2) return 'BOTH';
-                        return 'ANY';
-                      };
-
-                      const getActionText = (action) => {
-                        if (action === 0) return 'ACCEPT';
-                        if (action === 1) return 'REJECT';
-                        if (action === 2) return 'DROP';
-                        return 'DENY';
-                      };
-
-                      const getActionColor = (action) => {
-                        if (action === 0) {
-                          return {
-                            bg: theme === 'dark' ? '#1E402C' : '#e6f4ed',
-                            color: theme === 'dark' ? '#36E27B' : '#1fa45a',
-                            icon: '✓'
-                          };
-                        }
-                        if (action === 1) {
-                          return {
-                            bg: theme === 'dark' ? '#40301E' : '#fef3c7',
-                            color: theme === 'dark' ? '#F59E0B' : '#d97706',
-                            icon: '⚠'
-                          };
-                        }
-                        if (action === 2) {
-                          return {
-                            bg: theme === 'dark' ? '#40201E' : '#fee2e2',
-                            color: theme === 'dark' ? '#FF7777' : '#d4183d',
-                            icon: '✗'
-                          };
-                        }
-                        return {
-                          bg: colors.bgPanel,
-                          color: colors.textMuted,
-                          icon: '—'
-                        };
-                      };
-
-                      const actionStyle = getActionColor(rule.action);
-
-                      return (
-                        <label
-                          key={rule.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: 12,
-                            padding: 12,
-                            borderRadius: 8,
-                            border: `2px solid ${isSelected ? colors.accent : colors.border}`,
-                            backgroundColor: isSelected 
-                              ? (theme === 'dark' ? 'rgba(54,226,123,0.08)' : colors.accentSoft)
-                              : colors.bgPanel,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isSelected) {
-                              e.currentTarget.style.borderColor = colors.textMuted;
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isSelected) {
-                              e.currentTarget.style.borderColor = colors.border;
-                            }
-                          }}
-                        >
-                          <input
-                            type="radio"
-                            name="firewallRuleSelection"
-                            checked={isSelected}
-                            onChange={() => {
-                              setFormData({
-                                ...formData,
-                                firewallRuleId: rule.id
-                              });
-                            }}
-                            style={{
-                              marginTop: 2,
-                              cursor: 'pointer',
-                              width: 16,
-                              height: 16,
-                              accentColor: colors.accent
-                            }}
-                          />
-                          
-                          <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                              <span
-                                style={{
-                                  fontSize: 14,
-                                  fontWeight: 700,
-                                  color: colors.text,
-                                }}
-                              >
-                                Firewall Rule {index + 1}
-                              </span>
-                              
-                              <span
-                                style={{
-                                  padding: '3px 10px',
-                                  borderRadius: 12,
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  backgroundColor: actionStyle.bg,
-                                  color: actionStyle.color,
-                                }}
-                              >
-                                {actionStyle.icon} {getActionText(rule.action)}
-                              </span>
-                              
-                              <span
-                                style={{
-                                  padding: '3px 8px',
-                                  borderRadius: 12,
-                                  fontSize: 11,
-                                  backgroundColor: theme === 'light' ? '#f1f3f5' : '#2a2a2a',
-                                  color: colors.textMuted,
-                                  fontWeight: 500
-                                }}
-                              >
-                                {getProtocolText(rule.protocol)}
-                              </span>
-                              
-                              <span
-                                style={{
-                                  padding: '3px 8px',
-                                  borderRadius: 12,
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  backgroundColor: rule.direction === 'inbound'
-                                    ? (theme === 'dark' ? '#1E3A2E' : '#e6f4ed')
-                                    : (theme === 'dark' ? '#3A2E1E' : '#fef3c7'),
-                                  color: rule.direction === 'inbound'
-                                    ? (theme === 'dark' ? '#36E27B' : '#1fa45a')
-                                    : (theme === 'dark' ? '#F59E0B' : '#d97706')
-                                }}
-                              >
-                                {rule.direction === 'inbound' ? '↓ IN' : '↑ OUT'}
-                              </span>
-                            </div>
-
-                            <div style={{ fontSize: 12, color: colors.textMuted, marginBottom: 3 }}>
-                              <strong>IP:</strong> {rule.ip_address}
-                            </div>
-
-                            <div style={{ fontSize: 12, color: colors.textMuted, marginBottom: 3 }}>
-                              <strong>Ports:</strong> {
-                                rule.port_start !== null && rule.port_end !== null
-                                  ? `${rule.port_start}-${rule.port_end}`
-                                  : rule.port_start !== null
-                                    ? `${rule.port_start}`
-                                    : rule.port_end !== null
-                                      ? `${rule.port_end}`
-                                      : 'All ports'
-                              }
-                            </div>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
+              <div>
+                <label style={{ fontSize: 12, color: colors.textMuted }}>Select Ruleset</label>
+                <select
+                  value={formData.firewallRuleId}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, firewallRuleId: event.target.value }))}
+                  style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                >
+                  <option value="none">None (Default)</option>
+                  {firewallRulesets.map((rule) => (
+                    <option key={rule.id} value={rule.id}>
+                      {rule.name || `Rule ${rule.id}`}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Selected Rule Summary */}
-              {formData.firewallRuleId && (() => {
-                const selectedRule = firewallRules.find(r => r.id === formData.firewallRuleId);
-                if (!selectedRule) return null;
-
-                const getProtocolText = (protocol) => {
-                  if (protocol === 0) return 'TCP';
-                  if (protocol === 1) return 'UDP';
-                  if (protocol === 2) return 'BOTH';
-                  return 'ANY';
-                };
-
-                const getActionText = (action) => {
-                  if (action === 0) return 'ACCEPT';
-                  if (action === 1) return 'REJECT';
-                  if (action === 2) return 'DROP';
-                  return 'DENY';
-                };
-
-                const ruleIndex = firewallRules.findIndex(r => r.id === selectedRule.id);
-
-                return (
-                  <div style={{ 
-                    marginTop: 16, 
-                    padding: 12, 
-                    backgroundColor: colors.bgCard,
-                    borderRadius: 8,
-                    border: `1px solid ${colors.accent}`
-                  }}>
-                    <div style={{ 
-                      fontSize: 13, 
-                      fontWeight: 600, 
-                      color: colors.text,
-                      marginBottom: 8,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6
-                    }}>
-                      <span>✓</span> Selected Firewall Rule
-                    </div>
-                    <div style={{ fontSize: 12, color: colors.textMuted }}>
-                      <div style={{ 
-                        padding: 8,
-                        backgroundColor: colors.bgPanel,
-                        borderRadius: 6,
-                        border: `1px solid ${colors.border}`
-                      }}>
-                        <div style={{ fontWeight: 600, color: colors.text, marginBottom: 4 }}>
-                          Firewall Rule {ruleIndex + 1}
+              {formData.firewallRuleId !== 'none' && (
+                <div style={{ marginTop: 10, border: `1px solid ${colors.border}`, borderRadius: 10, padding: 10, backgroundColor: colors.bgPanel }}>
+                  {(() => {
+                    const selected = firewallRulesets.find((rule) => String(rule.id) === String(formData.firewallRuleId));
+                    if (!selected) return <span style={{ color: colors.textMuted, fontSize: 12 }}>Selected rule details unavailable.</span>;
+                    return (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                          <strong>{selected.name || 'Firewall Rule'}</strong>
+                          <span style={{ fontSize: 11, color: colors.textMuted }}>{String(selected.action || 'N/A').toUpperCase()}</span>
                         </div>
-                        <div>
-                          {getActionText(selectedRule.action)} - {getProtocolText(selectedRule.protocol)} ({selectedRule.direction || 'inbound'})
+                        <div style={{ marginTop: 6, fontSize: 12, color: colors.textMuted }}>
+                          {selected.description || 'No description provided'}
                         </div>
-                        <div style={{ marginTop: 4 }}>
-                          IP: {selectedRule.ip_address} | Ports: {
-                            selectedRule.port_start !== null && selectedRule.port_end !== null
-                              ? `${selectedRule.port_start}-${selectedRule.port_end}`
-                              : selectedRule.port_start !== null
-                                ? `${selectedRule.port_start}`
-                                : selectedRule.port_end !== null
-                                  ? `${selectedRule.port_end}`
-                                  : 'All'
-                          }
+                        <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 8, fontSize: 11 }}>
+                          <div><span style={{ color: colors.textMuted }}>Protocol:</span> {selected.protocol || 'Any'}</div>
+                          <div><span style={{ color: colors.textMuted }}>Direction:</span> {selected.direction || 'Any'}</div>
+                          <div><span style={{ color: colors.textMuted }}>Source:</span> {selected.sourceIP || selected.source || 'Any'}</div>
+                          <div><span style={{ color: colors.textMuted }}>Destination:</span> {selected.destinationIP || selected.destination || 'Any'}</div>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
 
-            
-            {/* Scheduling */}
-            <div className="form-section" style={styles.formSection}>
-              <h4
-                style={{
-                  marginTop: 0,
-                  marginBottom: 16,
-                  color: colors.accent,
-                  fontSize: 18,
-                  fontWeight: 600,
-                }}
-              >
-                Scheduling
-              </h4>
+            <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, fontSize: 15, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <FiCalendar size={14} color={isDark ? '#c084fc' : '#9333ea'} />
+                  Scheduling
+                </h4>
+                <label style={{ fontSize: 12, color: colors.textMuted, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.schedule.enabled}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        schedule: { ...prev.schedule, enabled: event.target.checked }
+                      }))
+                    }
+                  />
+                  Enable Scheduling
+                </label>
+              </div>
 
-              <label
-                className="checkbox-label"
-                style={styles.checkboxLabel}
-              >
-                <input
-                  type="checkbox"
-                  name="isScheduled"
-                  checked={formData.isScheduled}
-                  onChange={handleInputChange}
-                />
-                <span>Enable Scheduling</span>
-              </label>
+              {formData.schedule.enabled && (
+                <div style={{ marginTop: 10, display: 'grid', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 12, color: colors.textMuted }}>Schedule Type</label>
+                    <select
+                      value={formData.schedule.type}
+                      onChange={(event) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          schedule: { ...prev.schedule, type: event.target.value }
+                        }))
+                      }
+                      style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                    >
+                      <option value="none">None</option>
+                      <option value="time">Time-Based</option>
+                      <option value="geolocation">Condition / Geolocation</option>
+                      <option value="both">Both (Time + Geolocation)</option>
+                    </select>
+                  </div>
 
-
-              {/* Scheduling Section */}
-                {formData.isScheduled && (
-                  <div className="nested-fields" style={{ marginTop: 16 }}>
-                    <div className="form-group" style={{ marginBottom: 16 }}>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: 8, 
-                        color: colors.text,
-                        fontSize: 14,
-                        fontWeight: 500
-                      }}>
-                        Schedule Type
-                      </label>
-                      <select
-                        name="scheduleType"
-                        value={formData.scheduleType}
-                        onChange={handleInputChange}
-                        className="form-select"
-                        style={styles.select}
-                      >
-                        <option value="NONE">None</option>
-                        <option value="TIME">Time-Based</option>
-                        <option value="CONDITION">Condition-Based (Geolocation)</option>
-                        <option value="BOTH">Time + Geolocation</option>
-                      </select>
-                    </div>
-
-                    {/* Time-Based Settings */}
-                    {(formData.scheduleType === 'TIME' || formData.scheduleType === 'BOTH') && (
-                      <div style={{ 
-                        backgroundColor: colors.bgPanel,
-                        border: `1px solid ${colors.border}`,
-                        borderRadius: 8,
-                        padding: 16,
-                        marginBottom: 16
-                      }}>
-                        <h5 style={{ 
-                          margin: '0 0 16px 0', 
-                          color: colors.text,
-                          fontSize: 15,
-                          fontWeight: 600
-                        }}>
-                          Time-Based Settings
-                        </h5>
-
-                        <div className="form-group" style={{ marginBottom: 16 }}>
-                          <label style={{ 
-                            display: 'block', 
-                            marginBottom: 6, 
-                            color: colors.text,
-                            fontSize: 13
-                          }}>
-                            Start Time
-                          </label>
+                  {(formData.schedule.type === 'time' || formData.schedule.type === 'both') && (
+                    <>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 10 }}>
+                        <div>
+                          <label style={{ fontSize: 12, color: colors.textMuted }}>Start Time</label>
                           <input
                             type="time"
-                            name="scheduleStartTime"
-                            value={formData.scheduleStartTime}
-                            onChange={handleInputChange}
-                            className="form-input"
-                            style={styles.formInput}
+                            value={formData.schedule.startTime}
+                            onChange={(event) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                schedule: { ...prev.schedule, startTime: event.target.value }
+                              }))
+                            }
+                            style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
                           />
                         </div>
-
-                        <div className="form-group" style={{ marginBottom: 16 }}>
-                          <label style={{ 
-                            display: 'block', 
-                            marginBottom: 6, 
-                            color: colors.text,
-                            fontSize: 13
-                          }}>
-                            End Time
-                          </label>
+                        <div>
+                          <label style={{ fontSize: 12, color: colors.textMuted }}>End Time</label>
                           <input
                             type="time"
-                            name="scheduleEndTime"
-                            value={formData.scheduleEndTime}
-                            onChange={handleInputChange}
-                            className="form-input"
-                            style={styles.formInput}
+                            value={formData.schedule.endTime}
+                            onChange={(event) =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                schedule: { ...prev.schedule, endTime: event.target.value }
+                              }))
+                            }
+                            style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
                           />
                         </div>
+                      </div>
 
-                        <div className="form-group">
-                          <label style={{ 
-                            display: 'block', 
-                            marginBottom: 10, 
-                            color: colors.text,
-                            fontSize: 13,
-                            fontWeight: 500
-                          }}>
-                            Active Days
-                          </label>
-                          <div style={{ 
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-                            gap: 8
-                          }}>
-                            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
-                              <label 
-                                key={day} 
+                      <div>
+                        <label style={{ fontSize: 12, color: colors.textMuted }}>Active Days</label>
+                        <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {daysOfWeek.map((day) => {
+                            const active = formData.schedule.activeDays.includes(day);
+                            return (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => toggleDay(day)}
                                 style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 6,
-                                  padding: '8px 10px',
-                                  backgroundColor: formData.scheduleDays?.includes(day) 
-                                    ? colors.accentSoft 
-                                    : 'transparent',
-                                  border: `1px solid ${formData.scheduleDays?.includes(day) 
-                                    ? colors.accent 
-                                    : colors.border}`,
-                                  borderRadius: 6,
-                                  cursor: 'pointer',
-                                  fontSize: 13,
-                                  color: colors.text,
-                                  transition: 'all 0.2s'
+                                  borderRadius: 8,
+                                  border: active ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
+                                  backgroundColor: active ? colors.accentSoft : colors.bgCard,
+                                  color: active ? colors.accent : colors.text,
+                                  padding: '5px 10px',
+                                  cursor: 'pointer'
                                 }}
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={formData.scheduleDays?.includes(day)}
-                                  onChange={() => handleDayToggle(day)}
-                                  style={{ cursor: 'pointer' }}
-                                />
-                                <span>{day.slice(0, 3)}</span>
-                              </label>
-                            ))}
-                          </div>
+                                {day}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
-                    )}
+                    </>
+                  )}
 
+                  {(formData.schedule.type === 'geolocation' || formData.schedule.type === 'both') && (
+                    <div ref={geoInputRef}>
+                      <label style={{ fontSize: 12, color: colors.textMuted }}>Allowed Countries</label>
+                      <input
+                        value={geoSearch}
+                        onChange={(event) => {
+                          setGeoSearch(event.target.value);
+                          setShowGeoDropdown(true);
+                        }}
+                        onFocus={() => setShowGeoDropdown(true)}
+                        placeholder="Search countries..."
+                        style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                      />
 
-                    {/* Geolocation-Based Activation - COMPLETE SECTION */}
-                    {(formData.scheduleType === 'CONDITION' || formData.scheduleType === 'BOTH') && (
-                      <div style={{ marginTop: 20 }}>
-                        <h4 style={{
-                          marginTop: 0,
-                          marginBottom: 12,
-                          color: colors.text,
-                          fontSize: 16,
-                          fontWeight: 600
-                        }}>
-                          Geolocation-Based Activation
-                        </h4>
-                        
-                        {/* Country Input with Autocomplete */}
-                        <div className="country-input-container" style={{ 
-                          position: 'relative', 
-                          marginBottom: 16 
-                        }}>
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                            <div style={{ flex: 1, position: 'relative' }}>
-                              <input
-                                type="text"
-                                value={countryInputValue}
-                                onChange={(e) => {
-                                  setCountryInputValue(e.target.value);
-                                  setShowCountrySuggestions(true);
-                                }}
-                                onFocus={() => setShowCountrySuggestions(true)}
-                                placeholder="Type country name (e.g., United States, Bangladesh)"
-                                style={{
-                                  width: '100%',
-                                  padding: '10px 12px',
-                                  backgroundColor: colors.inputBg,
-                                  border: `1px solid ${colors.inputBorder}`,
-                                  borderRadius: 8,
-                                  fontSize: 14,
-                                  color: colors.text,
-                                  outline: 'none'
-                                }}
-                                onKeyPress={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    if (countryInputValue.trim()) {
-                                      handleAddCountry(countryInputValue);
-                                    }
-                                  }
-                                }}
-                              />
-                              
-                              {/* Autocomplete Dropdown */}
-                              {showCountrySuggestions && countryInputValue && getFilteredCountries().length > 0 && (
-                                <div style={{
-                                  position: 'absolute',
-                                  top: '100%',
-                                  left: 0,
-                                  right: 0,
-                                  maxHeight: 250,
-                                  overflowY: 'auto',
-                                  backgroundColor: colors.bgCard,
-                                  border: `1px solid ${colors.border}`,
-                                  borderRadius: 8,
-                                  marginTop: 4,
-                                  zIndex: 1000,
-                                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-                                }}>
-                                  {getFilteredCountries().map((country, index) => (
-                                    <div
-                                      key={index}
-                                      onClick={() => handleAddCountry(country)}
-                                      style={{
-                                        padding: '12px 14px',
-                                        cursor: 'pointer',
-                                        fontSize: 14,
-                                        color: colors.text,
-                                        borderBottom: index < getFilteredCountries().length - 1 ? `1px solid ${colors.border}` : 'none',
-                                        transition: 'background-color 0.15s',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 8
-                                      }}
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.style.backgroundColor = colors.accentSoft;
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.style.backgroundColor = 'transparent';
-                                      }}
-                                    >
-                                      <span style={{ fontSize: 16 }}></span>
-                                      <span>{country}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (countryInputValue.trim()) {
-                                  handleAddCountry(countryInputValue);
-                                }
-                              }}
-                              style={{
-                                padding: '10px 18px',
-                                borderRadius: 8,
-                                border: 'none',
-                                backgroundColor: colors.accent,
-                                color: theme === 'dark' ? '#121212' : '#ffffff',
-                                fontSize: 14,
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                                transition: 'opacity 0.2s'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
-                              onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-                            >
-                              Add Country
-                            </button>
-                          </div>
-                        </div>
-                        
-                        {/* Selected Countries Display */}
-                        {formData.geoLocationCountries && formData.geoLocationCountries.length > 0 && (
-                          <div style={{
-                            backgroundColor: colors.bgPanel,
+                      {showGeoDropdown && filteredCountries.length > 0 && (
+                        <div
+                          style={{
+                            marginTop: 4,
                             border: `1px solid ${colors.border}`,
                             borderRadius: 8,
-                            padding: 16,
-                            marginTop: 12
-                          }}>
-                            <div style={{ 
-                              fontSize: 13, 
-                              color: colors.textMuted, 
-                              marginBottom: 12,
-                              fontWeight: 600,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 6
-                            }}>
-                              <span>✓</span>
-                              <span>Active in these countries ({formData.geoLocationCountries.length}):</span>
-                            </div>
-                            
-                            <div style={{ 
-                              display: 'flex', 
-                              flexWrap: 'wrap', 
-                              gap: 10 
-                            }}>
-                              {formData.geoLocationCountries.map((country, index) => (
-                                <div
-                                  key={index}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                    padding: '8px 14px',
-                                    backgroundColor: colors.accentSoft,
-                                    border: `1px solid ${colors.accent}`,
-                                    borderRadius: 20,
-                                    fontSize: 14,
-                                    color: colors.text,
-                                    fontWeight: 500
-                                  }}
-                                >
-                                  <span>{country}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveCountry(country)}
-                                    style={{
-                                      background: 'none',
-                                      border: 'none',
-                                      color: colors.danger,
-                                      cursor: 'pointer',
-                                      fontSize: 18,
-                                      lineHeight: 1,
-                                      padding: '0 2px',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      fontWeight: 'bold',
-                                      transition: 'transform 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
-                                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                                    title={`Remove ${country}`}
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                            backgroundColor: colors.bgCard,
+                            maxHeight: 170,
+                            overflowY: 'auto'
+                          }}
+                        >
+                          {filteredCountries.slice(0, 10).map((country) => (
+                            <button
+                              key={country}
+                              type="button"
+                              onClick={() => addCountry(country)}
+                              style={{
+                                width: '100%',
+                                textAlign: 'left',
+                                border: 'none',
+                                borderBottom: `1px solid ${colors.border}`,
+                                backgroundColor: 'transparent',
+                                color: colors.text,
+                                padding: '8px 10px',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {country}
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
-                  <label className="checkbox-label">
+                      {formData.schedule.geoCountries.length > 0 && (
+                        <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {formData.schedule.geoCountries.map((country) => (
+                            <span
+                              key={country}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                borderRadius: 999,
+                                border: `1px solid ${colors.accent}`,
+                                backgroundColor: colors.accentSoft,
+                                color: colors.accent,
+                                fontSize: 12,
+                                padding: '3px 8px'
+                              }}
+                            >
+                              <FiMapPin size={11} />
+                              {country}
+                              <button
+                                type="button"
+                                onClick={() => removeCountry(country)}
+                                style={{ border: 'none', backgroundColor: 'transparent', color: colors.accent, cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                              >
+                                <FiX size={11} />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <label style={{ fontSize: 12, color: colors.textMuted, display: 'flex', alignItems: 'center', gap: 6 }}>
                     <input
                       type="checkbox"
-                      name="autoActivate"
-                      checked={formData.autoActivate}
-                      onChange={handleInputChange}
+                      checked={formData.schedule.autoActivate}
+                      onChange={(event) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          schedule: { ...prev.schedule, autoActivate: event.target.checked }
+                        }))
+                      }
                     />
-                    <span>  Auto-activate when conditions are met</span>
+                    Auto-activate when schedule conditions are met
                   </label>
                 </div>
               )}
             </div>
 
-            {/* Form Actions */}
-            <div
-              className="form-actions"
-              style={{
-                marginTop: 20,
-                display: 'flex',
-                gap: 12,
-                justifyContent: 'flex-end',
-              }}
-            >
-              <button
-                type="submit"
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: 8,
-                  border: 'none',
-                  backgroundColor: colors.accent,
-                  color: theme === 'dark' ? '#121212' : '#ffffff',
-                  fontWeight: 600,
-                  fontSize: 14,
-                  cursor: 'pointer',
-                }}
-              >
-                {editingProfile ? 'Update Profile' : 'Create Profile'}
-              </button>
-
+            <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: 12, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button
                 type="button"
-                onClick={handleCancel}
-                style={{
-                  padding: '10px 16px',
-                  borderRadius: 8,
-                  border: `1px solid ${colors.border}`,
-                  backgroundColor: colors.bgCard,
-                  color: colors.text,
-                  fontSize: 14,
-                  cursor: 'pointer',
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
                 }}
+                style={{ border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.text, padding: '9px 14px', cursor: 'pointer' }}
               >
                 Cancel
               </button>
+              <button
+                type="button"
+                onClick={saveProfile}
+                disabled={saving}
+                style={{ border: 'none', borderRadius: 8, backgroundColor: colors.accent, color: '#fff', padding: '9px 14px', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 7 }}
+              >
+                <FiCheckCircle size={14} />
+                {saving ? 'Saving...' : editingProfile ? 'Update Profile' : 'Create Profile'}
+              </button>
             </div>
-
-          </form>
+          </div>
         </div>
       )}
 
-      {/* Profiles List */}
-      <div className="profiles-section">
-        <h3
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, marginBottom: 14 }}>
+        <div style={{ position: 'relative' }}>
+          <FiSearch size={14} color="#9ca3af" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search profiles by name or description..."
+            style={{ width: '100%', borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '9px 10px 9px 32px' }}
+          />
+        </div>
+        <select
+          value={filterType}
+          onChange={(event) => setFilterType(event.target.value)}
+          style={{ borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '9px 10px' }}
+        >
+          <option value="all">All Types</option>
+          {profileTypeOptions.map((type) => (
+            <option key={type} value={type.toLowerCase()}>
+              {type}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={(event) => setFilterStatus(event.target.value)}
+          style={{ borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '9px 10px' }}
+        >
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
+      {filteredProfiles.length === 0 ? (
+        <div
           style={{
-            marginBottom: 16,
-            color: colors.text,
-            fontSize: 20,
-            fontWeight: 600,
+            backgroundColor: colors.bgCard,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 14,
+            padding: 24,
+            textAlign: 'center'
           }}
         >
-          Your Profiles ({profiles.length})
-        </h3>
-        {profiles.length === 0 ? (
-          <div className="empty-state">
-            <p style={{ color: colors.textMuted }}>
-              No profiles yet. Create your first security profile!
-            </p>
-          </div>
-        ) : (
           <div
-            className="profiles-grid"
             style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 16,
+              width: 64,
+              height: 64,
+              borderRadius: 999,
+              margin: '0 auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: isDark ? '#374151' : '#f3f4f6'
             }}
           >
-            {profiles.map((profile) => (
+            <FiLayers size={30} color={isDark ? '#6b7280' : '#9ca3af'} />
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>
+            {profiles.length === 0 ? 'No Security Profiles' : 'No Matching Profiles'}
+          </div>
+          <div style={{ marginTop: 6, color: colors.textMuted }}>
+            {profiles.length === 0
+              ? 'Create your first profile to bundle VPN, firewall and scheduling rules.'
+              : 'Try adjusting your search or filters.'}
+          </div>
+          {profiles.length === 0 && (
+            <button
+              onClick={openCreate}
+              style={{
+                marginTop: 10,
+                border: 'none',
+                borderRadius: 8,
+                padding: '10px 14px',
+                backgroundColor: colors.accent,
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8
+              }}
+            >
+              <FiPlus size={14} />
+              Create First Profile
+            </button>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(420px,1fr))', gap: 12 }}>
+          {filteredProfiles.map((profile) => {
+            const selectedRule =
+              Array.isArray(profile.firewallRules) && profile.firewallRules.length > 0
+                ? firewallRulesets.find((rule) => String(rule.id) === String(profile.firewallRules[0]))
+                : null;
+
+            const linkedShares = shareLinks.filter(
+              (link) => String(link.profileId) === String(profile.id) && link.isActive && !link.revokedAt
+            );
+
+            const scheduleType = scheduleTypeMap[profile.scheduleType] || 'none';
+            const scheduleLabel =
+              scheduleType === 'time'
+                ? 'Timed'
+                : scheduleType === 'geolocation'
+                ? 'Geo'
+                : scheduleType === 'both'
+                ? 'Time+Geo'
+                : 'No Schedule';
+            const statusTone = profile.isActive
+              ? { bg: isDark ? 'rgba(22,163,74,0.28)' : '#dcfce7', fg: isDark ? '#4ade80' : '#15803d' }
+              : { bg: isDark ? '#374151' : '#f3f4f6', fg: isDark ? '#9ca3af' : '#4b5563' };
+            const typeTone = getTypeColor(profile.profileType, isDark);
+            const vpnTone = getFeatureTone(profile.vpnEnabled, 'vpn', isDark);
+            const fwTone = getFeatureTone(Boolean(selectedRule), 'firewall', isDark);
+            const schTone = getFeatureTone(profile.isScheduled, 'schedule', isDark);
+
+            return (
               <div
                 key={profile.id}
-                className={`profile-card ${profile.isActive ? 'active-profile' : ''
-                  }`}
                 style={{
-                  backgroundColor: colors.bgCard,
-                  borderRadius: 12,
-                  border: `1px solid ${profile.isActive ? colors.accent : colors.border
-                    }`,
-                  padding: 20,
+                  backgroundColor: profile.isActive ? (isDark ? 'rgba(22,163,74,0.05)' : 'rgba(240,253,244,0.7)') : colors.bgCard,
+                  border: profile.isActive ? `1px solid ${colors.accent}` : `1px solid ${colors.border}`,
+                  borderRadius: 14,
+                  padding: 14,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
                 }}
               >
-                <div
-                  className="profile-content"
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    gap: 16,
-                  }}
-                >
-                  {/* LEFT: info */}
-                  <div
-                    className="profile-info"
-                    style={{ maxWidth: 520 }}
-                  >
-                    <div
-                      className="profile-title"
-                      style={{
-                        marginBottom: 12,
-                      }}
-                    >
-                      {/* Name on its own line */}
-                      <h4
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>{profile.name}</h3>
+                      <span
                         style={{
-                          margin: 0,
-                          color: colors.text,
-                          fontSize: 18,
-                          fontWeight: 600,
-                          marginBottom: 8,
+                          borderRadius: 999,
+                          padding: '3px 8px',
+                          fontSize: 11,
+                          border: `1px solid ${profile.isActive ? colors.accent : colors.border}`,
+                          backgroundColor: statusTone.bg,
+                          color: statusTone.fg
                         }}
                       >
-                        {profile.name}
-                      </h4>
-
-                      {/* Badges on a separate, smaller row */}
-                      <div
-                        className="profile-badges"
+                        {profile.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                      <span
                         style={{
-                          display: 'flex',
-                          gap: 6,
-                          flexWrap: 'wrap',
+                          borderRadius: 8,
+                          padding: '3px 8px',
+                          fontSize: 11,
+                          border: `1px solid ${typeTone.fg}`,
+                          color: typeTone.fg,
+                          backgroundColor: typeTone.bg
                         }}
                       >
-                        {profile.isActive && (
-                          <span
-                            className="badge badge-active"
-                            style={{
-                              padding: '3px 8px',
-                              borderRadius: 999,
-                              fontSize: 11,
-                              fontWeight: 600,
-                              backgroundColor: colors.accent,
-                              color: theme === 'dark' ? '#121212' : '#ffffff',
-                            }}
-                          >
-                            ● ACTIVE
-                          </span>
-                        )}
-                        <span
-                          className="badge badge-type"
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: 4,
-                            fontSize: 11,
-                            backgroundColor: 'transparent',
-                            color: colors.accent,
-                            fontWeight: 500,
-                            border: `1px solid ${colors.accent}`,
-                          }}
-                        >
-                          {profile.profileType}
-                        </span>
-                      </div>
+                        {profile.profileType}
+                      </span>
                     </div>
-
-
-                    {profile.description && (
-                      <p
-                        style={{
-                          color: colors.textMuted,
-                          marginBottom: 16,
-                          margin: 0,
-                        }}
-                      >
-                        {profile.description}
-                      </p>
-                    )}
-
-                    {/* Settings Summary */}
-                    <div
-                      className="settings-summary"
-                      style={{
-                        marginTop: 14,
-                        paddingLeft: 12,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
-                        maxWidth: 420,
-                      }}
-
-
-                    >
-                      <div 
-                        className="setting-item" 
-                        style={{ 
-                          display: 'grid',
-                          gridTemplateColumns: '100px auto',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-                      >
-                        <strong
-                          style={{
-                            color: colors.textMuted,
-                            fontWeight: 600,
-                          }}
-                        >
-                          VPN:
-                        </strong>
-
-                        {profile.vpnEnabled && profile.vpnConfigId ? (
-                          <span style={{ color: colors.accent, fontWeight: 500 }}>
-                            ✓ Enabled ({(() => {
-                              const vpn = vpnConfigs.find(v => v.id === profile.vpnConfigId);
-                              return vpn ? `${vpn.name} - ${vpn.protocol}` : profile.vpnProtocol;
-                            })()})
-                          </span>
-                        ) : profile.vpnEnabled ? (
-                          <span style={{ color: colors.accent, fontWeight: 500 }}>
-                            ✓ Enabled ({profile.vpnProtocol})
-                          </span>
-                        ) : (
-                          <span style={{ color: colors.danger, fontWeight: 500 }}>
-                            ✗ Disabled
-                          </span>
-                        )}
-                      </div>
-
-                      <div 
-                        className="setting-item"
-                        style={{ 
-                          display: 'grid',
-                          gridTemplateColumns: '120px auto',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-                      >
-                        <strong style={{ color: colors.textMuted, fontWeight: 600 }}>
-                          Firewall:
-                        </strong>
-
-                        {profile.firewallEnabled && Array.isArray(profile.firewallRules) && profile.firewallRules.length > 0 ? (
-                          <span style={{ color: colors.accent, fontWeight: 500 }}>
-                            ✓ Enabled ({(() => {
-                              const ruleId = typeof profile.firewallRules[0] === 'string' 
-                                ? profile.firewallRules[0] 
-                                : profile.firewallRules[0]?.id;
-                              const rule = firewallRules.find(r => r.id === ruleId);
-                              if (rule) {
-                                const action = rule.action === 0 ? 'ACCEPT' : rule.action === 1 ? 'REJECT' : 'DROP';
-                                const protocol = rule.protocol === 0 ? 'TCP' : rule.protocol === 1 ? 'UDP' : 'BOTH';
-                                return `${action} - ${protocol}`;
-                              }
-                              return profile.defaultFirewallAction;
-                            })()})
-                          </span>
-                        ) : profile.firewallEnabled ? (
-                          <span style={{ color: colors.accent, fontWeight: 500 }}>
-                            ✓ Enabled ({profile.defaultFirewallAction})
-                          </span>
-                        ) : (
-                          <span style={{ color: colors.danger, fontWeight: 500 }}>
-                            ✗ Disabled
-                          </span>
-                        )}
-                      </div>
-                      <div 
-                        className="setting-item"
-                        style={{ 
-                          display: 'grid',
-                          gridTemplateColumns: '120px auto',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-
-                      >
-                        <strong style={{ color: colors.textMuted, fontWeight: 600 }}>
-                          Scheduling:
-                        </strong>
-
-                        {profile.isScheduled ? (
-                          <span
-                            style={{ color: colors.accent, fontWeight: 500 }}
-                          >
-                            ✓ {profile.scheduleType}
-                          </span>
-                        ) : (
-                          <span
-                            style={{ color: colors.danger, fontWeight: 500 }}
-                          >
-                            ✗ None
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Meta */}
-                    <div
-                      className="profile-meta"
-                      style={{
-                        fontSize: 12,
-                        color: colors.textMuted,
-                        marginTop: 16,
-                      }}
-                    >
-                      <p style={{ margin: '4px 0' }}>Created: {formatDate(profile.createdAt)}</p>
-                      {profile.lastActivatedAt && (
-                        <p style={{ margin: '4px 0' }}>
-                          Last Activated:{' '}
-                          {formatDate(profile.lastActivatedAt)} ({profile.activationCount} times)
-                        </p>
-                      )}
-                    </div>
+                    <p style={{ margin: '7px 0 0 0', color: colors.textMuted, fontSize: 13 }}>
+                      {profile.description || 'No description'}
+                    </p>
                   </div>
-
-                  {/* RIGHT: actions (top-right) */}
-                  <div
-                    className="profile-actions"
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'row',
-                      gap: 8,
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      minWidth: 260,
-                    }}
-                  >
-                    {/* Activate / Deactivate – transparent, outlined */}
-                    {!profile.isActive ? (
-                      <button
-                        onClick={() => handleActivate(profile.id)}
-                        style={{
-                          padding: '8px 14px',
-                          borderRadius: 999,
-                          border: `1px solid ${colors.accent}`,
-                          backgroundColor: 'transparent',
-                          color: colors.accent,
-                          fontWeight: 600,
-                          fontSize: 13,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Activate
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleDeactivate(profile.id)}
-                        style={{
-                          padding: '8px 14px',
-                          borderRadius: 999,
-                          border: '1px solid #f97316',
-                          backgroundColor: 'transparent',
-                          color: '#f97316',
-                          fontWeight: 600,
-                          fontSize: 13,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Deactivate
-                      </button>
-                      
-                    )}
-
-                    {/* Edit – subtle neutral outline */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <button
-                      onClick={() => handleEdit(profile)}
-                      style={{
-                        padding: '8px 14px',
-                        borderRadius: 999,
-                        border: `1px solid ${colors.border}`,
-                        backgroundColor: 'transparent',
-                        color: colors.text,
-                        fontSize: 13,
-                        cursor: 'pointer',
-                      }}
+                      type="button"
+                      style={{ border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.textMuted, padding: '6px 9px', cursor: 'pointer', display: 'inline-flex', justifyContent: 'center' }}
                     >
+                      <FiMoreVertical size={14} />
+                    </button>
+                    <button
+                      onClick={() => openEdit(profile)}
+                      style={{ border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.text, padding: '6px 9px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <FiEdit2 size={13} />
                       Edit
                     </button>
-
-                    {/* Delete – transparent red outline */}
                     <button
-                      onClick={() => handleDelete(profile.id)}
-                      style={{
-                        padding: '8px 14px',
-                        borderRadius: 999,
-                        border: '1px solid #dc2626',
-                        backgroundColor: 'transparent',
-                        color: '#fca5a5',
-                        fontSize: 13,
-                        cursor: 'pointer',
-                      }}
+                      onClick={() => openShareDialog(profile)}
+                      style={{ border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.text, padding: '6px 9px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                     >
-                      Delete
+                      <FiShare2 size={13} />
+                      Share
                     </button>
                   </div>
-                  {/* Profile Share Button*/}
+                </div>
+
+                <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 7 }}>
                   <div
                     style={{
-                      marginTop: 16,
-                      paddingTop: 16,
-                      borderTop: `1px solid ${colors.border}`,
-                      display: 'flex',
-                      justifyContent: 'flex-end',
+                      borderRadius: 8,
+                      padding: '7px 8px',
+                      fontSize: 12,
+                      border: `1px solid ${colors.border}`,
+                      backgroundColor: vpnTone.bg,
+                      color: vpnTone.fg,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6
                     }}
                   >
-                    <button
-                      onClick={() => {
-                        setSharingProfile(profile);
-                        setShowShareModal(true);
-                      }}
-                      style={{
-                        padding: '8px 16px',
-                        backgroundColor: palette.accent,
-                        color: theme === 'dark' ? '#121212' : '#ffffff',
-                        border: 'none',
-                        borderRadius: 6,
-                        cursor: 'pointer',
-                        fontSize: 14,
-                        fontWeight: 600
-                      }}
-                    >
-                      Share Profile
-                    </button>
-
+                    {profile.vpnEnabled ? <FiWifi size={13} /> : <FiWifiOff size={13} />}
+                    VPN {profile.vpnEnabled ? `(${profile.vpnProtocol || 'On'})` : 'Off'}
                   </div>
+                  <div
+                    style={{
+                      borderRadius: 8,
+                      padding: '7px 8px',
+                      fontSize: 12,
+                      border: `1px solid ${colors.border}`,
+                      backgroundColor: fwTone.bg,
+                      color: fwTone.fg,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}
+                  >
+                    <FiShield size={13} />
+                    {selectedRule ? selectedRule.name : 'Default Firewall'}
+                  </div>
+                  <div
+                    style={{
+                      borderRadius: 8,
+                      padding: '7px 8px',
+                      fontSize: 12,
+                      border: `1px solid ${colors.border}`,
+                      backgroundColor: schTone.bg,
+                      color: schTone.fg,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}
+                  >
+                    <FiClock size={13} />
+                    {scheduleLabel}
+                  </div>
+                </div>
 
+                <div style={{ marginTop: 9, fontSize: 11, color: colors.textMuted, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><FiCalendar size={11} />Created {formatDateOnly(profile.createdAt)}</span>
+                  {profile.lastActivatedAt && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><FiZap size={11} />Last active {formatDateTime(profile.lastActivatedAt)}</span>}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><FiActivity size={11} />{profile.activationCount || 0} activations</span>
+                  {linkedShares.length > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><FiUsers size={11} />{linkedShares.length} active shares</span>}
+                </div>
 
+                <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => toggleActive(profile)}
+                    style={{
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '7px 11px',
+                      backgroundColor: profile.isActive ? '#4b5563' : colors.accent,
+                      color: '#fff',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}
+                  >
+                    {profile.isActive ? <FiZapOff size={13} /> : <FiPower size={13} />}
+                    {profile.isActive ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button
+                    onClick={() => openEdit(profile)}
+                    style={{ border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.text, padding: '7px 11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <FiEdit2 size={13} />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => requestDelete(profile)}
+                    style={{ border: `1px solid ${colors.danger}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.danger, padding: '7px 11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <FiTrash2 size={13} />
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => openShareDialog(profile)}
+                    style={{ marginLeft: 'auto', border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.text, padding: '7px 11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <FiShare2 size={13} />
+                    Share
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-        {showShareModal && (
-        <ShareCreationModal
-          profile={sharingProfile}
+            );
+          })}
+        </div>
+      )}
+
+      {showDeleteDialog && (
+        <Modal
           onClose={() => {
-            setShowShareModal(false);
-            setSharingProfile(null);
+            setShowDeleteDialog(false);
+            setDeleteTarget(null);
           }}
-          onSuccess={() => {
-            showToast('Share link created successfully!', 'success');
+        >
+          <div style={{ width: '100%', maxWidth: 520, borderRadius: 12, border: `1px solid ${colors.danger}`, backgroundColor: colors.bgCard, padding: 18 }}>
+            <h3 style={{ margin: 0, color: colors.danger, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <FiAlertTriangle size={18} />
+              Delete Security Profile
+            </h3>
+            <p style={{ color: colors.textMuted, marginTop: 8 }}>
+              This action cannot be undone. The profile and related configurations will be removed.
+            </p>
+            {deleteTarget && (
+              <div style={{ marginTop: 10, borderRadius: 8, border: `1px solid ${isDark ? '#7f1d1d' : '#fecaca'}`, backgroundColor: isDark ? 'rgba(127,29,29,0.2)' : '#fef2f2', color: isDark ? '#fca5a5' : '#991b1b', padding: 10, fontSize: 13 }}>
+                You are deleting <strong>"{deleteTarget.name}"</strong>
+              </div>
+            )}
+            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setDeleteTarget(null);
+                }}
+                style={{ border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.text, padding: '8px 12px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                style={{ border: 'none', borderRadius: 8, backgroundColor: '#dc2626', color: '#fff', padding: '8px 12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}
+              >
+                <FiTrash2 size={13} />
+                Delete Profile
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showShareDialog && shareTarget && (
+        <Modal
+          onClose={() => {
+            setShowShareDialog(false);
+            setShareTarget(null);
           }}
-          theme={theme}
-          palette={colors}
-        />
+        >
+          <div style={{ width: '100%', maxWidth: 620, borderRadius: 12, border: `1px solid ${colors.border}`, backgroundColor: colors.bgCard, padding: 18 }}>
+            <h3 style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <FiShare2 size={18} color={colors.accent} />
+              Share Profile: {shareTarget.name}
+            </h3>
+            <p style={{ marginTop: 8, color: colors.textMuted }}>
+              Create a secure share link. VPN credentials are never shared.
+            </p>
+
+            <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+              <div>
+                <label style={{ fontSize: 12, color: colors.textMuted }}>Permission</label>
+                <select
+                  value={shareForm.permissions}
+                  onChange={(event) => setShareForm((prev) => ({ ...prev, permissions: event.target.value }))}
+                  style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                >
+                  <option value="VIEW">View Only</option>
+                  <option value="IMPORT">View & Import</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: colors.textMuted }}>Password (optional)</label>
+                  <input
+                    type="password"
+                    value={shareForm.password}
+                    onChange={(event) => setShareForm((prev) => ({ ...prev, password: event.target.value }))}
+                    style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: colors.textMuted }}>Expires in Days</label>
+                  <input
+                    value={shareForm.expiresInDays}
+                    onChange={(event) => setShareForm((prev) => ({ ...prev, expiresInDays: event.target.value }))}
+                    style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: colors.textMuted }}>Max Access Count</label>
+                  <input
+                    value={shareForm.maxAccess}
+                    onChange={(event) => setShareForm((prev) => ({ ...prev, maxAccess: event.target.value }))}
+                    style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                onClick={() => {
+                  setShowShareDialog(false);
+                  setShareTarget(null);
+                }}
+                style={{ border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.text, padding: '8px 12px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createShareLink}
+                style={{ border: 'none', borderRadius: 8, backgroundColor: colors.accent, color: '#fff', padding: '8px 12px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7 }}
+              >
+                <FiShare2 size={13} />
+                Create Share Link
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {showManageSharesDialog && (
+        <Modal onClose={() => setShowManageSharesDialog(false)}>
+          <div style={{ width: '100%', maxWidth: 840, borderRadius: 12, border: `1px solid ${colors.border}`, backgroundColor: colors.bgCard, padding: 18 }}>
+            <h3 style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <FiUsers size={18} color={colors.accent} />
+              Manage All Shares
+            </h3>
+            <p style={{ marginTop: 8, color: colors.textMuted }}>View and control all generated profile share links.</p>
+
+            <div style={{ marginTop: 12, maxHeight: 420, overflowY: 'auto', display: 'grid', gap: 8 }}>
+              {shareLinks.length === 0 ? (
+                <div style={{ color: colors.textMuted, padding: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <FiShare2 size={20} color={isDark ? '#6b7280' : '#d1d5db'} />
+                  No share links created yet.
+                </div>
+              ) : (
+                shareLinks.map((link) => {
+                  const profileName =
+                    link.profile?.name || profiles.find((item) => String(item.id) === String(link.profileId))?.name || 'Unknown Profile';
+                  const isRevoked = !link.isActive || Boolean(link.revokedAt);
+
+                  return (
+                    <div key={link.id} style={{ border: `1px solid ${colors.border}`, borderRadius: 10, backgroundColor: colors.bgPanel, padding: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{profileName}</div>
+                          <div style={{ marginTop: 3, fontSize: 12, color: colors.textMuted, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <FiMail size={12} />
+                            Permission: {link.permissions} • Access: {link.accessCount || 0}
+                            {link.maxAccess ? `/${link.maxAccess}` : ''}
+                          </div>
+                          <div style={{ marginTop: 3, fontSize: 11, color: colors.textMuted }}>
+                            Created {formatDateTime(link.createdAt)}
+                            {link.expiresAt ? ` • Expires ${formatDateTime(link.expiresAt)}` : ''}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span
+                            style={{
+                              borderRadius: 999,
+                              border: `1px solid ${isRevoked ? colors.danger : colors.accent}`,
+                              backgroundColor: isRevoked ? 'rgba(239,68,68,0.15)' : colors.accentSoft,
+                              color: isRevoked ? colors.danger : colors.accent,
+                              fontSize: 11,
+                              padding: '3px 8px'
+                            }}
+                          >
+                            {isRevoked ? 'Revoked' : 'Active'}
+                          </span>
+
+                          {!isRevoked && (
+                            <button
+                              onClick={() => revokeShareLink(link.id)}
+                              style={{ border: `1px solid ${colors.warning}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.warning, padding: '6px 10px', cursor: 'pointer' }}
+                            >
+                              Revoke
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => deleteShareLink(link.id)}
+                            style={{ border: `1px solid ${colors.danger}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.danger, padding: '6px 10px', cursor: 'pointer' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowManageSharesDialog(false)}
+                style={{ border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.text, padding: '8px 12px', cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
-};
-
+}
 
 export default ProfileManager;
