@@ -287,6 +287,28 @@ function Sidebar({ user, theme, palette, currentView, setCurrentView, setTheme, 
                         Security Profiles
                     </button>
 
+                    <button
+                        onMouseEnter={() => setNavHover('account-settings')}
+                        onMouseLeave={() => setNavHover(null)}
+                        onClick={() => setCurrentView('account-settings')}
+                        style={{
+                            width: '100%',
+                            padding: '12px 15px',
+                            marginBottom: '10px',
+                            backgroundColor: currentView === 'account-settings' || navHover === 'account-settings' ? palette.accentSoft : 'transparent',
+                            color: currentView === 'account-settings' || navHover === 'account-settings' ? palette.accent : palette.text,
+                            border: currentView === 'account-settings' || navHover === 'account-settings' ? `1px solid ${palette.accent}` : '1px solid transparent',
+                            borderRadius: '10px',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            transition: 'all 0.15s ease',
+                            boxShadow: navHover === 'account-settings' ? '0 6px 14px rgba(0,0,0,0.08)' : 'none'
+                        }}
+                    >
+                        Account Settings
+                    </button>
+
                     <nav className="flex-1 space-y-2 text-sm">
                         {/* HIERARCHY */}
                         <SidebarButton label="Subscription" view="subscription" currentView={currentView} setCurrentView={setCurrentView} theme={theme} palette={palette} />

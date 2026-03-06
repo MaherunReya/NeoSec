@@ -21,6 +21,7 @@ import Toast from './components/Common/Toast';
 // Feature Components
 import ScanDashboard from './components/ScanDashboard';
 import ProfileManager from './components/ProfileManager';
+import AccountSettings from './components/AccountSettings';
 import FirewallRuleManagement from './components/FirewallRuleManagement';
 import AdminAuditTrail from './components/AdminAuditTrail';
 import SystemHealthMetrics from './components/SystemHealthMetrics';
@@ -448,6 +449,11 @@ if (isShareManagementPage) {
                         {/* Profiles View */}
                         {currentView === 'profiles' && (
                             <ProfileManager theme={theme} palette={palette} />
+                        )}
+
+                        {/* Account Settings View */}
+                        {currentView === 'account-settings' && (
+                            <AccountSettings theme={theme} palette={palette} />
                         )}
 
                         {/* Scan View */}
