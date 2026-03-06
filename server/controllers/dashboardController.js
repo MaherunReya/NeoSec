@@ -4,6 +4,8 @@ const User = require('../models/User');
 const VpnConfig = require('../models/VpnConfig');
 const Threat = require('../models/Threat');
 const Profile = require('../models/Profile');
+const ProfileLog = require('../models/ProfileLog');
+const ActivityLog = require('../models/ActivityLog');
 const Notification = require('../models/Notification');
 const DataTransfer = require('../models/DataTransfer');
 
@@ -132,7 +134,7 @@ const getDashboard = async (req, res) => {
       console.error('Error getting active profile:', profileError);
     }
 
-    // Get recent activity logs (combine threats and notifications)
+    // Get recent activity logs (combine threats, notifications, profile logs, and activity logs)
     const oneWeekAgoForLogs = new Date();
     oneWeekAgoForLogs.setDate(oneWeekAgoForLogs.getDate() - 7);
 
@@ -171,6 +173,40 @@ const getDashboard = async (req, res) => {
       console.error('Error getting recent notifications:', notificationsError);
     }
 
+    let recentProfileLogs = [];
+    try {
+      recentProfileLogs = await ProfileLog.findAll({
+        where: {
+          userId: userId,
+          createdAt: {
+            [Op.gte]: oneWeekAgoForLogs
+          }
+        },
+        order: [['createdAt', 'DESC']],
+        limit: 10,
+        attributes: ['id', 'action', 'description', 'createdAt']
+      });
+    } catch (profileLogsError) {
+      console.error('Error getting recent profile logs:', profileLogsError);
+    }
+
+    let recentActivityLogs = [];
+    try {
+      recentActivityLogs = await ActivityLog.findAll({
+        where: {
+          userId: userId,
+          createdAt: {
+            [Op.gte]: oneWeekAgoForLogs
+          }
+        },
+        order: [['createdAt', 'DESC']],
+        limit: 10,
+        attributes: ['id', 'eventType', 'description', 'status', 'severity', 'createdAt']
+      });
+    } catch (activityLogsError) {
+      console.error('Error getting recent activity logs:', activityLogsError);
+    }
+
     // Combine and sort activities
     const activities = [
       ...recentThreats.map(t => ({
@@ -185,7 +221,24 @@ const getDashboard = async (req, res) => {
         type: 'notification',
         message: n.message || n.title,
         timestamp: n.createdAt,
-        isBlocked: n.eventType ? (n.eventType.includes('error') || n.eventType.includes('failed')) : false
+        isBlocked: n.eventType ? (String(n.eventType).toLowerCase().includes('error') || String(n.eventType).toLowerCase().includes('failed')) : false
+      })),
+      ...recentProfileLogs.map(p => ({
+        id: `profile-${p.id}`,
+        type: 'profile',
+        message: p.description || `Profile ${String(p.action || 'updated').toLowerCase()}`,
+        timestamp: p.createdAt,
+        isBlocked: false
+      })),
+      ...recentActivityLogs.map(a => ({
+        id: `activity-${a.id}`,
+        type: 'activity',
+        message: a.description || a.eventType || 'Activity',
+        timestamp: a.createdAt,
+        isBlocked:
+          String(a.status || '').toLowerCase() === 'blocked' ||
+          String(a.status || '').toLowerCase() === 'failed' ||
+          String(a.severity || '').toLowerCase() === 'critical'
       }))
     ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
 
