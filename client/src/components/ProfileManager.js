@@ -3,10 +3,8 @@ import api, { getErrorMessage } from '../services/api';
 import {
   FiActivity,
   FiAlertTriangle,
-  FiBell,
   FiCalendar,
   FiCheckCircle,
-  FiChevronDown,
   FiClock,
   FiEdit2,
   FiInfo,
@@ -552,7 +550,7 @@ function ProfileManager({ theme = 'dark', palette }) {
         <div
           style={{
             position: 'fixed',
-            top: 20,
+            top: 92,
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 10000,
@@ -604,45 +602,6 @@ function ProfileManager({ theme = 'dark', palette }) {
           <p style={{ margin: '6px 0 0 0', color: colors.textMuted }}>
             Create, manage, and deploy bundled security configurations
           </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <button
-            type="button"
-            style={{ border: 'none', backgroundColor: 'transparent', color: colors.textMuted, cursor: 'pointer', position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <FiBell size={18} />
-            <span
-              style={{
-                position: 'absolute',
-                top: 0,
-                right: 0,
-                width: 8,
-                height: 8,
-                borderRadius: 999,
-                backgroundColor: '#ef4444'
-              }}
-            />
-          </button>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <span
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 999,
-                backgroundColor: colors.accent,
-                color: '#fff',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 12,
-                fontWeight: 500
-              }}
-            >
-              NS
-            </span>
-            <span style={{ fontSize: 13, color: isDark ? '#e5e7eb' : '#374151' }}>NeoSec</span>
-            <FiChevronDown size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-          </div>
         </div>
       </div>
 
