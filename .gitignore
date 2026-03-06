@@ -86,3 +86,6 @@ server/FIX_IMPERSONATION_TABLE.md
 
 # Ignore all markdown files
 *.md
+
+# Local personal notes (do not push)
+/gitnone.md
