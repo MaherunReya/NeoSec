@@ -13,8 +13,8 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
         text: '#ffffff',
         textMuted: '#9aa3b5',
         border: '#242424',
-        accent: '#36E27B',
-        accentSoft: 'rgba(54,226,123,0.12)',
+        accent: '#1E8C4A',
+        accentSoft: 'rgba(30,140,74,0.12)',
         danger: '#e04848'
     };
 

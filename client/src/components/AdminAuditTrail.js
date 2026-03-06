@@ -197,7 +197,7 @@ const AdminAuditTrail = ({ theme = 'dark' }) => {
     if (eventType && eventType.includes('threat')) {
       return <FiShield size={20} style={{ color: '#e04848' }} />;
     } else if (eventType && (eventType.includes('vpn') || eventType.includes('VPN'))) {
-      return <FiActivity size={20} style={{ color: '#36E27B' }} />;
+      return <FiActivity size={20} style={{ color: '#1E8C4A' }} />;
     } else if (eventType && eventType.includes('system')) {
       return <FiAlertTriangle size={20} style={{ color: '#f0a500' }} />;
     }

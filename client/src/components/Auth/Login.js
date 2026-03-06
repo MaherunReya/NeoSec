@@ -101,7 +101,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                     gap: '12px',
                     boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)'
                 }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#36E27B" strokeWidth="2.5">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E8C4A" strokeWidth="2.5">
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                         <polyline points="22 4 12 14.01 9 11.01"></polyline>
                     </svg>
@@ -135,7 +135,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                     }}>
                         <div style={{
                             height: '100%',
-                            background: 'linear-gradient(90deg, transparent, #36E27B, transparent)',
+                            background: 'linear-gradient(90deg, transparent, #1E8C4A, transparent)',
                             animation: 'loading 1.5s infinite',
                             width: '50%'
                         }} />
@@ -160,7 +160,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                         width: '64px',
                         height: '64px',
                         margin: '0 auto',
-                        backgroundColor: '#36E27B',
+                        backgroundColor: '#1E8C4A',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
@@ -238,7 +238,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                                 transition: 'border-color 0.2s',
                                 boxSizing: 'border-box'
                             }}
-                            onFocus={(e) => e.target.style.borderColor = '#36E27B'}
+                            onFocus={(e) => e.target.style.borderColor = '#1E8C4A'}
                             onBlur={(e) => e.target.style.borderColor = 'rgba(58, 58, 58, 0.8)'}
                         />
                     </div>
@@ -277,7 +277,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                                     transition: 'border-color 0.2s',
                                     boxSizing: 'border-box'
                                 }}
-                                onFocus={(e) => e.target.style.borderColor = '#36E27B'}
+                                onFocus={(e) => e.target.style.borderColor = '#1E8C4A'}
                                 onBlur={(e) => e.target.style.borderColor = 'rgba(58, 58, 58, 0.8)'}
                             />
                             <button
@@ -290,7 +290,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                                     transform: 'translateY(-50%)',
                                     border: 'none',
                                     background: 'transparent',
-                                    color: '#36E27B',
+                                    color: '#1E8C4A',
                                     fontSize: '12px',
                                     cursor: 'pointer',
                                     fontWeight: 500,
@@ -332,7 +332,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                                     height: '16px',
                                     marginRight: '10px',
                                     cursor: 'pointer',
-                                    accentColor: '#36E27B'
+                                    accentColor: '#1E8C4A'
                                 }}
                             />
                             Automatically fetch and apply new rules
@@ -351,7 +351,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                                     height: '16px',
                                     marginRight: '10px',
                                     cursor: 'pointer',
-                                    accentColor: '#36E27B'
+                                    accentColor: '#1E8C4A'
                                 }}
                             />
                             Start application on system boot
@@ -365,7 +365,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                         style={{
                             width: '100%',
                             padding: '14px',
-                            backgroundColor: loading ? '#2a5f3d' : '#36E27B',
+                            backgroundColor: loading ? '#2a5f3d' : '#1E8C4A',
                             color: '#000',
                             border: 'none',
                             borderRadius: '6px',
@@ -380,7 +380,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                             if (!loading) e.target.style.backgroundColor = '#2ec96d';
                         }}
                         onMouseLeave={(e) => {
-                            if (!loading) e.target.style.backgroundColor = '#36E27B';
+                            if (!loading) e.target.style.backgroundColor = '#1E8C4A';
                         }}
                     >
                         {loading ? 'Logging in...' : 'Login'}
@@ -401,7 +401,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                         style={{
                             background: 'none',
                             border: 'none',
-                            color: '#36E27B',
+                            color: '#1E8C4A',
                             cursor: 'pointer',
                             fontSize: '13px',
                             fontWeight: '600',

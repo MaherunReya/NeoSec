@@ -9,8 +9,8 @@ const darkPalette = {
   text: '#ffffff',
   textMuted: '#9aa3b5',
   border: '#242424',
-  accent: '#36E27B',
-  accentSoft: 'rgba(54,226,123,0.12)',
+  accent: '#1E8C4A',
+  accentSoft: 'rgba(30,140,74,0.12)',
   warning: '#f0a500',
   danger: '#e04848',
   inputBg: '#18181b',
@@ -52,7 +52,7 @@ const Toast = ({ message, type, onClose, colors, theme = 'dark' }) => {
   };
 
   const getBorderColor = () => {
-    if (type === 'success') return colors.accent || '#36E27B';
+    if (type === 'success') return colors.accent || '#1E8C4A';
     if (type === 'error') return colors.danger || '#e04848';
     return colors.warning || '#f0a500';
   };

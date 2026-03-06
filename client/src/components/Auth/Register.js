@@ -194,7 +194,7 @@ const Register = ({ onSwitchToLogin }) => {
                         width: '64px',
                         height: '64px',
                         margin: '0 auto',
-                        backgroundColor: '#36E27B',
+                        backgroundColor: '#1E8C4A',
                         borderRadius: '50%',
                         display: 'flex',
                         alignItems: 'center',
@@ -243,10 +243,10 @@ const Register = ({ onSwitchToLogin }) => {
                 {success && (
                     <div style={{
                         padding: '12px 15px',
-                        backgroundColor: 'rgba(21, 42, 31, 0.8)',
-                        border: '1px solid #36E27B',
+                        backgroundColor: '#1a2a1f',
+                        border: '1px solid #1E8C4A',
                         borderRadius: '6px',
-                        color: '#36E27B',
+                        color: '#1E8C4A',
                         marginBottom: '20px',
                         fontSize: '13px',
                         textAlign: 'center'
@@ -374,7 +374,7 @@ const Register = ({ onSwitchToLogin }) => {
                             style={{
                                 width: '100%',
                                 padding: '14px',
-                                backgroundColor: loading ? '#2a5f3d' : '#36E27B',
+                                backgroundColor: loading ? '#2a5f3d' : '#1E8C4A',
                                 color: '#000',
                                 border: 'none',
                                 borderRadius: '6px',
@@ -385,11 +385,13 @@ const Register = ({ onSwitchToLogin }) => {
                                 opacity: loading ? 0.7 : 1,
                                 letterSpacing: '0.5px'
                             }}
+                            onFocus={(e) => e.target.style.borderColor = '#1E8C4A'}
+                            onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
                             onMouseEnter={(e) => {
                                 if (!loading) e.target.style.backgroundColor = '#2ec96d';
                             }}
                             onMouseLeave={(e) => {
-                                if (!loading) e.target.style.backgroundColor = '#36E27B';
+                                if (!loading) e.target.style.backgroundColor = '#1E8C4A';
                             }}
                         >
                             {loading ? 'Sending Code...' : 'Register'}
@@ -443,7 +445,7 @@ const Register = ({ onSwitchToLogin }) => {
                             style={{
                                 width: '100%',
                                 padding: '14px',
-                                backgroundColor: loading ? '#2a5f3d' : '#36E27B',
+                                backgroundColor: loading ? '#2a5f3d' : '#1E8C4A',
                                 color: '#000',
                                 border: 'none',
                                 borderRadius: '6px',
@@ -455,11 +457,13 @@ const Register = ({ onSwitchToLogin }) => {
                                 letterSpacing: '0.5px',
                                 marginBottom: '16px'
                             }}
+                            onFocus={(e) => e.target.style.borderColor = '#1E8C4A'}
+                            onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
                             onMouseEnter={(e) => {
                                 if (!loading) e.target.style.backgroundColor = '#2ec96d';
                             }}
                             onMouseLeave={(e) => {
-                                if (!loading) e.target.style.backgroundColor = '#36E27B';
+                                if (!loading) e.target.style.backgroundColor = '#1E8C4A';
                             }}
                         >
                             {loading ? 'Verifying...' : 'Verify and Create Account'}
@@ -486,6 +490,8 @@ const Register = ({ onSwitchToLogin }) => {
                                 cursor: loading ? 'not-allowed' : 'pointer',
                                 transition: 'all 0.2s'
                             }}
+                            onFocus={(e) => e.target.style.borderColor = '#1E8C4A'}
+                            onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
                             onMouseEnter={(e) => {
                                 if (!loading) e.target.style.backgroundColor = '#2a2a2a';
                                 if (!loading) e.target.style.color = '#fff';
@@ -514,7 +520,7 @@ const Register = ({ onSwitchToLogin }) => {
                         style={{
                             background: 'none',
                             border: 'none',
-                            color: '#36E27B',
+                            color: '#1E8C4A',
                             cursor: 'pointer',
                             fontSize: '13px',
                             fontWeight: '600',

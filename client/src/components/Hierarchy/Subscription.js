@@ -182,7 +182,20 @@ const Subscription = ({ palette: appPalette, onUpgradeSuccess }) => {
 
   const checkURLParams = useCallback(async () => {
     const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+
     if (params.get('success')) {
+      if (sessionId) {
+        try {
+          const token = localStorage.getItem('token');
+          await fetch(`${apiBaseUrl}/subscription/verify-session?session_id=${sessionId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        } catch (err) {
+          console.error("Failed to verify session", err);
+        }
+      }
+
       setMessage('Payment successful! Your subscription will be updated shortly.');
       await syncUserAfterPayment();
       await fetchData();
@@ -192,7 +205,7 @@ const Subscription = ({ palette: appPalette, onUpgradeSuccess }) => {
       setMessage('Payment was canceled.');
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [fetchData, syncUserAfterPayment]);
+  }, [fetchData, syncUserAfterPayment, apiBaseUrl]);
 
   useEffect(() => {
     const initialize = async () => {

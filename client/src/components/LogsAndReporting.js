@@ -10,7 +10,7 @@ const LogsAndReporting = ({ theme = 'dark', palette }) => {
     text: '#ffffff',
     textMuted: '#9aa3b5',
     border: '#242424',
-    accent: '#36E27B',
+    accent: '#1E8C4A',
     warning: '#f0a500',
     danger: '#e04848',
     info: '#4a90e2',
@@ -438,7 +438,7 @@ const LogsAndReporting = ({ theme = 'dark', palette }) => {
                             <td>
                               <span className="status-badge" style={{
                                 backgroundColor: log.status === 'Success' || log.status === 'Blocked'
-                                  ? (theme === 'light' ? '#e6f4ed' : 'rgba(54,226,123,0.2)')
+                                  ? (theme === 'light' ? '#e6f4ed' : 'rgba(30,140,74,0.2)')
                                   : (theme === 'light' ? '#fef3c7' : 'rgba(240,165,0,0.2)'),
                                 color: log.status === 'Success' || log.status === 'Blocked'
                                   ? colors.accent

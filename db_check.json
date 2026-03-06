@@ -1,0 +1,50 @@
+{
+  "users": [
+    {
+      "id": "d2d773bb-2f5a-42df-9b10-516e3fa6dd72",
+      "email": "farihaseme03@gmail.com",
+      "accountType": "leader",
+      "isPaid": true
+    },
+    {
+      "id": "3a2bf919-dd9d-432e-a81f-b8d9087edf53",
+      "email": "farihatest7@test.com",
+      "accountType": "user",
+      "isPaid": false
+    },
+    {
+      "id": "f6392f0e-a4c1-4b7f-adb5-9aa0043f1882",
+      "email": "ns1@ns.org",
+      "accountType": "leader",
+      "isPaid": true
+    }
+  ],
+  "bills": [
+    {
+      "id": "388c7511-433a-4ef5-adf9-dddc4bbb08eb",
+      "userId": "d2d773bb-2f5a-42df-9b10-516e3fa6dd72",
+      "subscriptionId": "8b56a117-c756-4c95-9e20-1d10383acd38",
+      "plan": "Basic Plan",
+      "amount": "9.99",
+      "status": "paid",
+      "paidAt": "2026-03-04T17:52:44.502Z",
+      "stripeInvoiceId": "manual_1772646764502",
+      "stripePaymentIntentId": "manual_pi_1772646764502",
+      "createdAt": "2026-03-04T17:52:44.502Z",
+      "updatedAt": "2026-03-04T17:52:44.502Z"
+    },
+    {
+      "id": "6ddf6889-4f32-4aed-b86d-8dff7f16d1ec",
+      "userId": "f6392f0e-a4c1-4b7f-adb5-9aa0043f1882",
+      "subscriptionId": "09823c94-67ca-486c-8aa8-57d46098b149",
+      "plan": "basic",
+      "amount": "$9.99",
+      "status": "paid",
+      "paidAt": "2026-03-06T20:05:28.512Z",
+      "stripeInvoiceId": "in_1T84cdCcq8usmme76mBwWwFW",
+      "stripePaymentIntentId": null,
+      "createdAt": "2026-03-06T20:05:28.514Z",
+      "updatedAt": "2026-03-06T20:05:28.514Z"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import { FiLock, FiUnlock, FiAlertTriangle, FiCheckCircle } from 'react-icons/fi
 const LoginHistory = ({ theme = 'dark', palette = null, userId = null }) => {
   const darkPalette = {
     bgMain: '#121212', bgCard: '#181818', text: '#ffffff', textMuted: '#9aa3b5',
-    border: '#242424', accent: '#36E27B', danger: '#e04848'
+    border: '#242424', accent: '#1E8C4A', danger: '#e04848'
   };
   const lightPalette = {
     bgMain: '#f6f8fb', bgCard: '#ffffff', text: '#0b172a', textMuted: '#5b6b7a',
@@ -165,10 +165,10 @@ const LoginHistory = ({ theme = 'dark', palette = null, userId = null }) => {
                       borderRadius: '6px',
                       fontSize: '12px',
                       backgroundColor: entry.success
-                        ? (theme === 'light' ? '#dcfce7' : 'rgba(34, 197, 94, 0.2)')
+                        ? (theme === 'light' ? '#dcfce7' : 'rgba(54, 226, 123, 0.2)')
                         : (theme === 'light' ? '#fee2e2' : 'rgba(239, 68, 68, 0.2)'),
                       color: entry.success
-                        ? (theme === 'light' ? '#16a34a' : '#4ade80')
+                        ? (theme === 'light' ? '#16a34a' : '#1E8C4A')
                         : (theme === 'light' ? '#dc2626' : '#f87171')
                     }}>
                       {entry.success ? (

@@ -23,13 +23,13 @@ const PRIMARY_ITEMS = [
 function Sidebar({ user, palette, theme, setTheme, currentView, setCurrentView, isMobile, sidebarOpen, setSidebarOpen, handleLogout, onGoHome }) {
   const sidebarWidth = isMobile ? (sidebarOpen ? 240 : 0) : 72;
   const isLight = theme === 'light';
-  const sidebarBg = isLight ? 'rgba(255, 255, 255, 0.82)' : 'rgba(15, 23, 42, 0.46)';
-  const sidebarBorder = isLight ? '1px solid rgba(15,23,42,0.10)' : '1px solid rgba(255,255,255,0.16)';
-  const sidebarShadow = isLight ? '0 10px 30px rgba(15, 23, 42, 0.10)' : '0 10px 30px rgba(2, 6, 23, 0.28)';
-  const inactiveNavColor = isLight ? '#334155' : '#9ca3af';
-  const closeBtnColor = isLight ? '#334155' : '#d1d5db';
-  const secondaryBtnBorder = isLight ? '1px solid rgba(15,23,42,0.16)' : '1px solid rgba(255,255,255,0.14)';
-  const secondaryBtnColor = isLight ? '#334155' : '#d1d5db';
+  const sidebarBg = isLight ? 'rgba(255, 255, 255, 0.82)' : 'rgba(24, 24, 24, 0.6)';
+  const sidebarBorder = isLight ? '1px solid rgba(15,23,42,0.10)' : '1px solid rgba(255,255,255,0.10)';
+  const sidebarShadow = isLight ? '0 10px 30px rgba(15, 23, 42, 0.10)' : '0 10px 30px rgba(0, 0, 0, 0.3)';
+  const inactiveNavColor = isLight ? '#334155' : '#a1a1aa';
+  const closeBtnColor = isLight ? '#334155' : '#d4d4d8';
+  const secondaryBtnBorder = isLight ? '1px solid rgba(15,23,42,0.16)' : '1px solid rgba(255,255,255,0.10)';
+  const secondaryBtnColor = isLight ? '#334155' : '#d4d4d8';
 
   return (
     <>
@@ -113,7 +113,7 @@ function Sidebar({ user, palette, theme, setTheme, currentView, setCurrentView, 
               height: 38,
               borderRadius: 10,
               border: 'none',
-              backgroundColor: '#16a34a',
+              backgroundColor: '#1E8C4A',
               color: '#fff',
               display: 'flex',
               alignItems: 'center',
@@ -132,32 +132,42 @@ function Sidebar({ user, palette, theme, setTheme, currentView, setCurrentView, 
               {PRIMARY_ITEMS.map((item) => {
                 const active = currentView === item.key;
                 const Icon = item.icon;
+                
+                // Track hover state per item by lifting it into a tiny component or doing it inline. 
+                // Since this is mapped and we can't cleanly use hooks per item inside a map without a sub-component,
+                // let's create an inline component.
+                const NavItem = ({ item, active, Icon }) => {
+                  const [isHovered, setIsHovered] = React.useState(false);
+                  
+                  return (
+                    <button
+                      onClick={() => setCurrentView(item.key)}
+                      onMouseEnter={() => setIsHovered(true)}
+                      onMouseLeave={() => setIsHovered(false)}
+                      title={item.label}
+                      style={{
+                        width: '100%',
+                        border: 'none',
+                        borderRadius: 12,
+                        padding: '8px 4px',
+                        backgroundColor: active ? '#1E8C4A' : (isHovered ? (theme === 'light' ? 'rgba(15,23,42,0.04)' : 'rgba(255,255,255,0.05)') : 'transparent'),
+                        color: active ? '#fff' : inactiveNavColor,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 4,
+                        cursor: 'pointer',
+                        boxShadow: active ? '0 10px 18px rgba(30,140,74,0.30)' : (isHovered ? (theme === 'light' ? '0 4px 12px rgba(0,0,0,0.05)' : '0 0 12px rgba(255,255,255,0.1)') : 'none'),
+                        transition: 'all 0.18s ease'
+                      }}
+                    >
+                      <Icon size={17} />
+                      <span style={{ fontSize: 10, lineHeight: 1.15, textAlign: 'center' }}>{item.label}</span>
+                    </button>
+                  );
+                };
 
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => setCurrentView(item.key)}
-                    title={item.label}
-                    style={{
-                      width: '100%',
-                      border: 'none',
-                      borderRadius: 12,
-                      padding: '8px 4px',
-                      backgroundColor: active ? '#16a34a' : 'transparent',
-                      color: active ? '#fff' : inactiveNavColor,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 4,
-                      cursor: 'pointer',
-                      boxShadow: active ? '0 10px 18px rgba(22,163,74,0.30)' : 'none',
-                      transition: 'all 0.18s ease'
-                    }}
-                  >
-                    <Icon size={17} />
-                    <span style={{ fontSize: 10, lineHeight: 1.15, textAlign: 'center' }}>{item.label}</span>
-                  </button>
-                );
+                return <NavItem key={item.key} item={item} active={active} Icon={Icon} />;
               })}
             </nav>
           </div>
@@ -170,9 +180,9 @@ function Sidebar({ user, palette, theme, setTheme, currentView, setCurrentView, 
                 width: 34,
                 height: 34,
                 borderRadius: 999,
-                border: '1px solid rgba(74,222,128,0.35)',
-                backgroundColor: 'rgba(22,163,74,0.22)',
-                color: '#4ade80',
+                border: '1px solid rgba(30,140,74,0.35)',
+                backgroundColor: 'rgba(30,140,74,0.22)',
+                color: '#1E8C4A',
                 fontSize: 11,
                 fontWeight: 600,
                 cursor: 'pointer'

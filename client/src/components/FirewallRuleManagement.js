@@ -12,8 +12,8 @@ const FirewallRuleManagement = ({ theme = 'light', palette = null }) => {
         text: '#ffffff',
         textMuted: '#9aa3b5',
         border: '#242424',
-        accent: '#36E27B',
-        accentSoft: 'rgba(54,226,123,0.12)',
+        accent: '#1E8C4A',
+        accentSoft: 'rgba(30,140,74,0.12)',
         warning: '#f0a500',
         danger: '#e04848',
     };
@@ -361,12 +361,12 @@ const FirewallRuleManagement = ({ theme = 'light', palette = null }) => {
                                                         ? (theme === 'dark' ? '#40301E' : '#fef3c7')
                                                         : (theme === 'dark' ? '#40201E' : '#fee2e2'),
                                                 color: rule.action === 0
-                                                    ? (theme === 'dark' ? '#36E27B' : '#1fa45a')
+                                                    ? (theme === 'dark' ? '#1E8C4A' : '#1fa45a')
                                                     : rule.action === 1
                                                         ? (theme === 'dark' ? '#F59E0B' : '#d97706')
                                                         : (theme === 'dark' ? '#FF7777' : '#d4183d'),
                                                 border: rule.action === 0
-                                                    ? (theme === 'dark' ? '1px solid #36E27B' : '1px solid #1fa45a')
+                                                    ? (theme === 'dark' ? '1px solid #1E8C4A' : '1px solid #1fa45a')
                                                     : rule.action === 1
                                                         ? (theme === 'dark' ? '1px solid #F59E0B' : '1px solid #d97706')
                                                         : (theme === 'dark' ? '1px solid #FF7777' : '1px solid #d4183d')
@@ -384,7 +384,7 @@ const FirewallRuleManagement = ({ theme = 'light', palette = null }) => {
                                                     title="Edit"
                                                     style={{
                                                         background: actionButtonHover === `edit-${rule.id}`
-                                                            ? (theme === 'dark' ? 'rgba(54,226,123,0.15)' : 'rgba(31,164,90,0.1)')
+                                                            ? (theme === 'dark' ? 'rgba(30,140,74,0.15)' : 'rgba(31,164,90,0.1)')
                                                             : 'none',
                                                         border: 'none',
                                                         color: actionButtonHover === `edit-${rule.id}`
@@ -652,7 +652,7 @@ const FirewallRuleManagement = ({ theme = 'light', palette = null }) => {
                                         padding: '12px 16px',
                                         borderRadius: '8px',
                                         border: `2px solid ${firewallForm.action === 0 ? colors.accent : colors.border}`,
-                                        backgroundColor: firewallForm.action === 0 ? (theme === 'light' ? colors.accentSoft : 'rgba(54,226,123,0.1)') : 'transparent',
+                                        backgroundColor: firewallForm.action === 0 ? (theme === 'light' ? colors.accentSoft : 'rgba(30,140,74,0.1)') : 'transparent',
                                         transition: 'all 0.2s ease',
                                         flex: 1,
                                         justifyContent: 'center'

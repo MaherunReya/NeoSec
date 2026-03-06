@@ -197,8 +197,8 @@ const darkPalette = {
   text: '#ffffff',
   textMuted: '#9ca3af',
   border: '#374151',
-  accent: '#4ade80',
-  accentSoft: 'rgba(74,222,128,0.18)',
+  accent: '#1E8C4A',
+  accentSoft: 'rgba(30,140,74,0.18)',
   warning: '#fbbf24',
   danger: '#f87171',
   inputBg: '#1f2937',
@@ -260,7 +260,7 @@ const getActionColor = (action, isDark) => {
   if (action === 'CREATED') return { bg: isDark ? 'rgba(59,130,246,0.28)' : '#dbeafe', fg: isDark ? '#60a5fa' : '#1d4ed8' };
   if (action === 'UPDATED') return { bg: isDark ? 'rgba(217,119,6,0.28)' : '#fef3c7', fg: isDark ? '#fbbf24' : '#b45309' };
   if (action === 'DELETED') return { bg: isDark ? 'rgba(220,38,38,0.28)' : '#fee2e2', fg: isDark ? '#f87171' : '#b91c1c' };
-  if (action === 'ACTIVATED' || action === 'AUTO_ACTIVATED') return { bg: isDark ? 'rgba(22,163,74,0.28)' : '#dcfce7', fg: isDark ? '#4ade80' : '#15803d' };
+  if (action === 'ACTIVATED' || action === 'AUTO_ACTIVATED') return { bg: isDark ? 'rgba(30,140,74,0.28)' : '#dcfce7', fg: isDark ? '#1E8C4A' : '#15803d' };
   if (action === 'DEACTIVATED') return { bg: isDark ? '#374151' : '#f3f4f6', fg: isDark ? '#d1d5db' : '#374151' };
   if (action === 'SCHEDULED' || action === 'SHARED') return { bg: isDark ? 'rgba(147,51,234,0.28)' : '#f3e8ff', fg: isDark ? '#c084fc' : '#7e22ce' };
   return { bg: isDark ? '#374151' : '#f3f4f6', fg: isDark ? '#9ca3af' : '#6b7280' };
@@ -280,7 +280,7 @@ const getFeatureTone = (enabled, kind, isDark) => {
       fg: '#6b7280'
     };
   }
-  if (kind === 'vpn') return { bg: isDark ? 'rgba(22,163,74,0.16)' : '#f0fdf4', fg: isDark ? '#4ade80' : '#15803d' };
+  if (kind === 'vpn') return { bg: isDark ? 'rgba(30,140,74,0.16)' : '#f0fdf4', fg: isDark ? '#1E8C4A' : '#15803d' };
   if (kind === 'firewall') return { bg: isDark ? 'rgba(37,99,235,0.16)' : '#eff6ff', fg: isDark ? '#60a5fa' : '#1d4ed8' };
   return { bg: isDark ? 'rgba(147,51,234,0.16)' : '#faf5ff', fg: isDark ? '#c084fc' : '#7e22ce' };
 };
@@ -827,7 +827,7 @@ function ProfileManager({ theme = 'dark', palette }) {
                 borderRadius: 999,
                 padding: '2px 8px',
                 fontSize: 11,
-                backgroundColor: isDark ? 'rgba(22,163,74,0.25)' : '#dcfce7',
+                backgroundColor: isDark ? 'rgba(30,140,74,0.25)' : '#dcfce7',
                 color: colors.accent
               }}
             >

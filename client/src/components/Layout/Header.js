@@ -23,6 +23,11 @@ function Header({ user, theme, palette, isMobile, isTablet, onLogout, onUserUpda
         setProfileDropdownOpen(!profileDropdownOpen);
     };
 
+    const isLightTheme = theme === 'light';
+    const headerBg = isLightTheme ? 'rgba(255, 255, 255, 0.82)' : 'rgba(24, 24, 24, 0.6)';
+    const headerBorder = isLightTheme ? '1px solid rgba(15,23,42,0.10)' : '1px solid rgba(255,255,255,0.10)';
+    const headerShadow = isLightTheme ? '0 10px 30px rgba(15, 23, 42, 0.10)' : '0 4px 20px rgba(0, 0, 0, 0.3)';
+
     return (
         <header style={{
             position: 'fixed',
@@ -30,15 +35,17 @@ function Header({ user, theme, palette, isMobile, isTablet, onLogout, onUserUpda
             right: 0,
             left: isMobile ? 0 : '260px',
             height: '60px',
-            backgroundColor: palette.bgCard,
-            borderBottom: `1px solid ${palette.border}`,
+            backgroundColor: headerBg,
+            backdropFilter: 'blur(16px) saturate(145%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(145%)',
+            borderBottom: headerBorder,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
             padding: '0 20px',
             zIndex: 1000,
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            transition: 'left 0.3s ease'
+            boxShadow: headerShadow,
+            transition: 'left 0.3s ease, background-color 0.3s ease'
         }}>
             {/* Profile Section */}
             <div style={{ position: 'relative' }} ref={dropdownRef}>

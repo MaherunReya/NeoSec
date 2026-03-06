@@ -40,6 +40,7 @@ import VpnManagement from './components/VpnManagement';
 
 // Hierarchy Components
 import Subscription from './components/Hierarchy/Subscription';
+import Groups from './components/Hierarchy/Groups';
 import GroupManagement from './components/Hierarchy/GroupManagement';
 import Invitations from './components/Hierarchy/Invitations';
 import Memberships from './components/Hierarchy/Memberships';
@@ -519,7 +520,7 @@ function App() {
                         />
                         )}
 
-                        {currentView === "groups" && user.accountType === "leader" && <GroupManagement user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
+                        {currentView === "groups" && user.accountType === "leader" && <Groups user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
                         {currentView === "invitations" && <Invitations theme={theme} palette={palette} />}
                         {currentView === "memberships" && <Memberships theme={theme} palette={palette} />}
 

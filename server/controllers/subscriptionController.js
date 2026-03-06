@@ -171,7 +171,7 @@ const createCheckoutSession = async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/?view=subscription&success=true`,
+      success_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/?view=subscription&success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/?view=subscription&canceled=true`,
       metadata: {
         userId: req.user.id,
@@ -201,8 +201,89 @@ console.log('Stripe configuration:', {
   priceEnterprise: PRICE_MAP.enterprise,
 });
 
+const verifyCheckoutSession = async (req, res) => {
+  try {
+    const { session_id } = req.query;
+    if (!session_id) {
+      return res.status(400).json({ success: false, message: 'Session ID is required' });
+    }
+    
+    // Check if billing history already exists for this session to prevent duplicates
+    const existingBilling = await BillingHistory.findOne({
+      where: {
+        stripeInvoiceId: session_id // using it as an indentifier here safely
+      }
+    });
+
+    if (existingBilling) {
+      return res.json({ success: true, message: 'Already processed' });
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    if (!session || session.payment_status !== 'paid') {
+      return res.status(400).json({ success: false, message: 'Payment not successful' });
+    }
+
+    const tier = session.metadata.tier;
+    const userId = session.metadata.userId;
+
+    const existingSubscription = await Subscription.findOne({
+      where: { userId }
+    });
+
+    let activeSubId = existingSubscription?.id;
+
+    if (existingSubscription) {
+      await existingSubscription.update({
+        tier,
+        status: 'active',
+        startDate: new Date(),
+        autoRenew: true,
+      });
+    } else {
+      const sub = await Subscription.create({
+        userId,
+        tier,
+        status: 'active',
+        startDate: new Date(),
+        autoRenew: true,
+      });
+      activeSubId = sub.id;
+    }
+
+    await User.update(
+      {
+        accountType: 'leader',
+        subscriptionTier: tier,
+        isPaid: true,
+      },
+      { where: { id: userId } }
+    );
+
+    await BillingHistory.create({
+      userId,
+      subscriptionId: activeSubId,
+      plan: tier,
+      amount: session.amount_total ? `$${(session.amount_total / 100).toFixed(2)}` : '$0.00',
+      status: 'paid',
+      paidAt: new Date(),
+      stripeInvoiceId: session_id,
+    });
+
+    res.json({ success: true, message: 'Subscription successfully verified' });
+  } catch (error) {
+    console.error('Verify checkout session error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify checkout session',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createCheckoutSession,
   getBillingHistory,
   getMySubscription,
+  verifyCheckoutSession,
 };
