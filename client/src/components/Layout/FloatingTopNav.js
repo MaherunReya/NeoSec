@@ -7,12 +7,10 @@ import {
   FiCpu,
   FiList,
   FiMap,
-  FiMoon,
   FiSearch,
   FiSettings,
   FiShield,
   FiSliders,
-  FiSun,
   FiUsers,
   FiUser,
   FiZap
@@ -93,7 +91,7 @@ function DropdownGroup({ group, activeView, onNavigate, openKey, setOpenKey }) {
   );
 }
 
-function FloatingTopNav({ user, currentView, setCurrentView, isMobile, theme, setTheme }) {
+function FloatingTopNav({ user, currentView, setCurrentView, isMobile }) {
   const [openKey, setOpenKey] = useState(null);
   const wrapperRef = useRef(null);
 
@@ -231,31 +229,6 @@ function FloatingTopNav({ user, currentView, setCurrentView, isMobile, theme, se
             setOpenKey={setOpenKey}
           />
         )}
-
-        <div style={{ width: 1, height: 18, backgroundColor: 'rgba(255,255,255,0.16)', margin: '0 2px' }} />
-
-        <button
-          onClick={() => {
-            setTheme((prevTheme) => (prevTheme === 'dark' ? 'light' : 'dark'));
-            setOpenKey(null);
-          }}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-          style={{
-            border: 'none',
-            borderRadius: 10,
-            backgroundColor: 'transparent',
-            color: '#d1d5db',
-            padding: '7px 10px',
-            fontSize: 13,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            cursor: 'pointer'
-          }}
-        >
-          {theme === 'dark' ? <FiSun size={13} /> : <FiMoon size={13} />}
-          {theme === 'dark' ? 'Light' : 'Dark'}
-        </button>
 
         <button
           onClick={() => {
