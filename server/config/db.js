@@ -138,9 +138,27 @@ const connectDB = async () => {
             
             // Check for missing columns and add them
             const missingColumns = [];
-            if (!columnNames.includes('accountType')) missingColumns.push('accountType');
-            if (!columnNames.includes('subscriptionTier')) missingColumns.push('subscriptionTier');
-            if (!columnNames.includes('isPaid')) missingColumns.push('isPaid');
+            const hasIsApproved = columnNames.includes('isApproved') || columnNames.includes('is_approved');
+            const hasAccountType = columnNames.includes('accountType') || columnNames.includes('account_type');
+            const hasSubscriptionTier = columnNames.includes('subscriptionTier') || columnNames.includes('subscription_tier');
+            const hasIsPaid = columnNames.includes('isPaid') || columnNames.includes('is_paid');
+            const hasName = columnNames.includes('name');
+            const hasPhone = columnNames.includes('phone');
+            
+            // isApproved should already exist, but check anyway
+            if (!hasIsApproved) {
+                console.log('⚠️  isApproved column missing. Adding it...');
+                await sequelize.query(`
+                    ALTER TABLE users 
+                    ADD COLUMN IF NOT EXISTS "isApproved" BOOLEAN DEFAULT false NOT NULL;
+                `);
+            }
+            
+            if (!hasAccountType) missingColumns.push('accountType');
+            if (!hasSubscriptionTier) missingColumns.push('subscriptionTier');
+            if (!hasIsPaid) missingColumns.push('isPaid');
+            if (!hasName) missingColumns.push('name');
+            if (!hasPhone) missingColumns.push('phone');
             
             if (missingColumns.length > 0) {
                 console.log(`Missing columns detected: ${missingColumns.join(', ')}. Adding them...`);
@@ -181,6 +199,20 @@ const connectDB = async () => {
                     await sequelize.query(`
                         ALTER TABLE users 
                         ADD COLUMN IF NOT EXISTS "isPaid" BOOLEAN DEFAULT false;
+                    `);
+                }
+
+                if (missingColumns.includes('name')) {
+                    await sequelize.query(`
+                        ALTER TABLE users
+                        ADD COLUMN IF NOT EXISTS name VARCHAR(100);
+                    `);
+                }
+
+                if (missingColumns.includes('phone')) {
+                    await sequelize.query(`
+                        ALTER TABLE users
+                        ADD COLUMN IF NOT EXISTS phone VARCHAR(20);
                     `);
                 }
                 
