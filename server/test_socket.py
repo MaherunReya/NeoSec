@@ -3,7 +3,7 @@ import time
 import sys
 
 # Replace this with a valid JWT token from your login endpoint
-JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzYTJiZjkxOS1kZDlkLTQzMmUtYTgxZi1iOGQ5MDg3ZWRmNTMiLCJyb2xlIjoidXNlciIsImlhdCI6MTc3MjczODc0OCwiZXhwIjoxNzczMzQzNTQ4fQ.YlSWBY5XslsDYur-4KXG6QK7ChGHl1cNS1hsHrXNpn8"
+JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzYTJiZjkxOS1kZDlkLTQzMmUtYTgxZi1iOGQ5MDg3ZWRmNTMiLCJyb2xlIjoidXNlciIsImlhdCI6MTc3Mjc4NDg2NywiZXhwIjoxNzczMzg5NjY3fQ.AsAuW3WRyAk9ydgrYOyro_3HeTKQ-3DumrRMkOLrAUE"
 SERVER_URL = "http://localhost:5000"
 
 # Create a Socket.IO client
@@ -28,7 +28,7 @@ def on_model_update(payload):
     print("🔥 RECEIVED REAL-TIME UPDATE 🔥")
     print(f"Model: {payload.get('model')}")
     print(f"Action: {payload.get('action')}")
-    print(f"Data: {payload.get('data')}")
+    # print(f"Data: {payload.get('data')}")
     print("="*50 + "\n")
 
 def main():

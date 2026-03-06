@@ -38,17 +38,18 @@ const initSocketServer = (server) => {
   });
 
   io.on("connection", (socket) => {
-    console.log(`[Socket.IO] User connected: ${socket.user.id} (SID: ${socket.id})`);
+    const userId = socket.user.userId || socket.user.id;
+    console.log(`[Socket.IO] User connected: ${userId} (SID: ${socket.id})`);
     
     // Socket.IO makes connection management easy using "rooms".
     // We make each user join a room named after their userId.
-    socket.join(socket.user.id);
+    socket.join(userId.toString());
     
     // Handled automatically: ping/pong keep-alive heartbeat.
     // If a client doesn't respond to pings, socket.io automatically disconnects them.
 
     socket.on("disconnect", (reason) => {
-      console.log(`[Socket.IO] User disconnected: ${socket.user.id} (SID: ${socket.id}) | Reason: ${reason}`);
+      console.log(`[Socket.IO] User disconnected: ${userId} (SID: ${socket.id}) | Reason: ${reason}`);
     });
   });
 

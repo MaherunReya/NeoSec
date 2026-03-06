@@ -196,13 +196,13 @@ exports.updateVpnConfig = async (req, res) => {
             }
         }
 
-        await vpnConfig.update({
-            name: name || vpnConfig.name,
-            protocol: protocol || vpnConfig.protocol,
-            configFileName: configFileName || vpnConfig.configFileName,
-            configFileContent: configFileContent || vpnConfig.configFileContent,
-            description: description !== undefined ? description : vpnConfig.description
-        });
+        vpnConfig.name = name || vpnConfig.name;
+        vpnConfig.protocol = protocol || vpnConfig.protocol;
+        vpnConfig.configFileName = configFileName || vpnConfig.configFileName;
+        vpnConfig.configFileContent = configFileContent || vpnConfig.configFileContent;
+        vpnConfig.description = description !== undefined ? description : vpnConfig.description;
+
+        await vpnConfig.save();
 
         // Return without file content
         const response = {
@@ -284,15 +284,18 @@ exports.toggleVpnConfig = async (req, res) => {
 
         // If activating, deactivate all other VPN configs for this user
         if (willBeActive) {
-            await VpnConfig.update(
-                { isActive: false },
-                {
-                    where: {
-                        userId: req.user.id,
-                        id: { [Op.ne]: vpnConfig.id }
-                    }
+            // Trigger hooks for each deactivated config
+            const configsToDeactivate = await VpnConfig.findAll({
+                where: {
+                    userId: req.user.id,
+                    id: { [Op.ne]: vpnConfig.id },
+                    isActive: true
                 }
-            );
+            });
+            for (const config of configsToDeactivate) {
+                config.isActive = false;
+                await config.save();
+            }
             
             // End any active data transfer sessions if DataTransfer model exists
             try {
@@ -375,9 +378,8 @@ exports.toggleVpnConfig = async (req, res) => {
             }
         }
 
-        await vpnConfig.update({
-            isActive: willBeActive
-        });
+        vpnConfig.isActive = willBeActive;
+        await vpnConfig.save();
 
         res.status(200).json({
             success: true,
