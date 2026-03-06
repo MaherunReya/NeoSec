@@ -86,7 +86,7 @@ const getApiBaseUrl = () => {
   return 'http://localhost:5000/api';
 };
 
-const Subscription = ({ palette: appPalette }) => {
+const Subscription = ({ palette: appPalette, onUpgradeSuccess }) => {
   const apiBaseUrl = getApiBaseUrl();
   const palette = getPagePalette(appPalette);
   const tableHeadStyle = {
@@ -108,17 +108,42 @@ const Subscription = ({ palette: appPalette }) => {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
 
-  const checkURLParams = () => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('success')) {
-      setMessage('Payment successful! Your subscription will be updated shortly.');
-      window.history.replaceState({}, document.title, window.location.pathname);
+  const syncUserAfterPayment = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        const meRes = await fetch(`${apiBaseUrl}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          const latestUser = meData?.user;
+
+          if (latestUser && (latestUser.isPaid || latestUser.accountType === 'leader')) {
+            localStorage.setItem('user', JSON.stringify(latestUser));
+
+            if (typeof onUpgradeSuccess === 'function') {
+              onUpgradeSuccess(latestUser);
+            }
+
+            window.dispatchEvent(new CustomEvent('neosec-user-updated', { detail: latestUser }));
+            break;
+          }
+        }
+      } catch (err) {
+        // no-op: retry loop handles transient conditions
+      }
+
+      if (attempt < 4) {
+        await delay(2000);
+      }
     }
-    if (params.get('canceled')) {
-      setMessage('Payment was canceled.');
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  };
+  }, [apiBaseUrl, onUpgradeSuccess]);
 
   const fetchData = useCallback(async () => {
     const token = localStorage.getItem('token');
@@ -155,10 +180,28 @@ const Subscription = ({ palette: appPalette }) => {
     }
   }, [apiBaseUrl]);
 
+  const checkURLParams = useCallback(async () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success')) {
+      setMessage('Payment successful! Your subscription will be updated shortly.');
+      await syncUserAfterPayment();
+      await fetchData();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    if (params.get('canceled')) {
+      setMessage('Payment was canceled.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [fetchData, syncUserAfterPayment]);
+
   useEffect(() => {
-    fetchData();
-    checkURLParams();
-  }, [fetchData]);
+    const initialize = async () => {
+      await fetchData();
+      await checkURLParams();
+    };
+
+    initialize();
+  }, [fetchData, checkURLParams]);
 
   const startCheckout = async (tier) => {
     setProcessingTier(tier);

@@ -1,6 +1,7 @@
 const stripe = require('../config/stripe');
 const Subscription = require('../models/Subscription');
 const BillingHistory = require('../models/BillingHistory');
+const User = require('../models/User');
 
 // Define Stripe Price IDs for each tier
 // Replace these with your actual Stripe Price IDs from your Stripe Dashboard
@@ -8,6 +9,18 @@ const PRICE_MAP = {
   basic: process.env.STRIPE_PRICE_BASIC || 'price_basic_placeholder',
   pro: process.env.STRIPE_PRICE_PRO || 'price_pro_placeholder',
   enterprise: process.env.STRIPE_PRICE_ENTERPRISE || 'price_enterprise_placeholder',
+};
+
+const DEV_AMOUNT_MAP = {
+  basic: '$9.99',
+  pro: '$29.99',
+  enterprise: '$49.99',
+};
+
+const isStripeConfigured = () => {
+  const hasSecret = Boolean(process.env.STRIPE_SECRET_KEY);
+  const hasRealPrices = Object.values(PRICE_MAP).every((priceId) => !String(priceId).includes('placeholder'));
+  return hasSecret && hasRealPrices;
 };
 
 const getMySubscription = async (req, res) => {
@@ -91,6 +104,63 @@ const createCheckoutSession = async (req, res) => {
       priceId: PRICE_MAP[tier],
     });
 
+    if (!isStripeConfigured()) {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(503).json({
+          success: false,
+          message: 'Stripe is not configured. Please contact support.',
+        });
+      }
+
+      const existingSubscription = await Subscription.findOne({
+        where: { userId: req.user.id },
+      });
+
+      let activeSubscription = existingSubscription;
+
+      if (existingSubscription) {
+        await existingSubscription.update({
+          tier,
+          status: 'active',
+          startDate: existingSubscription.startDate || new Date(),
+          autoRenew: true,
+        });
+      } else {
+        activeSubscription = await Subscription.create({
+          userId: req.user.id,
+          tier,
+          status: 'active',
+          startDate: new Date(),
+          autoRenew: true,
+        });
+      }
+
+      await User.update(
+        {
+          accountType: 'leader',
+          subscriptionTier: tier,
+          isPaid: true,
+        },
+        { where: { id: req.user.id } }
+      );
+
+      await BillingHistory.create({
+        userId: req.user.id,
+        subscriptionId: activeSubscription?.id || null,
+        plan: tier,
+        amount: DEV_AMOUNT_MAP[tier] || '$0.00',
+        status: 'paid',
+        paidAt: new Date(),
+      });
+
+      return res.json({
+        success: true,
+        url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/?view=subscription&success=true&mock=true`,
+        mock: true,
+        message: 'Stripe is not configured; applied development upgrade flow.',
+      });
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'subscription',
@@ -101,8 +171,8 @@ const createCheckoutSession = async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/subscription?success=true`,
-      cancel_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/subscription?canceled=true`,
+      success_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/?view=subscription&success=true`,
+      cancel_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/?view=subscription&canceled=true`,
       metadata: {
         userId: req.user.id,
         tier,

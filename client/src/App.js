@@ -55,7 +55,17 @@ function App() {
     const { isMobile, isTablet } = useScreenSize();
 
     // UI State
-    const initialView = (typeof window !== 'undefined' && localStorage.getItem('currentView')) || 'dashboard';
+    const initialView = (() => {
+        if (typeof window === 'undefined') return 'dashboard';
+
+        const params = new URLSearchParams(window.location.search);
+        const viewFromQuery = params.get('view');
+        if (viewFromQuery) return viewFromQuery;
+
+        if (window.location.pathname === '/subscription') return 'subscription';
+
+        return localStorage.getItem('currentView') || 'dashboard';
+    })();
     const [activeTab, setActiveTab] = useState('login');
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
