@@ -37,7 +37,7 @@ import VpnManagement from './components/VpnManagement';
 
 // Hierarchy Components
 import Subscription from './components/Hierarchy/Subscription';
-import GroupManagement from './components/Hierarchy/GroupManagement';
+import Groups from './components/Hierarchy/Groups';
 import Invitations from './components/Hierarchy/Invitations';
 import Memberships from './components/Hierarchy/Memberships';
 
@@ -454,7 +454,7 @@ if (isShareManagementPage) {
                         />
                         )}
 
-                        {currentView === "groups" && user.accountType === "leader" && <GroupManagement user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
+                        {currentView === "groups" && user.accountType === "leader" && <Groups user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
                         {currentView === "invitations" && <Invitations />}
                         {currentView === "memberships" && <Memberships />}
 
