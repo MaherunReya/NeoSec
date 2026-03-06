@@ -111,7 +111,6 @@ const lightPalette = {
 };
 
 function ScanDashboard({ theme = 'dark', palette }) {
-  // fall back to local palettes if App.js didn't pass one
   const colors =
     palette || (theme === 'light' ? lightPalette : darkPalette);
 
@@ -128,17 +127,13 @@ function ScanDashboard({ theme = 'dark', palette }) {
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
   };
-
-  // Poll scan status when we have a scanId
   useEffect(() => {
     if (!scanId) return;
-
     const interval = setInterval(async () => {
       try {
         const data = await scanAPI.getStatus(scanId);
         setStatus(data.status);
         setResult(data);
-
         if (data.status === 'COMPLETED' || data.status === 'ERROR') {
           clearInterval(interval);
           if (data.status === 'COMPLETED') {
@@ -156,8 +151,6 @@ function ScanDashboard({ theme = 'dark', palette }) {
 
     return () => clearInterval(interval);
   }, [scanId]);
-
-  // Load scan history on component mount
   useEffect(() => {
     const loadHistory = async () => {
       try {
