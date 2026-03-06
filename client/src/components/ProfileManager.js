@@ -25,11 +25,175 @@ import {
   FiZap,
   FiZapOff
 } from 'react-icons/fi';
+const ConfirmModal = ({ message, onConfirm, onCancel, colors }) => {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10001,
+      }}
+      onClick={onCancel}
+    >
+      <div
+        style={{
+          backgroundColor: colors.bgCard,
+          border: `1px solid ${colors.border}`,
+          borderRadius: 12,
+          padding: 24,
+          maxWidth: 400,
+          width: '90%',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p
+          style={{
+            margin: '0 0 24px 0',
+            color: colors.textMuted,
+            fontSize: 14,
+            lineHeight: 1.5,
+          }}
+        >
+          {message}
+        </p>
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            justifyContent: 'flex-end',
+          }}
+        >
+          <button
+            onClick={onConfirm}
+            style={{
+              padding: '10px 20px',
+              borderRadius: 8,
+              border: 'none',
+              backgroundColor: colors.accent,
+              color: '#ffffff',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            OK
+          </button>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: '10px 20px',
+              borderRadius: 8,
+              border: 'none',
+              backgroundColor: colors.danger,
+              color: '#ffffff',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-const defaultPalette = {
-  bgMain: '#111827',
-  bgCard: '#1f2937',
-  bgPanel: '#111827',
+// Toast notification component
+const Toast = ({ message, type, onClose, colors = {}, theme = 'dark' }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const getBgColor = () => {
+    if (type === 'success') return theme === 'dark' ? '#1a3a2a' : 'rgba(31,164,90,0.1)';
+    if (type === 'error') return theme === 'dark' ? '#2A1515' : 'rgba(212,24,61,0.08)';
+    return theme === 'dark' ? '#2a2a1a' : 'rgba(240,165,0,0.1)';
+  };
+
+  const getTextColor = () => {
+    if (type === 'success') return theme === 'dark' ? '#7fdf9f' : colors.accent;
+    if (type === 'error') return theme === 'dark' ? '#FFB3B3' : colors.danger;
+    return colors.warning;
+  };
+
+  const getBorderColor = () => {
+    if (type === 'success') return colors.accent || '#36E27B';
+    if (type === 'error') return colors.danger || '#e04848';
+    return colors.warning || '#f0a500';
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: '20px',
+        right: '20px',
+        padding: '16px 20px',
+        backgroundColor: getBgColor(),
+        border: `1px solid ${getBorderColor()}`,
+        borderRadius: '8px',
+        color: getTextColor(),
+        fontSize: '14px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        zIndex: 10000,
+        maxWidth: '400px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '12px',
+        animation: 'slideIn 0.3s ease-out',
+      }}
+    >
+      <span>{message}</span>
+      <button
+        onClick={onClose}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: getTextColor(),
+          cursor: 'pointer',
+          fontSize: '18px',
+          padding: 0,
+          lineHeight: 1,
+        }}
+      >
+        ×
+      </button>
+
+      <style>
+        {`
+          @keyframes slideIn {
+            from {
+              transform: translateX(100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+        `}
+      </style>
+    </div>
+  );
+};
+
+
+// Same idea as App.js / ScanDashboard
+const darkPalette = {
+  bgMain: '#121212',
+  bgCard: '#181818',
+  bgPanel: '#0a0a0a',
   text: '#ffffff',
   textMuted: '#9ca3af',
   border: '#374151',
@@ -162,7 +326,7 @@ const Modal = ({ children, onClose }) => (
 );
 
 function ProfileManager({ theme = 'dark', palette }) {
-  const colors = palette || (theme === 'light' ? lightPalette : defaultPalette);
+  const colors = palette || (theme === 'light' ? lightPalette : lightPalette);
   const isDark = theme !== 'light';
 
   const [profiles, setProfiles] = useState([]);
@@ -625,51 +789,51 @@ function ProfileManager({ theme = 'dark', palette }) {
             <FiPlus size={14} />
             Create New Profile
           </button>
-        <button
-          onClick={() => setShowActivityLogs((prev) => !prev)}
-          style={{
-            border: `1px solid ${colors.border}`,
-            borderRadius: 8,
-            padding: '8px 12px',
-            backgroundColor: colors.bgCard,
-            color: colors.text,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8
-          }}
-        >
-          <FiClock size={14} />
-          {showActivityLogs ? 'Hide Activity Logs' : 'View Activity Logs'}
-        </button>
-        <button
-          onClick={() => setShowManageSharesDialog(true)}
-          style={{
-            border: `1px solid ${colors.border}`,
-            borderRadius: 8,
-            padding: '8px 12px',
-            backgroundColor: colors.bgCard,
-            color: colors.text,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8
-          }}
-        >
-          <FiShare2 size={14} />
-          Manage All Shares
-          <span
+          <button
+            onClick={() => setShowActivityLogs((prev) => !prev)}
             style={{
-              borderRadius: 999,
-              padding: '2px 8px',
-              fontSize: 11,
-              backgroundColor: isDark ? 'rgba(22,163,74,0.25)' : '#dcfce7',
-              color: colors.accent
+              border: `1px solid ${colors.border}`,
+              borderRadius: 8,
+              padding: '8px 12px',
+              backgroundColor: colors.bgCard,
+              color: colors.text,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8
             }}
           >
-            {totalShares}
-          </span>
-        </button>
+            <FiClock size={14} />
+            {showActivityLogs ? 'Hide Activity Logs' : 'View Activity Logs'}
+          </button>
+          <button
+            onClick={() => setShowManageSharesDialog(true)}
+            style={{
+              border: `1px solid ${colors.border}`,
+              borderRadius: 8,
+              padding: '8px 12px',
+              backgroundColor: colors.bgCard,
+              color: colors.text,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8
+            }}
+          >
+            <FiShare2 size={14} />
+            Manage All Shares
+            <span
+              style={{
+                borderRadius: 999,
+                padding: '2px 8px',
+                fontSize: 11,
+                backgroundColor: isDark ? 'rgba(22,163,74,0.25)' : '#dcfce7',
+                color: colors.accent
+              }}
+            >
+              {totalShares}
+            </span>
+          </button>
         </div>
         <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: colors.textMuted }}>
           <FiShield size={14} />
@@ -1312,10 +1476,10 @@ function ProfileManager({ theme = 'dark', palette }) {
               scheduleType === 'time'
                 ? 'Timed'
                 : scheduleType === 'geolocation'
-                ? 'Geo'
-                : scheduleType === 'both'
-                ? 'Time+Geo'
-                : 'No Schedule';
+                  ? 'Geo'
+                  : scheduleType === 'both'
+                    ? 'Time+Geo'
+                    : 'No Schedule';
             const statusTone = profile.isActive
               ? { bg: isDark ? 'rgba(22,163,74,0.28)' : '#dcfce7', fg: isDark ? '#4ade80' : '#15803d' }
               : { bg: isDark ? '#374151' : '#f3f4f6', fg: isDark ? '#9ca3af' : '#4b5563' };

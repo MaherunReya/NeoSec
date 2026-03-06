@@ -49,8 +49,40 @@ const validateLogin = [
   handleValidationErrors
 ];
 
+// Send OTP validation rules
+const validateSendOtp = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  handleValidationErrors
+];
+
+// Verify OTP & Register validation rules
+const validateVerifyOtpRegister = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email address'),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long')
+    .matches(/[A-Za-z]/)
+    .withMessage('Password must contain at least one letter')
+    .matches(/[0-9]/)
+    .withMessage('Password must contain at least one number'),
+  body('otp')
+    .isLength({ min: 6, max: 6 })
+    .withMessage('OTP must be exactly 6 digits')
+    .matches(/^[0-9]+$/)
+    .withMessage('OTP must only contain digits'),
+  handleValidationErrors
+];
+
 module.exports = {
   validateRegister,
-  validateLogin
+  validateLogin,
+  validateSendOtp,
+  validateVerifyOtpRegister
 };
 

@@ -3,6 +3,9 @@ const LoginHistory = require('../models/LoginHistory');
 const jwt = require('jsonwebtoken');
 const { getLocationFromIP } = require('../services/ipGeolocationService');
 const { getClientIP } = require('../utils/ipUtils');
+const OtpVerification = require('../models/OtpVerification');
+const { sendOtpEmail } = require('../services/emailService');
+const { Op } = require('sequelize');
 
 // Generate JWT Token
 const generateToken = (userId) => {
@@ -18,40 +21,46 @@ const register = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check if User model is available
-    if (!User) {
-      console.error('User model is not available');
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error - models not loaded'
-      });
+    // We no longer register directly from here, this is now handle by verifyOtpAndRegister
+    // But we keep this for backwards compatibility or admin creation if needed
+    // However, the prompt says "Add otp authentication using brevo for register",
+    // so let's repurpose this endpoint or create new ones.
+
+    // Let's create proper endpoints: sendOtp and verifyOtpAndRegister
+    res.status(400).json({
+      success: false,
+      message: 'Direct registration is disabled. Please use the OTP flow.'
+    });
+  } catch (error) {
+    console.error('Register error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during registration',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * @desc    Send OTP to email for registration
+ * @route   POST /api/auth/send-otp
+ * @access  Public
+ */
+const sendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
     }
 
-    // Test database connection first
-    const { sequelize } = require('../config/db');
-    try {
-      await sequelize.authenticate();
-    } catch (connError) {
-      console.error('Database connection error in register:', connError.message);
-      return res.status(503).json({
-        success: false,
-        message: 'Database connection unavailable. Please try again later.'
-      });
-    }
-
-    // Find existing user
+    // Check if user already exists
     let existingUser;
     try {
       existingUser = await User.findOne({ where: { email } });
     } catch (dbError) {
       console.error('Database error checking existing user:', dbError);
-      console.error('Database error details:', dbError.message);
-      console.error('Database error stack:', dbError.stack);
-      return res.status(500).json({
-        success: false,
-        message: 'Database error. Please try again later.',
-        error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
-      });
+      return res.status(500).json({ success: false, message: 'Database error' });
     }
 
     if (existingUser) {
@@ -61,21 +70,109 @@ const register = async (req, res) => {
       });
     }
 
-    // First user becomes admin
-    let userCount;
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Set expiry to 10 minutes from now
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+
+    // Save to database
     try {
-      userCount = await User.count();
+      // First, invalidate any existing OTPs for this email
+      await OtpVerification.update(
+        { used: true },
+        { where: { email, used: false } }
+      );
+
+      await OtpVerification.create({
+        email,
+        otp,
+        expiresAt
+      });
     } catch (dbError) {
-      console.error('Database error counting users:', dbError);
-      return res.status(500).json({
-        success: false,
-        message: 'Database error. Please try again later.'
+      console.error('Error saving OTP to database:', dbError);
+      return res.status(500).json({ success: false, message: 'Error generating OTP' });
+    }
+
+    // Send email using Brevo
+    try {
+      const emailResult = await sendOtpEmail(email, otp);
+      if (!emailResult.success) {
+        throw new Error(emailResult.error || 'Failed to send email');
+      }
+    } catch (emailError) {
+      console.error('Error sending OTP email:', emailError);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Error sending verification email. Please try again later.' 
       });
     }
 
+    res.status(200).json({
+      success: true,
+      message: 'Verification code sent to your email'
+    });
+  } catch (error) {
+    console.error('Send OTP error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during OTP generation'
+    });
+  }
+};
+
+/**
+ * @desc    Verify OTP and register user
+ * @route   POST /api/auth/verify-otp-register
+ * @access  Public
+ */
+const verifyOtpAndRegister = async (req, res) => {
+  try {
+    const { email, password, otp } = req.body;
+
+    if (!email || !password || !otp) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email, password, and OTP are required' 
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists with this email'
+      });
+    }
+
+    // Verify OTP
+    const otpRecord = await OtpVerification.findOne({
+      where: {
+        email,
+        otp,
+        used: false,
+        expiresAt: { [Op.gt]: new Date() } // Must not be expired
+      },
+      order: [['createdAt', 'DESC']]
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired verification code'
+      });
+    }
+
+    // Mark OTP as used
+    await otpRecord.update({ used: true });
+
+    // Proceed to create user
+    // First user becomes admin
+    let userCount = await User.count();
     const isFirstUser = userCount === 0;
 
-    // Create user
     let user;
     try {
       user = await User.create({
@@ -89,28 +186,23 @@ const register = async (req, res) => {
       });
     } catch (createError) {
       console.error('Error creating user:', createError);
-      console.error('Create error details:', createError.message);
-      console.error('Create error stack:', createError.stack);
       return res.status(500).json({
         success: false,
-        message: 'Error creating user account. Please try again.',
-        error: process.env.NODE_ENV === 'development' ? createError.message : undefined
+        message: 'Error creating user account. Please try again.'
       });
     }
 
     res.status(201).json({
       success: true,
       message: isFirstUser
-        ? 'Registration successful. Admin account created.'
-        : 'Registration successful. Please login.'
+        ? 'Registration successful. Admin account created. You can now login.'
+        : 'Registration successful. You can now login.'
     });
   } catch (error) {
-    console.error('Register error:', error);
-    console.error('Register error stack:', error.stack);
+    console.error('Verify OTP error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error during registration',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      message: 'Server error during registration'
     });
   }
 };
@@ -454,7 +546,9 @@ module.exports = {
   register,
   login,
   getMe,
-  updateProfile
+  updateProfile,
+  sendOtp,
+  verifyOtpAndRegister
 };
 
 
