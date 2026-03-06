@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import AnimatedBackground from './Auth/AnimatedBackground';
 
+import { API_BASE } from '../services/api';
+
 /* ─── Intersection observer hook ─── */
 function useInView(threshold = 0.12) {
     const ref = useRef(null);
@@ -418,8 +420,70 @@ function FeatureCard({ icon, title, description, accentColor = '#36E27B', delay 
 /* ═══════════════════════════════════════
    MAIN HOME PAGE
    ═══════════════════════════════════════ */
-const HomePage = ({ onGetStarted }) => {
+const HomePage = ({ onGetStarted, user }) => {
     const [navSolid, setNavSolid] = useState(false);
+    const [currentPlan, setCurrentPlan] = useState(null);
+    const [processingTier, setProcessingTier] = useState(null);
+
+    const apiBaseUrl = (() => {
+        if (API_BASE && API_BASE.trim()) {
+            let url = API_BASE.trim();
+            if (!url.endsWith('/api')) url = url.endsWith('/') ? `${url}api` : `${url}/api`;
+            return url;
+        }
+        if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+            return 'https://neosec.onrender.com/api';
+        }
+        return 'http://localhost:5000/api';
+    })();
+
+    // Fetch subscription on mount if user is logged in
+    useEffect(() => {
+        const fetchSub = async () => {
+            if (!user) return;
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+                const res = await fetch(`${apiBaseUrl}/subscription/me`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setCurrentPlan(data.subscription?.tier || 'free');
+                }
+            } catch (err) {
+                console.error('Failed to fetch subscription on homepage:', err);
+            }
+        };
+        fetchSub();
+    }, [user, apiBaseUrl]);
+
+    // Handle checkout 
+    const handleCheckout = async (tier) => {
+        if (!user) {
+            onGetStarted();
+            return;
+        }
+        setProcessingTier(tier);
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${apiBaseUrl}/subscription/create-checkout-session`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ tier }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to create checkout session');
+            if (data.url) window.location.href = data.url;
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setProcessingTier(null);
+        }
+    };
 
     useEffect(() => {
         const onScroll = () => setNavSolid(window.scrollY > 40);
@@ -539,7 +603,7 @@ const HomePage = ({ onGetStarted }) => {
                         padding: '7px 18px', background: '#36E27B', color: '#000',
                         border: 'none', borderRadius: '6px', fontWeight: '700', fontSize: '13px', cursor: 'pointer',
                     }}>
-                        Sign In
+                        {user ? 'Go to Dashboard' : 'Sign In'}
                     </button>
                 </div>
             </nav>
@@ -569,7 +633,7 @@ const HomePage = ({ onGetStarted }) => {
 
                     <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap', animation: 'fadeUp .6s ease .24s both' }}>
                         <button onClick={onGetStarted} className="cta-primary" style={{ padding: '14px 34px', background: '#36E27B', color: '#000', border: 'none', borderRadius: '7px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', letterSpacing: '.2px' }}>
-                            Get Started Free →
+                            {user ? 'Go to Dashboard →' : 'Get Started Free →'}
                         </button>
                         <a href="#how-it-works" className="cta-ghost" style={{ padding: '14px 28px', color: '#ccc', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)', borderRadius: '7px', fontWeight: '600', fontSize: '14px', textDecoration: 'none', display: 'inline-block', transition: 'all .25s' }}>
                             See How It Works
@@ -629,7 +693,7 @@ const HomePage = ({ onGetStarted }) => {
 
                     <div style={{ textAlign: 'center', marginTop: '50px' }}>
                         <button onClick={onGetStarted} className="cta-ghost" style={{ padding: '13px 30px', color: '#36E27B', background: 'transparent', border: '1.5px solid #36E27B', borderRadius: '7px', fontWeight: '700', fontSize: '14px', cursor: 'pointer', transition: 'all .25s' }}>
-                            Start Your Free Trial →
+                            {user ? 'Go to Dashboard →' : 'Start Your Free Trial →'}
                         </button>
                     </div>
                 </div>
@@ -645,6 +709,102 @@ const HomePage = ({ onGetStarted }) => {
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center', alignItems: 'stretch' }}>
                         {features.map((f, i) => <FeatureCard key={i} delay={i * 0.07} {...f} />)}
+                    </div>
+                </div>
+            </section>
+
+            {/* ── PRICING ── */}
+            <section id="pricing" style={{ padding: 'clamp(60px,10vw,110px) 5%', background: '#0a0a0a', position: 'relative' }}>
+                <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+                        <p style={{ color: '#36E27B', fontSize: '12px', fontWeight: '700', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '10px' }}>Pricing</p>
+                        <h2 style={{ fontSize: 'clamp(26px,4vw,44px)', fontWeight: '800', color: '#fff' }}>Simple, Transparent Pricing</h2>
+                        <div style={{ width: 50, height: 3, background: 'linear-gradient(90deg,#36E27B,transparent)', borderRadius: '99px', margin: '14px auto 0' }} />
+                        <p style={{ color: '#555', marginTop: '16px', fontSize: '14px', maxWidth: '440px', margin: '16px auto 0', lineHeight: 1.8 }}>
+                            Choose the plan that fits your organization's security needs. All plans include 24/7 support.
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', justifyContent: 'center', alignItems: 'stretch' }}>
+                        {/* Free Tier */}
+                        <div style={{
+                            flex: '1 1 300px', background: 'rgba(15,15,15,0.9)', border: '1px solid rgba(255,255,255,0.07)',
+                            borderRadius: '14px', padding: '36px 30px', display: 'flex', flexDirection: 'column', position: 'relative'
+                        }}>
+                            <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', marginBottom: '12px' }}>Starter</h3>
+                            <div style={{ fontSize: '36px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>$0<span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}> /mo</span></div>
+                            <p style={{ color: '#888', fontSize: '13px', lineHeight: 1.6, marginBottom: '24px' }}>Essential security for individuals and small teams.</p>
+                            
+                            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
+                                {['1 Admin User', 'Basic Firewall Rules', 'Community Support', '7-day Audit Logs'].map((f, i) => (
+                                    <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ccc', fontSize: '13px', marginBottom: '12px' }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#36E27B" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+                                        {f}
+                                    </li>
+                                ))}
+                            </ul>
+                            <button 
+                                onClick={!user ? onGetStarted : undefined} 
+                                disabled={user}
+                                style={{ width: '100%', padding: '12px', background: user && currentPlan === 'free' ? 'rgba(255,255,255,0.05)' : 'transparent', color: user && currentPlan === 'free' ? '#888' : '#fff', border: user && currentPlan === 'free' ? 'none' : '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', fontWeight: '600', fontSize: '14px', cursor: user ? 'default' : 'pointer', transition: 'all .2s' }}>
+                                {user ? (currentPlan === 'free' ? 'Current Plan' : 'Free Tier Included') : 'Get Started'}
+                            </button>
+                        </div>
+
+                        {/* Pro Tier (Highlighted - previously Professional) */}
+                        <div style={{
+                            flex: '1 1 300px', background: 'linear-gradient(160deg, rgba(22,26,22,0.95) 0%, rgba(14,20,14,0.95) 100%)',
+                            border: '1px solid rgba(54,226,123,0.3)', borderRadius: '14px', padding: '36px 30px',
+                            display: 'flex', flexDirection: 'column', position: 'relative', transform: 'scale(1.02)', boxShadow: '0 12px 40px rgba(54,226,123,0.1)'
+                        }}>
+                            <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: '#36E27B', color: '#000', fontSize: '11px', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', padding: '4px 12px', borderRadius: '99px' }}>Most Popular</div>
+                            <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#36E27B', marginBottom: '12px' }}>Professional</h3>
+                            <div style={{ fontSize: '36px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>$29.99<span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}> /mo</span></div>
+                            <p style={{ color: '#888', fontSize: '13px', lineHeight: 1.6, marginBottom: '24px' }}>Advanced features for growing organizations.</p>
+                            
+                            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
+                                {['Up to 20 profiles', 'Advanced firewall rules', 'Priority support', '5 groups & 50 members'].map((f, i) => (
+                                    <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fff', fontSize: '13px', marginBottom: '12px' }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#36E27B" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+                                        {f}
+                                    </li>
+                                ))}
+                            </ul>
+                            <button 
+                                onClick={() => handleCheckout('pro')}
+                                disabled={currentPlan === 'pro' || processingTier === 'pro'}
+                                style={{ width: '100%', padding: '12px', background: currentPlan === 'pro' ? 'rgba(54,226,123,0.1)' : '#36E27B', color: currentPlan === 'pro' ? '#36E27B' : '#000', border: 'none', borderRadius: '6px', fontWeight: '700', fontSize: '14px', cursor: (currentPlan === 'pro' || processingTier === 'pro') ? 'default' : 'pointer', transition: 'all .2s' }}>
+                                {currentPlan === 'pro' ? 'Current Plan' : processingTier === 'pro' ? 'Processing...' : (user ? 'Upgrade to Pro' : 'Start Free Trial')}
+                            </button>
+                        </div>
+
+                        {/* Enterprise Tier -> NOW Enterprise/Pro mix -> Wait, let's include Pro and Enterprise to match Subscription.js! */}
+                        {/* We will rename the 3rd to Pro and add a 4th for Enterprise, or just replace the 3rd with Enterprise. The dashboard has Basic, Pro, Enterprise. So 3 paid tiers. Let's make 4 cards or merge the 3 cards. The user wants to "pick from backend", there are 3 tiers total: basic, pro, enterprise. Let's show all 3. */}
+                        
+                        {/* Enterprise Tier - previously Custom */}
+                        <div style={{
+                            flex: '1 1 300px', background: 'rgba(15,15,15,0.9)', border: '1px solid rgba(255,255,255,0.07)',
+                            borderRadius: '14px', padding: '36px 30px', display: 'flex', flexDirection: 'column', position: 'relative'
+                        }}>
+                            <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', marginBottom: '12px' }}>Enterprise</h3>
+                            <div style={{ fontSize: '36px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>$49.99<span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}> /mo</span></div>
+                            <p style={{ color: '#888', fontSize: '13px', lineHeight: 1.6, marginBottom: '24px' }}>Advanced features for growing organizations.</p>
+                            
+                            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
+                                {['Unlimited Profiles', 'Advanced security policies', '24/7 premium support', 'Unlimited members'].map((f, i) => (
+                                    <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ccc', fontSize: '13px', marginBottom: '12px' }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#36E27B" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+                                        {f}
+                                    </li>
+                                ))}
+                            </ul>
+                            <button 
+                                onClick={() => handleCheckout('enterprise')}
+                                disabled={currentPlan === 'enterprise' || processingTier === 'enterprise'}
+                                style={{ width: '100%', padding: '12px', background: currentPlan === 'enterprise' ? 'rgba(255,255,255,0.05)' : 'transparent', color: currentPlan === 'enterprise' ? '#666' : '#fff', border: currentPlan === 'enterprise' ? 'none' : '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', fontWeight: '600', fontSize: '14px', cursor: (currentPlan === 'enterprise' || processingTier === 'enterprise') ? 'default' : 'pointer', transition: 'all .2s' }}>
+                                {currentPlan === 'enterprise' ? 'Current Plan' : processingTier === 'enterprise' ? 'Processing...' : (user ? 'Upgrade to Enterprise' : 'Start Free Trial')}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -676,11 +836,13 @@ const HomePage = ({ onGetStarted }) => {
                     </p>
                     <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                         <button onClick={onGetStarted} className="cta-primary" style={{ padding: '15px 38px', background: '#36E27B', color: '#000', border: 'none', borderRadius: '7px', fontWeight: '800', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 22px rgba(54,226,123,.32)' }}>
-                            Create Free Account
+                            {user ? 'Go to Dashboard' : 'Create Free Account'}
                         </button>
-                        <button onClick={onGetStarted} className="cta-ghost" style={{ padding: '15px 32px', color: '#fff', background: 'transparent', border: '1.5px solid rgba(255,255,255,.14)', borderRadius: '7px', fontWeight: '600', fontSize: '14px', cursor: 'pointer', transition: 'all .25s' }}>
-                            Sign In →
-                        </button>
+                        {!user && (
+                            <button onClick={onGetStarted} className="cta-ghost" style={{ padding: '15px 32px', color: '#fff', background: 'transparent', border: '1.5px solid rgba(255,255,255,.14)', borderRadius: '7px', fontWeight: '600', fontSize: '14px', cursor: 'pointer', transition: 'all .25s' }}>
+                                Sign In →
+                            </button>
+                        )}
                     </div>
                     <p style={{ color: '#333', fontSize: '12px', marginTop: '20px' }}>✓ No credit card &nbsp;·&nbsp; ✓ Free forever tier &nbsp;·&nbsp; ✓ Cancel anytime</p>
                 </div>

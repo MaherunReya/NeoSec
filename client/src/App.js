@@ -148,7 +148,12 @@ function App() {
             if (authAPI.isAuthenticated()) {
                 try {
                     const currentUser = authAPI.getCurrentUser();
-                    if (currentUser) setUser(currentUser);
+                    if (currentUser) {
+                        setUser(currentUser);
+                        if (typeof window !== 'undefined' && !window.location.search.includes('home=true')) {
+                            setShowHome(false);
+                        }
+                    }
                 } catch (err) {
                     console.error('Auth check error:', err);
                     authAPI.logout();
@@ -311,11 +316,6 @@ function App() {
         showToast('Logged out', 'info');
     };
 
-    const handleUserUpdate = (updatedUserData) => {
-        setUser(updatedUserData);
-        localStorage.setItem('user', JSON.stringify(updatedUserData));
-        showToast('Profile updated successfully', 'success');
-    };
 
     // Loading State
     if (loading) {
@@ -382,6 +382,7 @@ function App() {
                         sidebarOpen={sidebarOpen}
                         setSidebarOpen={setSidebarOpen}
                         handleLogout={handleLogout}
+                        onGoHome={() => setShowHome(true)}
                     />
                     <div style={{
                         flex: 1,
@@ -396,6 +397,21 @@ function App() {
                         <ShareManagement theme={theme} palette={palette} />
                     </div>
                 </div>
+                <Toast toasts={toasts} palette={palette} />
+            </>
+        );
+    }
+
+    // Home Page (landing)
+    if (showHome) {
+        return (
+            <>
+                <HomePage user={user} onGetStarted={() => {
+                    setShowHome(false);
+                    if (typeof window !== 'undefined' && window.location.search.includes('home=true')) {
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                }} />
                 <Toast toasts={toasts} palette={palette} />
             </>
         );
@@ -423,6 +439,7 @@ function App() {
                         sidebarOpen={sidebarOpen}
                         setSidebarOpen={setSidebarOpen}
                         handleLogout={handleLogout}
+                        onGoHome={() => setShowHome(true)}
                     />
                     <FloatingTopNav
                         user={user}
@@ -600,15 +617,6 @@ function App() {
         );
     }
 
-    // Home Page (unauthenticated landing)
-    if (showHome) {
-        return (
-            <>
-                <HomePage onGetStarted={() => setShowHome(false)} />
-                <Toast toasts={toasts} palette={palette} />
-            </>
-        );
-    }
 
     // Login/Register UI
     return (
