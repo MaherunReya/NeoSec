@@ -108,7 +108,7 @@ const ConfirmModal = ({ message, onConfirm, onCancel, colors }) => {
 };
 
 // Toast notification component
-const Toast = ({message, type, onClose, colors = {}, theme = 'dark' }) => {
+const Toast = ({ message, type, onClose, colors = {}, theme = 'dark' }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, 5000);
     return () => clearTimeout(timer);
@@ -326,7 +326,7 @@ const Modal = ({ children, onClose }) => (
 );
 
 function ProfileManager({ theme = 'dark', palette }) {
-  const colors = palette || (theme === 'light' ? lightPalette : defaultPalette);
+  const colors = palette || (theme === 'light' ? lightPalette : lightPalette);
   const isDark = theme !== 'light';
 
   const [profiles, setProfiles] = useState([]);
@@ -789,51 +789,51 @@ function ProfileManager({ theme = 'dark', palette }) {
             <FiPlus size={14} />
             Create New Profile
           </button>
-        <button
-          onClick={() => setShowActivityLogs((prev) => !prev)}
-          style={{
-            border: `1px solid ${colors.border}`,
-            borderRadius: 8,
-            padding: '8px 12px',
-            backgroundColor: colors.bgCard,
-            color: colors.text,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8
-          }}
-        >
-          <FiClock size={14} />
-          {showActivityLogs ? 'Hide Activity Logs' : 'View Activity Logs'}
-        </button>
-        <button
-          onClick={() => setShowManageSharesDialog(true)}
-          style={{
-            border: `1px solid ${colors.border}`,
-            borderRadius: 8,
-            padding: '8px 12px',
-            backgroundColor: colors.bgCard,
-            color: colors.text,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8
-          }}
-        >
-          <FiShare2 size={14} />
-          Manage All Shares
-          <span
+          <button
+            onClick={() => setShowActivityLogs((prev) => !prev)}
             style={{
-              borderRadius: 999,
-              padding: '2px 8px',
-              fontSize: 11,
-              backgroundColor: isDark ? 'rgba(22,163,74,0.25)' : '#dcfce7',
-              color: colors.accent
+              border: `1px solid ${colors.border}`,
+              borderRadius: 8,
+              padding: '8px 12px',
+              backgroundColor: colors.bgCard,
+              color: colors.text,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8
             }}
           >
-            {totalShares}
-          </span>
-        </button>
+            <FiClock size={14} />
+            {showActivityLogs ? 'Hide Activity Logs' : 'View Activity Logs'}
+          </button>
+          <button
+            onClick={() => setShowManageSharesDialog(true)}
+            style={{
+              border: `1px solid ${colors.border}`,
+              borderRadius: 8,
+              padding: '8px 12px',
+              backgroundColor: colors.bgCard,
+              color: colors.text,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8
+            }}
+          >
+            <FiShare2 size={14} />
+            Manage All Shares
+            <span
+              style={{
+                borderRadius: 999,
+                padding: '2px 8px',
+                fontSize: 11,
+                backgroundColor: isDark ? 'rgba(22,163,74,0.25)' : '#dcfce7',
+                color: colors.accent
+              }}
+            >
+              {totalShares}
+            </span>
+          </button>
         </div>
         <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: colors.textMuted }}>
           <FiShield size={14} />
@@ -1476,10 +1476,10 @@ function ProfileManager({ theme = 'dark', palette }) {
               scheduleType === 'time'
                 ? 'Timed'
                 : scheduleType === 'geolocation'
-                ? 'Geo'
-                : scheduleType === 'both'
-                ? 'Time+Geo'
-                : 'No Schedule';
+                  ? 'Geo'
+                  : scheduleType === 'both'
+                    ? 'Time+Geo'
+                    : 'No Schedule';
             const statusTone = profile.isActive
               ? { bg: isDark ? 'rgba(22,163,74,0.28)' : '#dcfce7', fg: isDark ? '#4ade80' : '#15803d' }
               : { bg: isDark ? '#374151' : '#f3f4f6', fg: isDark ? '#9ca3af' : '#4b5563' };

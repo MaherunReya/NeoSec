@@ -36,10 +36,6 @@ function AnimatedCounter({ target, suffix = '', duration = 2000 }) {
     return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
 }
 
-/* ══════════════════════════════════════════════════
-   MINI UI MOCKUP PANELS — one per tutorial step
-   Each renders a realistic-looking mini NeoSec screen
-   ══════════════════════════════════════════════════ */
 
 /* Step 1 — Sign-up / account creation screen */
 function MockupSignup() {
@@ -314,9 +310,7 @@ function MockupTopBar({ title }) {
     );
 }
 
-/* ══════════════════════════════════
-   TUTORIAL STEP CARD
-   ══════════════════════════════════ */
+
 const MOCKUPS = [MockupSignup, MockupFirewall, MockupVPN, MockupScan, MockupReports];
 
 function TutorialStep({ number, Mockup, title, description, delay = 0 }) {
@@ -417,9 +411,6 @@ function FeatureCard({ icon, title, description, accentColor = '#36E27B', delay 
     );
 }
 
-/* ═══════════════════════════════════════
-   MAIN HOME PAGE
-   ═══════════════════════════════════════ */
 const HomePage = ({ onGetStarted, user }) => {
     const [navSolid, setNavSolid] = useState(false);
     const [currentPlan, setCurrentPlan] = useState(null);
@@ -734,7 +725,7 @@ const HomePage = ({ onGetStarted, user }) => {
                             <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', marginBottom: '12px' }}>Starter</h3>
                             <div style={{ fontSize: '36px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>$0<span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}> /mo</span></div>
                             <p style={{ color: '#888', fontSize: '13px', lineHeight: 1.6, marginBottom: '24px' }}>Essential security for individuals and small teams.</p>
-                            
+
                             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
                                 {['1 Admin User', 'Basic Firewall Rules', 'Community Support', '7-day Audit Logs'].map((f, i) => (
                                     <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ccc', fontSize: '13px', marginBottom: '12px' }}>
@@ -743,8 +734,8 @@ const HomePage = ({ onGetStarted, user }) => {
                                     </li>
                                 ))}
                             </ul>
-                            <button 
-                                onClick={!user ? onGetStarted : undefined} 
+                            <button
+                                onClick={!user ? onGetStarted : undefined}
                                 disabled={user}
                                 style={{ width: '100%', padding: '12px', background: user && currentPlan === 'free' ? 'rgba(255,255,255,0.05)' : 'transparent', color: user && currentPlan === 'free' ? '#888' : '#fff', border: user && currentPlan === 'free' ? 'none' : '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', fontWeight: '600', fontSize: '14px', cursor: user ? 'default' : 'pointer', transition: 'all .2s' }}>
                                 {user ? (currentPlan === 'free' ? 'Current Plan' : 'Free Tier Included') : 'Get Started'}
@@ -761,7 +752,7 @@ const HomePage = ({ onGetStarted, user }) => {
                             <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#36E27B', marginBottom: '12px' }}>Professional</h3>
                             <div style={{ fontSize: '36px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>$29.99<span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}> /mo</span></div>
                             <p style={{ color: '#888', fontSize: '13px', lineHeight: 1.6, marginBottom: '24px' }}>Advanced features for growing organizations.</p>
-                            
+
                             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
                                 {['Up to 20 profiles', 'Advanced firewall rules', 'Priority support', '5 groups & 50 members'].map((f, i) => (
                                     <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fff', fontSize: '13px', marginBottom: '12px' }}>
@@ -770,7 +761,7 @@ const HomePage = ({ onGetStarted, user }) => {
                                     </li>
                                 ))}
                             </ul>
-                            <button 
+                            <button
                                 onClick={() => handleCheckout('pro')}
                                 disabled={currentPlan === 'pro' || processingTier === 'pro'}
                                 style={{ width: '100%', padding: '12px', background: currentPlan === 'pro' ? 'rgba(54,226,123,0.1)' : '#36E27B', color: currentPlan === 'pro' ? '#36E27B' : '#000', border: 'none', borderRadius: '6px', fontWeight: '700', fontSize: '14px', cursor: (currentPlan === 'pro' || processingTier === 'pro') ? 'default' : 'pointer', transition: 'all .2s' }}>
@@ -780,7 +771,7 @@ const HomePage = ({ onGetStarted, user }) => {
 
                         {/* Enterprise Tier -> NOW Enterprise/Pro mix -> Wait, let's include Pro and Enterprise to match Subscription.js! */}
                         {/* We will rename the 3rd to Pro and add a 4th for Enterprise, or just replace the 3rd with Enterprise. The dashboard has Basic, Pro, Enterprise. So 3 paid tiers. Let's make 4 cards or merge the 3 cards. The user wants to "pick from backend", there are 3 tiers total: basic, pro, enterprise. Let's show all 3. */}
-                        
+
                         {/* Enterprise Tier - previously Custom */}
                         <div style={{
                             flex: '1 1 300px', background: 'rgba(15,15,15,0.9)', border: '1px solid rgba(255,255,255,0.07)',
@@ -789,7 +780,7 @@ const HomePage = ({ onGetStarted, user }) => {
                             <h3 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', marginBottom: '12px' }}>Enterprise</h3>
                             <div style={{ fontSize: '36px', fontWeight: '900', color: '#fff', marginBottom: '8px' }}>$49.99<span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}> /mo</span></div>
                             <p style={{ color: '#888', fontSize: '13px', lineHeight: 1.6, marginBottom: '24px' }}>Advanced features for growing organizations.</p>
-                            
+
                             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
                                 {['Unlimited Profiles', 'Advanced security policies', '24/7 premium support', 'Unlimited members'].map((f, i) => (
                                     <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ccc', fontSize: '13px', marginBottom: '12px' }}>
@@ -798,7 +789,7 @@ const HomePage = ({ onGetStarted, user }) => {
                                     </li>
                                 ))}
                             </ul>
-                            <button 
+                            <button
                                 onClick={() => handleCheckout('enterprise')}
                                 disabled={currentPlan === 'enterprise' || processingTier === 'enterprise'}
                                 style={{ width: '100%', padding: '12px', background: currentPlan === 'enterprise' ? 'rgba(255,255,255,0.05)' : 'transparent', color: currentPlan === 'enterprise' ? '#666' : '#fff', border: currentPlan === 'enterprise' ? 'none' : '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', fontWeight: '600', fontSize: '14px', cursor: (currentPlan === 'enterprise' || processingTier === 'enterprise') ? 'default' : 'pointer', transition: 'all .2s' }}>

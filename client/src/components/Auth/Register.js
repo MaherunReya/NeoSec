@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { authAPI } from '../../services/api';
+import AnimatedBackground from './AnimatedBackground';
 
 const Register = ({ onSwitchToLogin }) => {
     const [step, setStep] = useState(1); // 1 = Details, 2 = OTP
@@ -129,16 +130,61 @@ const Register = ({ onSwitchToLogin }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px'
+            padding: '20px',
+            position: 'relative',
+            overflow: 'hidden'
         }}>
+            {/* Header/Logo mapping */}
+            <div style={{ position: 'absolute', top: 30, left: 40, display: 'flex', alignItems: 'center', gap: '9px', zIndex: 10 }}>
+                <div style={{ width: 32, height: 32, background: '#36E27B', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" strokeWidth="2.5">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                </div>
+                <span onClick={() => window.location.href = '/?home=true'} style={{ color: '#fff', fontWeight: '800', fontSize: '18px', letterSpacing: '.8px', cursor: 'pointer' }}>NeoSec</span>
+            </div>
+
+            {/* Animated Background */}
+            <AnimatedBackground theme="dark" />
+
             <div style={{
                 width: '100%',
                 maxWidth: '380px',
-                backgroundColor: '#1c1c1c',
+                background: 'rgba(28, 28, 28, 0.6)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '8px',
                 padding: '40px 35px',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)'
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
+                position: 'relative',
+                overflow: 'hidden'
             }}>
+                {/* Loading Bar */}
+                {loading && (
+                    <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '3px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{
+                            height: '100%',
+                            background: 'linear-gradient(90deg, transparent, #36E27B, transparent)',
+                            animation: 'loading 1.5s infinite',
+                            width: '50%'
+                        }} />
+                    </div>
+                )}
+                <style>{`
+                    @keyframes loading {
+                        0% { transform: translateX(-100%); }
+                        100% { transform: translateX(300%); }
+                    }
+                `}</style>
                 {/* Shield Icon */}
                 <div style={{
                     textAlign: 'center',
@@ -182,7 +228,7 @@ const Register = ({ onSwitchToLogin }) => {
                 {error && (
                     <div style={{
                         padding: '12px 15px',
-                        backgroundColor: '#2a1515',
+                        backgroundColor: 'rgba(42, 21, 21, 0.8)',
                         border: '1px solid #ff4444',
                         borderRadius: '6px',
                         color: '#ff6666',
@@ -197,7 +243,7 @@ const Register = ({ onSwitchToLogin }) => {
                 {success && (
                     <div style={{
                         padding: '12px 15px',
-                        backgroundColor: '#1a2a1f',
+                        backgroundColor: 'rgba(21, 42, 31, 0.8)',
                         border: '1px solid #36E27B',
                         borderRadius: '6px',
                         color: '#36E27B',
@@ -233,8 +279,8 @@ const Register = ({ onSwitchToLogin }) => {
                                 style={{
                                     width: '100%',
                                     padding: '12px 14px',
-                                    backgroundColor: '#2a2a2a',
-                                    border: '1px solid #3a3a3a',
+                                    backgroundColor: 'rgba(42, 42, 42, 0.6)',
+                                    border: '1px solid rgba(58, 58, 58, 0.8)',
                                     borderRadius: '6px',
                                     color: '#fff',
                                     fontSize: '14px',
@@ -243,7 +289,7 @@ const Register = ({ onSwitchToLogin }) => {
                                     boxSizing: 'border-box'
                                 }}
                                 onFocus={(e) => e.target.style.borderColor = '#36E27B'}
-                                onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
+                                onBlur={(e) => e.target.style.borderColor = 'rgba(58, 58, 58, 0.8)'}
                             />
                         </div>
 
@@ -270,8 +316,8 @@ const Register = ({ onSwitchToLogin }) => {
                                 style={{
                                     width: '100%',
                                     padding: '12px 14px',
-                                    backgroundColor: '#2a2a2a',
-                                    border: '1px solid #3a3a3a',
+                                    backgroundColor: 'rgba(42, 42, 42, 0.6)',
+                                    border: '1px solid rgba(58, 58, 58, 0.8)',
                                     borderRadius: '6px',
                                     color: '#fff',
                                     fontSize: '14px',
@@ -280,7 +326,7 @@ const Register = ({ onSwitchToLogin }) => {
                                     boxSizing: 'border-box'
                                 }}
                                 onFocus={(e) => e.target.style.borderColor = '#36E27B'}
-                                onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
+                                onBlur={(e) => e.target.style.borderColor = 'rgba(58, 58, 58, 0.8)'}
                             />
                         </div>
 
@@ -307,8 +353,8 @@ const Register = ({ onSwitchToLogin }) => {
                                 style={{
                                     width: '100%',
                                     padding: '12px 14px',
-                                    backgroundColor: '#2a2a2a',
-                                    border: '1px solid #3a3a3a',
+                                    backgroundColor: 'rgba(42, 42, 42, 0.6)',
+                                    border: '1px solid rgba(58, 58, 58, 0.8)',
                                     borderRadius: '6px',
                                     color: '#fff',
                                     fontSize: '14px',
@@ -317,7 +363,7 @@ const Register = ({ onSwitchToLogin }) => {
                                     boxSizing: 'border-box'
                                 }}
                                 onFocus={(e) => e.target.style.borderColor = '#36E27B'}
-                                onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
+                                onBlur={(e) => e.target.style.borderColor = 'rgba(58, 58, 58, 0.8)'}
                             />
                         </div>
 
@@ -374,8 +420,8 @@ const Register = ({ onSwitchToLogin }) => {
                                 style={{
                                     width: '100%',
                                     padding: '12px 14px',
-                                    backgroundColor: '#2a2a2a',
-                                    border: '1px solid #3a3a3a',
+                                    backgroundColor: 'rgba(42, 42, 42, 0.6)',
+                                    border: '1px solid rgba(58, 58, 58, 0.8)',
                                     borderRadius: '6px',
                                     color: '#fff',
                                     fontSize: '14px',
@@ -386,7 +432,7 @@ const Register = ({ onSwitchToLogin }) => {
                                     letterSpacing: '5px'
                                 }}
                                 onFocus={(e) => e.target.style.borderColor = '#36E27B'}
-                                onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
+                                onBlur={(e) => e.target.style.borderColor = 'rgba(58, 58, 58, 0.8)'}
                             />
                         </div>
 
