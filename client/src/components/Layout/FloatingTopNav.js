@@ -20,21 +20,27 @@ function DropdownGroup({ group, activeView, onNavigate, openKey, setOpenKey }) {
   const isOpen = openKey === group.key;
   const isActive = group.items.some((item) => item.view === activeView);
 
+  const [isHovered, setIsHovered] = useState(false);
+
   return (
     <div style={{ position: 'relative' }}>
       <button
         onClick={() => setOpenKey(isOpen ? null : group.key)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         style={{
           border: 'none',
           borderRadius: 10,
-          backgroundColor: isActive ? 'rgba(22,163,74,0.20)' : 'transparent',
-          color: isActive ? '#4ade80' : '#d1d5db',
+          backgroundColor: isActive ? 'rgba(30,140,74,0.20)' : (isHovered ? 'rgba(255,255,255,0.06)' : 'transparent'),
+          color: isActive ? '#1E8C4A' : '#d1d5db',
           padding: '7px 10px',
           fontSize: 13,
           display: 'inline-flex',
           alignItems: 'center',
           gap: 6,
-          cursor: 'pointer'
+          cursor: 'pointer',
+          boxShadow: isHovered && !isActive ? '0 0 10px rgba(255,255,255,0.08)' : 'none',
+          transition: 'all 0.15s ease'
         }}
       >
         {group.label}
@@ -49,9 +55,9 @@ function DropdownGroup({ group, activeView, onNavigate, openKey, setOpenKey }) {
             left: 0,
             minWidth: 220,
             borderRadius: 12,
-            border: '1px solid rgba(255,255,255,0.12)',
-            backgroundColor: 'rgba(17,24,39,0.96)',
-            boxShadow: '0 20px 34px rgba(0,0,0,0.35)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            backgroundColor: 'rgba(24,24,24,0.96)',
+            boxShadow: '0 20px 34px rgba(0,0,0,0.3)',
             overflow: 'hidden',
             zIndex: 60
           }}
@@ -75,12 +81,12 @@ function DropdownGroup({ group, activeView, onNavigate, openKey, setOpenKey }) {
                   gap: 8,
                   padding: '10px 12px',
                   fontSize: 13,
-                  backgroundColor: active ? 'rgba(22,163,74,0.18)' : 'transparent',
-                  color: active ? '#4ade80' : '#e5e7eb',
+                  backgroundColor: active ? 'rgba(30,140,74,0.18)' : 'transparent',
+                  color: active ? '#1E8C4A' : '#e5e7eb',
                   cursor: 'pointer'
                 }}
               >
-                <Icon size={14} color={active ? '#4ade80' : '#9ca3af'} />
+                <Icon size={14} color={active ? '#1E8C4A' : '#9ca3af'} />
                 {item.label}
               </button>
             );
@@ -202,9 +208,9 @@ function FloatingTopNav({ user, currentView, setCurrentView, isMobile }) {
           gap: 6,
           borderRadius: 18,
           padding: '8px 10px',
-          border: '1px solid rgba(255,255,255,0.18)',
-          boxShadow: '0 20px 30px rgba(0,0,0,0.28)',
-          backgroundColor: 'rgba(17,24,39,0.72)',
+          border: '1px solid rgba(255,255,255,0.10)',
+          boxShadow: '0 20px 30px rgba(0,0,0,0.3)',
+          backgroundColor: 'rgba(24,24,24,0.6)',
           backdropFilter: 'blur(20px) saturate(180%)',
           WebkitBackdropFilter: 'blur(20px) saturate(180%)'
         }}
@@ -238,8 +244,8 @@ function FloatingTopNav({ user, currentView, setCurrentView, isMobile }) {
           style={{
             border: 'none',
             borderRadius: 10,
-            backgroundColor: currentView === 'account-settings' ? 'rgba(22,163,74,0.20)' : 'transparent',
-            color: currentView === 'account-settings' ? '#4ade80' : '#d1d5db',
+            backgroundColor: currentView === 'account-settings' ? 'rgba(30,140,74,0.20)' : 'transparent',
+            color: currentView === 'account-settings' ? '#1E8C4A' : '#d1d5db',
             padding: '7px 10px',
             fontSize: 13,
             display: 'inline-flex',

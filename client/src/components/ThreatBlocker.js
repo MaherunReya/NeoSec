@@ -10,8 +10,8 @@ const ThreatBlocker = ({ theme = 'dark', palette }) => {
     text: '#ffffff',
     textMuted: '#9aa3b5',
     border: '#242424',
-    accent: '#36E27B',
-    accentSoft: 'rgba(54,226,123,0.12)',
+    accent: '#1E8C4A',
+    accentSoft: 'rgba(30,140,74,0.12)',
     warning: '#f0a500',
     danger: '#e04848',
     inputBg: '#1c1c1c',
@@ -182,7 +182,7 @@ const ThreatBlocker = ({ theme = 'dark', palette }) => {
             <div className="status-left">
               <div className="status-icon-wrapper" style={{
                 backgroundColor: autoBlockingEnabled
-                  ? (theme === 'light' ? '#e6f4ed' : 'rgba(54,226,123,0.12)')
+                  ? (theme === 'light' ? '#e6f4ed' : 'rgba(30,140,74,0.12)')
                   : (theme === 'light' ? '#f3f4f6' : '#2c2c2c')
               }}>
                 <FiShield style={{
@@ -204,7 +204,7 @@ const ThreatBlocker = ({ theme = 'dark', palette }) => {
                 <div className="status-badges">
                   <span className="status-badge" style={{
                     backgroundColor: autoBlockingEnabled
-                      ? (theme === 'light' ? '#e6f4ed' : 'rgba(54,226,123,0.2)')
+                      ? (theme === 'light' ? '#e6f4ed' : 'rgba(30,140,74,0.2)')
                       : (theme === 'light' ? '#f3f4f6' : '#2c2c2c'),
                     color: autoBlockingEnabled ? colors.accent : colors.textMuted
                   }}>
@@ -514,7 +514,7 @@ const ThreatBlocker = ({ theme = 'dark', palette }) => {
           }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-icon-success" style={{
-                backgroundColor: theme === 'light' ? '#e6f4ed' : 'rgba(54,226,123,0.12)'
+                backgroundColor: theme === 'light' ? '#e6f4ed' : 'rgba(30,140,74,0.12)'
               }}>
                 <FiShield size={24} style={{ color: colors.accent }} />
               </div>

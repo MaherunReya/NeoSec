@@ -7,7 +7,7 @@ import { FiSettings, FiShield, FiWifi, FiLock, FiUser, FiAlertCircle } from 'rea
 const MemberSecurityManagement = ({ user, theme = 'dark', palette = null }) => {
   const darkPalette = {
     bgMain: '#121212', bgCard: '#181818', bgPanel: '#0a0a0a', text: '#ffffff',
-    textMuted: '#9aa3b5', border: '#242424', accent: '#36E27B', accentSoft: 'rgba(54, 226, 123, 0.12)',
+    textMuted: '#9aa3b5', border: '#242424', accent: '#1E8C4A', accentSoft: 'rgba(54, 226, 123, 0.12)',
     danger: '#e04848', warning: '#f0a500'
   };
   const lightPalette = {

@@ -406,7 +406,7 @@ function AdminUsersView({
                                                         title="Edit user"
                                                         style={{
                                                             background: actionButtonHover === `edit-user-${u.id}`
-                                                                ? (theme === 'dark' ? 'rgba(54,226,123,0.15)' : 'rgba(31,164,90,0.1)')
+                                                                ? (theme === 'dark' ? 'rgba(30,140,74,0.15)' : 'rgba(31,164,90,0.1)')
                                                                 : 'none',
                                                             border: 'none',
                                                             color: actionButtonHover === `edit-user-${u.id}`
@@ -431,9 +431,9 @@ function AdminUsersView({
                                                                 title={u.isApproved ? 'Mark inactive' : 'Mark active'}
                                                                 style={{
                                                                     background: actionButtonHover === `toggle-user-${u.id}`
-                                                                        ? (theme === 'dark' ? 'rgba(54,226,123,0.20)' : 'rgba(31,164,90,0.15)')
+                                                                        ? (theme === 'dark' ? 'rgba(30,140,74,0.20)' : 'rgba(31,164,90,0.15)')
                                                                         : (u.isApproved
-                                                                            ? (theme === 'dark' ? 'rgba(54,226,123,0.08)' : '#e6f6ed')
+                                                                            ? (theme === 'dark' ? 'rgba(30,140,74,0.08)' : '#e6f6ed')
                                                                             : (theme === 'dark' ? 'rgba(246,174,76,0.10)' : '#fff7e6')),
                                                                     border: u.isApproved
                                                                         ? (theme === 'dark' ? `1px solid ${palette.accent}` : '1px solid #c9ecd8')

@@ -5,7 +5,7 @@ import { FiLogIn, FiLogOut, FiAlertCircle } from 'react-icons/fi';
 const UserImpersonation = ({ theme = 'dark', palette = null }) => {
   const darkPalette = {
     bgMain: '#121212', bgCard: '#181818', text: '#ffffff', textMuted: '#9aa3b5',
-    border: '#242424', accent: '#36E27B', warning: '#f0a500'
+    border: '#242424', accent: '#1E8C4A', warning: '#f0a500'
   };
   const lightPalette = {
     bgMain: '#f6f8fb', bgCard: '#ffffff', text: '#0b172a', textMuted: '#5b6b7a',
