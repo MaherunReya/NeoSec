@@ -50,6 +50,96 @@ const sendEmail = async ({ to, subject, text, html }) => {
 };
 
 /**
+ * Send OTP verification email
+ */
+const sendOtpEmail = async (email, otp) => {
+    const subject = '🔐 Your NeoSec Verification Code';
+    const text = `
+Hello,
+
+Your verification code is: ${otp}
+
+This code will expire in 10 minutes.
+
+Best regards,
+NeoSec Security Team
+    `;
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #36E27B 0%, #28a745 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .content {
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .otp-code {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 5px;
+            color: #333;
+            background: #f8f9fa;
+            padding: 15px 30px;
+            border-radius: 8px;
+            display: inline-block;
+            margin: 20px 0;
+            border: 2px dashed #36E27B;
+        }
+        h1 {
+            margin: 10px 0 0 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Verification Code</h1>
+        </div>
+        <div class="content">
+            <p>Hello,</p>
+            <p>Use the following code to verify your NeoSec account:</p>
+            
+            <div class="otp-code">${otp}</div>
+            
+            <p>This code will expire in 10 minutes.</p>
+            <p>If you didn't request this code, please ignore this email.</p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
+
+    return await sendEmail({ to: email, subject, text, html });
+};
+
+/**
  * Send VPN down notification
  */
 const sendVpnDownNotification = async (user, vpnConfig) => {
@@ -918,5 +1008,6 @@ module.exports = {
     sendCertificateWarning,
     sendFirewallError,
     sendLogExportReady,
-    sendGenericNotification
+    sendGenericNotification,
+    sendOtpEmail
 };

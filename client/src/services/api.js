@@ -17,7 +17,7 @@ const getApiUrl = () => {
   // Priority 2: Check if we're on Vercel (production deployment)
   const isVercel = window.location.hostname.includes('vercel.app');
   const isProduction = process.env.NODE_ENV === 'production';
-  
+
   if (isVercel || isProduction) {
     // Default production URL - update this with your actual Render backend URL
     return 'https://neosec-0vzg.onrender.com/api';
@@ -71,9 +71,21 @@ api.interceptors.response.use(
 
 // Auth API functions
 export const authAPI = {
-  // Register a new user
+  // Original register (kept for fallback)
   register: async (email, password) => {
     const response = await api.post('/auth/register', { email, password });
+    return response.data;
+  },
+
+  // Send OTP
+  sendOtp: async (email) => {
+    const response = await api.post('/auth/send-otp', { email });
+    return response.data;
+  },
+
+  // Verify OTP and Register
+  verifyOtpAndRegister: async (email, password, otp) => {
+    const response = await api.post('/auth/verify-otp-register', { email, password, otp });
     return response.data;
   },
 

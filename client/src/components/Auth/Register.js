@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { authAPI } from '../../services/api';
 
 const Register = ({ onSwitchToLogin }) => {
+    const [step, setStep] = useState(1); // 1 = Details, 2 = OTP
     const [formData, setFormData] = useState({
         email: '',
         password: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        otp: ''
     });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -20,68 +22,100 @@ const Register = ({ onSwitchToLogin }) => {
         setSuccess('');
     };
 
-    const handleSubmit = async (e) => {
+    const handleSendOtp = async (e) => {
         e.preventDefault();
         setError('');
         setSuccess('');
-        setLoading(true);
-
-        // Validate passwords match
+        
         if (formData.password !== formData.confirmPassword) {
             setError('Passwords do not match');
-            setLoading(false);
             return;
         }
 
-        // Validate password strength
         if (formData.password.length < 6) {
             setError('Password must be at least 6 characters long');
-            setLoading(false);
             return;
         }
 
-        // Check for at least one letter
         if (!/[A-Za-z]/.test(formData.password)) {
             setError('Password must contain at least one letter');
-            setLoading(false);
             return;
         }
 
-        // Check for at least one number
         if (!/[0-9]/.test(formData.password)) {
             setError('Password must contain at least one number');
-            setLoading(false);
             return;
         }
 
+        setLoading(true);
+
         try {
-            const response = await authAPI.register(formData.email, formData.password);
+            const response = await authAPI.sendOtp(formData.email);
+            if (response.success) {
+                setSuccess('Verification code sent to your email!');
+                setStep(2);
+            } else {
+                setError(response.message || 'Failed to send verification code.');
+            }
+        } catch (err) {
+            let errorMessage = 'Failed to send verification code.';
+            if (err.response?.data) {
+                if (err.response.data.errors && Array.isArray(err.response.data.errors)) {
+                    errorMessage = err.response.data.errors.map(e => e.msg).join(', ');
+                } else if (err.response.data.message) {
+                    errorMessage = err.response.data.message;
+                }
+            }
+            setError(errorMessage);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+
+        if (formData.otp.length !== 6) {
+            setError('OTP must be exactly 6 digits');
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const response = await authAPI.verifyOtpAndRegister(
+                formData.email,
+                formData.password,
+                formData.otp
+            );
 
             if (response.success) {
-                setSuccess(response.message || 'Registration successful! Please wait for admin approval.');
+                setSuccess(response.message || 'Registration successful! You can now login.');
+                // Optionally clear form and redirect or wait for user to click "Login here"
                 setFormData({
                     email: '',
                     password: '',
-                    confirmPassword: ''
+                    confirmPassword: '',
+                    otp: ''
                 });
+                // Switch back to login page after 2 seconds
+                setTimeout(() => {
+                    onSwitchToLogin();
+                }, 2000);
             } else {
                 setError(response.message || 'Registration failed. Please try again.');
             }
         } catch (err) {
-            // Extract error message from backend validation
             let errorMessage = 'Registration failed. Please try again.';
-            
             if (err.response?.data) {
-                // Check for validation errors array
                 if (err.response.data.errors && Array.isArray(err.response.data.errors)) {
-                    errorMessage = err.response.data.errors.map(e => e.msg || e.message).join(', ');
-                } 
-                // Check for single error message
-                else if (err.response.data.message) {
+                    errorMessage = err.response.data.errors.map(e => e.msg).join(', ');
+                } else if (err.response.data.message) {
                     errorMessage = err.response.data.message;
                 }
             }
-            
             setError(errorMessage);
         } finally {
             setLoading(false);
@@ -141,7 +175,9 @@ const Register = ({ onSwitchToLogin }) => {
                     textAlign: 'center',
                     fontSize: '14px',
                     margin: '0 0 32px 0'
-                }}>Join NeoShield today</p>
+                }}>
+                    {step === 1 ? 'Join NeoShield today' : 'Enter verification code'}
+                </p>
 
                 {error && (
                     <div style={{
@@ -173,145 +209,250 @@ const Register = ({ onSwitchToLogin }) => {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit}>
-                    {/* Email Field */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{
-                            display: 'block',
-                            color: '#bbb',
-                            marginBottom: '8px',
-                            fontSize: '13px',
-                            fontWeight: '400'
-                        }}>
-                            Email
-                        </label>
-                        <input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            required
-                            placeholder="Enter your email"
-                            autoComplete="email"
+                {step === 1 ? (
+                    <form onSubmit={handleSendOtp}>
+                        {/* Email Field */}
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{
+                                display: 'block',
+                                color: '#bbb',
+                                marginBottom: '8px',
+                                fontSize: '13px',
+                                fontWeight: '400'
+                            }}>
+                                Email
+                            </label>
+                            <input
+                                type="email"
+                                name="email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                required
+                                placeholder="Enter your email"
+                                autoComplete="email"
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 14px',
+                                    backgroundColor: '#2a2a2a',
+                                    border: '1px solid #3a3a3a',
+                                    borderRadius: '6px',
+                                    color: '#fff',
+                                    fontSize: '14px',
+                                    outline: 'none',
+                                    transition: 'border-color 0.2s',
+                                    boxSizing: 'border-box'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = '#36E27B'}
+                                onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
+                            />
+                        </div>
+
+                        {/* Password Field */}
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{
+                                display: 'block',
+                                color: '#bbb',
+                                marginBottom: '8px',
+                                fontSize: '13px',
+                                fontWeight: '400'
+                            }}>
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                required
+                                placeholder="Enter your password (min 6 chars, letter + number)"
+                                minLength={6}
+                                autoComplete="new-password"
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 14px',
+                                    backgroundColor: '#2a2a2a',
+                                    border: '1px solid #3a3a3a',
+                                    borderRadius: '6px',
+                                    color: '#fff',
+                                    fontSize: '14px',
+                                    outline: 'none',
+                                    transition: 'border-color 0.2s',
+                                    boxSizing: 'border-box'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = '#36E27B'}
+                                onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
+                            />
+                        </div>
+
+                        {/* Confirm Password Field */}
+                        <div style={{ marginBottom: '28px' }}>
+                            <label style={{
+                                display: 'block',
+                                color: '#bbb',
+                                marginBottom: '8px',
+                                fontSize: '13px',
+                                fontWeight: '400'
+                            }}>
+                                Confirm Password
+                            </label>
+                            <input
+                                type="password"
+                                name="confirmPassword"
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                                required
+                                placeholder="Confirm your password"
+                                minLength={6}
+                                autoComplete="new-password"
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 14px',
+                                    backgroundColor: '#2a2a2a',
+                                    border: '1px solid #3a3a3a',
+                                    borderRadius: '6px',
+                                    color: '#fff',
+                                    fontSize: '14px',
+                                    outline: 'none',
+                                    transition: 'border-color 0.2s',
+                                    boxSizing: 'border-box'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = '#36E27B'}
+                                onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
+                            />
+                        </div>
+
+                        {/* Register Button */}
+                        <button
+                            type="submit"
+                            disabled={loading}
                             style={{
                                 width: '100%',
-                                padding: '12px 14px',
-                                backgroundColor: '#2a2a2a',
-                                border: '1px solid #3a3a3a',
+                                padding: '14px',
+                                backgroundColor: loading ? '#2a5f3d' : '#36E27B',
+                                color: '#000',
+                                border: 'none',
                                 borderRadius: '6px',
-                                color: '#fff',
-                                fontSize: '14px',
-                                outline: 'none',
-                                transition: 'border-color 0.2s',
-                                boxSizing: 'border-box'
+                                fontWeight: '600',
+                                fontSize: '15px',
+                                cursor: loading ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s',
+                                opacity: loading ? 0.7 : 1,
+                                letterSpacing: '0.5px'
                             }}
-                            onFocus={(e) => e.target.style.borderColor = '#36E27B'}
-                            onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
-                        />
-                    </div>
+                            onMouseEnter={(e) => {
+                                if (!loading) e.target.style.backgroundColor = '#2ec96d';
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!loading) e.target.style.backgroundColor = '#36E27B';
+                            }}
+                        >
+                            {loading ? 'Sending Code...' : 'Register'}
+                        </button>
+                    </form>
+                ) : (
+                    <form onSubmit={handleVerifyOtp}>
+                        {/* OTP Field */}
+                        <div style={{ marginBottom: '28px' }}>
+                            <label style={{
+                                display: 'block',
+                                color: '#bbb',
+                                marginBottom: '8px',
+                                fontSize: '13px',
+                                fontWeight: '400'
+                            }}>
+                                6-Digit Verification Code
+                            </label>
+                            <input
+                                type="text"
+                                name="otp"
+                                value={formData.otp}
+                                onChange={handleChange}
+                                required
+                                placeholder="e.g. 123456"
+                                maxLength={6}
+                                autoComplete="off"
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 14px',
+                                    backgroundColor: '#2a2a2a',
+                                    border: '1px solid #3a3a3a',
+                                    borderRadius: '6px',
+                                    color: '#fff',
+                                    fontSize: '14px',
+                                    outline: 'none',
+                                    transition: 'border-color 0.2s',
+                                    boxSizing: 'border-box',
+                                    textAlign: 'center',
+                                    letterSpacing: '5px'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = '#36E27B'}
+                                onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
+                            />
+                        </div>
 
-                    {/* Password Field */}
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{
-                            display: 'block',
-                            color: '#bbb',
-                            marginBottom: '8px',
-                            fontSize: '13px',
-                            fontWeight: '400'
-                        }}>
-                            Password
-                        </label>
-                        <input
-                            type="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            required
-                            placeholder="Enter your password (min 6 chars, letter + number)"
-                            minLength={6}
-                            autoComplete="new-password"
+                        {/* Verify Button */}
+                        <button
+                            type="submit"
+                            disabled={loading}
                             style={{
                                 width: '100%',
-                                padding: '12px 14px',
-                                backgroundColor: '#2a2a2a',
-                                border: '1px solid #3a3a3a',
+                                padding: '14px',
+                                backgroundColor: loading ? '#2a5f3d' : '#36E27B',
+                                color: '#000',
+                                border: 'none',
                                 borderRadius: '6px',
-                                color: '#fff',
-                                fontSize: '14px',
-                                outline: 'none',
-                                transition: 'border-color 0.2s',
-                                boxSizing: 'border-box'
+                                fontWeight: '600',
+                                fontSize: '15px',
+                                cursor: loading ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s',
+                                opacity: loading ? 0.7 : 1,
+                                letterSpacing: '0.5px',
+                                marginBottom: '16px'
                             }}
-                            onFocus={(e) => e.target.style.borderColor = '#36E27B'}
-                            onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
-                        />
-                    </div>
+                            onMouseEnter={(e) => {
+                                if (!loading) e.target.style.backgroundColor = '#2ec96d';
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!loading) e.target.style.backgroundColor = '#36E27B';
+                            }}
+                        >
+                            {loading ? 'Verifying...' : 'Verify and Create Account'}
+                        </button>
 
-                    {/* Confirm Password Field */}
-                    <div style={{ marginBottom: '28px' }}>
-                        <label style={{
-                            display: 'block',
-                            color: '#bbb',
-                            marginBottom: '8px',
-                            fontSize: '13px',
-                            fontWeight: '400'
-                        }}>
-                            Confirm Password
-                        </label>
-                        <input
-                            type="password"
-                            name="confirmPassword"
-                            value={formData.confirmPassword}
-                            onChange={handleChange}
-                            required
-                            placeholder="Confirm your password"
-                            minLength={6}
-                            autoComplete="new-password"
+                        {/* Back Button */}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setStep(1);
+                                setError('');
+                                setSuccess('');
+                            }}
+                            disabled={loading}
                             style={{
                                 width: '100%',
-                                padding: '12px 14px',
-                                backgroundColor: '#2a2a2a',
-                                border: '1px solid #3a3a3a',
+                                padding: '14px',
+                                backgroundColor: 'transparent',
+                                color: '#aaa',
+                                border: '1px solid #444',
                                 borderRadius: '6px',
-                                color: '#fff',
+                                fontWeight: '500',
                                 fontSize: '14px',
-                                outline: 'none',
-                                transition: 'border-color 0.2s',
-                                boxSizing: 'border-box'
+                                cursor: loading ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s'
                             }}
-                            onFocus={(e) => e.target.style.borderColor = '#36E27B'}
-                            onBlur={(e) => e.target.style.borderColor = '#3a3a3a'}
-                        />
-                    </div>
-
-                    {/* Register Button */}
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        style={{
-                            width: '100%',
-                            padding: '14px',
-                            backgroundColor: loading ? '#2a5f3d' : '#36E27B',
-                            color: '#000',
-                            border: 'none',
-                            borderRadius: '6px',
-                            fontWeight: '600',
-                            fontSize: '15px',
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            transition: 'all 0.2s',
-                            opacity: loading ? 0.7 : 1,
-                            letterSpacing: '0.5px'
-                        }}
-                        onMouseEnter={(e) => {
-                            if (!loading) e.target.style.backgroundColor = '#2ec96d';
-                        }}
-                        onMouseLeave={(e) => {
-                            if (!loading) e.target.style.backgroundColor = '#36E27B';
-                        }}
-                    >
-                        {loading ? 'Registering...' : 'Register'}
-                    </button>
-                </form>
+                            onMouseEnter={(e) => {
+                                if (!loading) e.target.style.backgroundColor = '#2a2a2a';
+                                if (!loading) e.target.style.color = '#fff';
+                            }}
+                            onMouseLeave={(e) => {
+                                if (!loading) e.target.style.backgroundColor = 'transparent';
+                                if (!loading) e.target.style.color = '#aaa';
+                            }}
+                        >
+                            Back to Email/Password
+                        </button>
+                    </form>
+                )}
 
                 {/* Login Link */}
                 <p style={{

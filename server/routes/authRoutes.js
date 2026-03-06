@@ -4,13 +4,17 @@ const {
   register,
   login,
   getMe,
-  updateProfile
+  updateProfile,
+  sendOtp,
+  verifyOtpAndRegister
 } = require('../controllers/authController');
-const { validateRegister, validateLogin } = require('../validations/authValidation');
+const { validateRegister, validateLogin, validateSendOtp, validateVerifyOtpRegister } = require('../validations/authValidation');
 const { protect } = require('../middleware/auth');
 
 // Public routes
-router.post('/register', validateRegister, register);
+router.post('/register', validateRegister, register); // Keeping for fallback/admin
+router.post('/send-otp', validateSendOtp, sendOtp);
+router.post('/verify-otp-register', validateVerifyOtpRegister, verifyOtpAndRegister);
 router.post('/login', validateLogin, login);
 
 // Protected routes

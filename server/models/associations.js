@@ -124,6 +124,7 @@ const MFASettings = require('./MFASettings');
 const ImpersonationSession = require('./ImpersonationSession');
 const BlocklistIP = require('./BlocklistIP');
 const ActivityLog = require('./ActivityLog');
+const OtpVerification = require('./OtpVerification');
 
 // User <-> AuditLog
 User.hasMany(AuditLog, {
@@ -235,6 +236,7 @@ module.exports = {
     Profile,
     SharedProfile,
     SharedProfileLog,
+    OtpVerification,
 };
 
 
