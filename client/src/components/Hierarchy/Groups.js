@@ -12,6 +12,11 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteLoading, setInviteLoading] = useState(false);
     const [invitations, setInvitations] = useState([]);
+    const [createModalOpen, setCreateModalOpen] = useState(false);
+    const [newGroupName, setNewGroupName] = useState('');
+    const [newGroupDescription, setNewGroupDescription] = useState('');
+    const [newGroupMaxMembers, setNewGroupMaxMembers] = useState(10);
+    const [createLoading, setCreateLoading] = useState(false);
 
     useEffect(() => {
         fetchAllData();
@@ -162,6 +167,38 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
     };
 
 
+    const handleCreateGroup = async () => {
+        if (!newGroupName.trim()) {
+            alert('Please enter a group name');
+            return;
+        }
+
+        setCreateLoading(true);
+        try {
+            const response = await hierarchyAPI.createGroup({
+                name: newGroupName.trim(),
+                description: newGroupDescription.trim(),
+                maxMembers: parseInt(newGroupMaxMembers) || 10
+            });
+
+            if (response.success) {
+                alert('Group created successfully!');
+                setCreateModalOpen(false);
+                setNewGroupName('');
+                setNewGroupDescription('');
+                setNewGroupMaxMembers(10);
+                await fetchAllData();
+            } else {
+                alert(response.message || 'Failed to create group');
+            }
+        } catch (error) {
+            console.error('Create group error:', error);
+            alert('Failed to create group: ' + (error?.message || 'Unknown error'));
+        } finally {
+            setCreateLoading(false);
+        }
+    };
+
     const isExpired = (expiresAt) => {
         return new Date(expiresAt) < new Date();
     };
@@ -204,7 +241,7 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
                     </p>
                     <button
                         onClick={() => {
-                            alert('ℹ️ This tab shows groups you lead/manage.\n\nYou haven\'t created any groups yet. Use the group creation form to start your first group.');
+                            setCreateModalOpen(true);
                         }}
                         style={{
                             padding: '12px 24px',
@@ -704,7 +741,7 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
                     {user?.accountType === 'leader' && (
                         <button
                             onClick={() => {
-                                alert('Create group functionality coming soon');
+                                setCreateModalOpen(true);
                             }}
                             style={{
                                 padding: '12px 24px',
@@ -1185,6 +1222,108 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
                                     }}
                                 >
                                     {inviteLoading ? 'Sending...' : 'Send Invite'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* Create Group Modal */}
+                {createModalOpen && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        padding: isMobile ? '16px' : '32px'
+                    }}>
+                        <div style={{
+                            backgroundColor: palette.bgCard,
+                            borderRadius: '12px',
+                            padding: '24px',
+                            border: `1px solid ${palette.border}`,
+                            maxWidth: '400px',
+                            width: '100%',
+                            maxHeight: '90vh',
+                            overflowY: 'auto'
+                        }}>
+                            <h3 style={{
+                                margin: '0 0 16px 0',
+                                color: palette.text,
+                                fontSize: '20px',
+                                fontWeight: '600'
+                            }}>
+                                Create New Group
+                            </h3>
+
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', color: palette.text, fontWeight: '500', fontSize: '14px' }}>
+                                    Group Name *
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newGroupName}
+                                    onChange={(e) => setNewGroupName(e.target.value)}
+                                    placeholder="Enter group name"
+                                    style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: `1px solid ${palette.border}`, backgroundColor: palette.bgMain, color: palette.text, fontSize: '14px' }}
+                                    disabled={createLoading}
+                                />
+                            </div>
+
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', color: palette.text, fontWeight: '500', fontSize: '14px' }}>
+                                    Description (Optional)
+                                </label>
+                                <textarea
+                                    value={newGroupDescription}
+                                    onChange={(e) => setNewGroupDescription(e.target.value)}
+                                    placeholder="Enter group description"
+                                    rows={3}
+                                    style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: `1px solid ${palette.border}`, backgroundColor: palette.bgMain, color: palette.text, fontSize: '14px', resize: 'vertical' }}
+                                    disabled={createLoading}
+                                />
+                            </div>
+
+                            <div style={{ marginBottom: '24px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', color: palette.text, fontWeight: '500', fontSize: '14px' }}>
+                                    Max Members
+                                </label>
+                                <input
+                                    type="number"
+                                    value={newGroupMaxMembers}
+                                    onChange={(e) => setNewGroupMaxMembers(e.target.value)}
+                                    placeholder="10"
+                                    min="1"
+                                    max="1000"
+                                    style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', border: `1px solid ${palette.border}`, backgroundColor: palette.bgMain, color: palette.text, fontSize: '14px' }}
+                                    disabled={createLoading}
+                                />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => {
+                                        setCreateModalOpen(false);
+                                        setNewGroupName('');
+                                        setNewGroupDescription('');
+                                        setNewGroupMaxMembers(10);
+                                    }}
+                                    disabled={createLoading}
+                                    style={{ padding: '10px 20px', backgroundColor: 'transparent', color: palette.textMuted, border: `1px solid ${palette.border}`, borderRadius: '8px', fontWeight: '500', cursor: createLoading ? 'not-allowed' : 'pointer', opacity: createLoading ? 0.6 : 1 }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCreateGroup}
+                                    disabled={createLoading || !newGroupName.trim()}
+                                    style={{ padding: '10px 20px', backgroundColor: createLoading || !newGroupName.trim() ? palette.textMuted : palette.accent, color: theme === 'dark' ? '#000' : '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: createLoading || !newGroupName.trim() ? 'not-allowed' : 'pointer', opacity: createLoading || !newGroupName.trim() ? 0.6 : 1 }}
+                                >
+                                    {createLoading ? 'Creating...' : 'Create Group'}
                                 </button>
                             </div>
                         </div>
