@@ -264,6 +264,7 @@ const getDashboard = async (req, res) => {
       data: {
         vpnStatus: {
           connected: !!activeVpn,
+          configId: activeVpn ? activeVpn.id : null,
           server: activeVpn ? activeVpn.serverAddress : null,
           protocol: activeVpn ? activeVpn.protocol : null,
           configName: activeVpn ? activeVpn.name : null,

@@ -204,7 +204,7 @@ export const firewallAPI = {
 export const vpnAPI = {
   // Toggle VPN configuration (connect/disconnect)
   toggleVpnConfig: async (configId) => {
-    const response = await api.post(`/vpn/${configId}/toggle`);
+    const response = await api.patch(`/vpn/${configId}/toggle`);
     return response.data;
   }
 };
@@ -445,6 +445,39 @@ export const loginHistoryAPI = {
   },
   toggleUserLock: async (userId, locked) => {
     const response = await api.put(`/login-history/user/${userId}/lock`, { locked });
+    return response.data;
+  },
+  terminateSession: async (sessionId) => {
+    const response = await api.delete(`/login-history/sessions/${sessionId}`);
+    return response.data;
+  },
+  terminateAllSessions: async (exceptSessionId = null) => {
+    const response = await api.delete('/login-history/sessions', {
+      data: exceptSessionId ? { exceptSessionId } : {}
+    });
+    return response.data;
+  }
+};
+
+export const settingsAPI = {
+  getMySettings: async () => {
+    const response = await api.get('/settings/me');
+    return response.data;
+  },
+  updateProfile: async (profileData) => {
+    const response = await api.put('/settings/me', profileData);
+    return response.data;
+  },
+  updateNotifications: async (notifications) => {
+    const response = await api.put('/settings/notifications', notifications);
+    return response.data;
+  },
+  updatePassword: async (payload) => {
+    const response = await api.put('/settings/password', payload);
+    return response.data;
+  },
+  deleteMyAccount: async () => {
+    const response = await api.delete('/settings/me');
     return response.data;
   }
 };

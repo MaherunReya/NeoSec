@@ -1,223 +1,232 @@
-// src/components/Hierarchy/Invitations.js
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { hierarchyAPI } from '../../services/hierarchyAPI';
 
-const Invitations = () => {
-    const [invitations, setInvitations] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
+const defaultPalette = {
+  bgCard: '#111827',
+  bgCardAlt: '#0b1220',
+  text: '#f8fafc',
+  textMuted: '#94a3b8',
+  border: '#1e293b',
+  accent: '#6366f1',
+  accentSoft: 'rgba(99,102,241,0.18)',
+  danger: '#ef4444',
+};
 
-    useEffect(() => {
-        fetchInvitations();
-    }, []);
+const getPagePalette = (appPalette) => ({
+  bgCard: appPalette?.bgCard || defaultPalette.bgCard,
+  bgCardAlt: appPalette?.bgPanel || defaultPalette.bgCardAlt,
+  text: appPalette?.text || defaultPalette.text,
+  textMuted: appPalette?.textMuted || defaultPalette.textMuted,
+  border: appPalette?.border || defaultPalette.border,
+  accent: appPalette?.accent || defaultPalette.accent,
+  accentSoft: appPalette?.accentSoft || defaultPalette.accentSoft,
+  danger: appPalette?.danger || defaultPalette.danger,
+});
 
-    const fetchInvitations = async () => {
-        try {
-            setLoading(true);
-            const response = await hierarchyAPI.getMyInvitations();
-            if (response.success) {
-                setInvitations(response.invitations || []);
-            }
-        } catch (error) {
-            console.error('Fetch invitations error:', error);
-            setError('Failed to load invitations');
-        } finally {
-            setLoading(false);
-        }
-    };
+const invitationInfo = [
+  'Invitations expire after 7 days.',
+  'Accepting an invitation makes you a member of the group.',
+  'Group leaders can manage your security configurations.',
+  'You can leave a group at any time from the Memberships page.',
+];
 
-    const handleAccept = async (invitationId) => {
-        try {
-            const response = await hierarchyAPI.acceptInvitation(invitationId);
-            if (response.success) {
-                // Remove invitation from list
-                setInvitations(invitations.filter(inv => inv.id !== invitationId));
-                alert('Invitation accepted! You are now a member of the group.');
-            }
-        } catch (error) {
-            console.error('Accept invitation error:', error);
-            alert('Failed to accept invitation: ' + (error.message || 'Unknown error'));
-        }
-    };
+const Invitations = ({ palette: appPalette }) => {
+  const palette = getPagePalette(appPalette);
+  const [invitations, setInvitations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-    const handleReject = async (invitationId) => {
-        if (!window.confirm('Are you sure you want to reject this invitation?')) {
-            return;
-        }
+  useEffect(() => {
+    fetchInvitations();
+  }, []);
 
-        try {
-            const response = await hierarchyAPI.rejectInvitation(invitationId);
-            if (response.success) {
-                // Remove invitation from list
-                setInvitations(invitations.filter(inv => inv.id !== invitationId));
-                alert('Invitation rejected.');
-            }
-        } catch (error) {
-            console.error('Reject invitation error:', error);
-            alert('Failed to reject invitation: ' + (error.message || 'Unknown error'));
-        }
-    };
+  const fetchInvitations = async () => {
+    try {
+      setLoading(true);
+      const response = await hierarchyAPI.getMyInvitations();
+      if (response.success) {
+        setInvitations(response.invitations || []);
+      }
+    } catch (fetchError) {
+      setError('Failed to load invitations');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const isExpired = (expiresAt) => {
-        return new Date(expiresAt) < new Date();
-    };
+  const handleAccept = async (invitationId) => {
+    try {
+      const response = await hierarchyAPI.acceptInvitation(invitationId);
+      if (response.success) {
+        setInvitations(invitations.filter((inv) => inv.id !== invitationId));
+      }
+    } catch (acceptError) {
+      alert('Failed to accept invitation');
+    }
+  };
 
-    const getTimeRemaining = (expiresAt) => {
-        const now = new Date();
-        const expiry = new Date(expiresAt);
-        const diff = expiry - now;
+  const handleReject = async (invitationId) => {
+    if (!window.confirm('Are you sure you want to reject this invitation?')) return;
 
-        if (diff <= 0) return 'Expired';
+    try {
+      const response = await hierarchyAPI.rejectInvitation(invitationId);
+      if (response.success) {
+        setInvitations(invitations.filter((inv) => inv.id !== invitationId));
+      }
+    } catch (rejectError) {
+      alert('Failed to reject invitation');
+    }
+  };
 
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const isExpired = (expiresAt) => new Date(expiresAt) < new Date();
 
-        if (days > 0) return `${days} day${days > 1 ? 's' : ''} remaining`;
-        if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} remaining`;
-        return 'Expires soon';
-    };
+  return (
+    <div style={{ maxWidth: 1200, margin: '0 auto', color: palette.text, fontFamily: 'inherit', fontSize: 16, fontWeight: 400 }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 30, marginBottom: 8, fontWeight: 500 }}>My Invitations</h1>
+        <p style={{ color: palette.textMuted }}>Group invitations you've received</p>
+      </div>
 
-    return (
-        <div className="min-h-screen bg-background-dark text-text-light p-8">
-            <div className="max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold mb-2">My Invitations</h1>
-                    <p className="text-text-muted">
-                        Group invitations you've received
-                    </p>
-                </div>
-
-                {/* Error Message */}
-                {error && (
-                    <div className="mb-6 p-4 bg-error-red bg-opacity-10 border border-error-red rounded-lg text-error-red">
-                        {error}
-                    </div>
-                )}
-
-                {/* Loading State */}
-                {loading ? (
-                    <div className="text-center py-12 text-text-muted">
-                        <div className="text-4xl mb-4">⏳</div>
-                        <p>Loading invitations...</p>
-                    </div>
-                ) : invitations.length === 0 ? (
-                    /* Empty State */
-                    <div className="text-center py-12 p-8 bg-form-background-dark rounded-lg border border-input-background-dark">
-                        <div className="text-6xl mb-4">📬</div>
-                        <h3 className="text-xl font-bold mb-2">No Invitations</h3>
-                        <p className="text-text-muted">
-                            You don't have any pending group invitations at the moment.
-                        </p>
-                    </div>
-                ) : (
-                    /* Invitations List */
-                    <div className="space-y-4">
-                        {invitations.map((invitation) => (
-                            <div
-                                key={invitation.id}
-                                className={`p-6 bg-form-background-dark rounded-lg border transition-all ${
-                                    isExpired(invitation.expiresAt)
-                                        ? 'border-input-background-dark opacity-60'
-                                        : 'border-primary'
-                                }`}
-                            >
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <h3 className="text-xl font-bold">{invitation.group?.name}</h3>
-                                            {!isExpired(invitation.expiresAt) && (
-                                                <span className="px-3 py-1 bg-primary bg-opacity-20 text-primary text-xs font-semibold rounded-full">
-                          New
-                        </span>
-                                            )}
-                                        </div>
-                                        <p className="text-text-muted mb-4">
-                                            {invitation.group?.description || 'No description available'}
-                                        </p>
-
-                                        {/* Group Info */}
-                                        <div className="flex items-center gap-6 text-sm mb-4">
-                                            <div>
-                                                <span className="text-text-muted">Leader: </span>
-                                                <span className="text-text-light font-semibold">
-                          {invitation.group?.leader?.email}
-                        </span>
-                                            </div>
-                                            <div>
-                                                <span className="text-text-muted">Invited by: </span>
-                                                <span className="text-text-light font-semibold">
-                          {invitation.inviter?.email}
-                        </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Time Remaining */}
-                                        <div className="flex items-center gap-2 text-sm">
-                      <span className={`${
-                          isExpired(invitation.expiresAt) ? 'text-error-red' : 'text-text-muted'
-                      }`}>
-                        ⏱️ {getTimeRemaining(invitation.expiresAt)}
-                      </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Action Buttons */}
-                                    {!isExpired(invitation.expiresAt) && (
-                                        <div className="flex gap-3 ml-4">
-                                            <button
-                                                onClick={() => handleReject(invitation.id)}
-                                                className="px-4 py-2 bg-input-background-dark text-text-light rounded-lg font-semibold hover:bg-opacity-80 transition-all"
-                                            >
-                                                Reject
-                                            </button>
-                                            <button
-                                                onClick={() => handleAccept(invitation.id)}
-                                                className="px-4 py-2 bg-primary text-background-dark rounded-lg font-semibold hover:bg-opacity-90 transition-all"
-                                            >
-                                                Accept
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {isExpired(invitation.expiresAt) && (
-                                        <div className="ml-4">
-                      <span className="px-4 py-2 bg-error-red bg-opacity-20 text-error-red rounded-lg font-semibold">
-                        Expired
-                      </span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Divider */}
-                                <div className="border-t border-input-background-dark pt-4">
-                                    <div className="flex items-center justify-between text-xs text-text-muted">
-                    <span>
-                      Received: {new Date(invitation.createdAt).toLocaleDateString()}
-                    </span>
-                                        <span>
-                      Expires: {new Date(invitation.expiresAt).toLocaleDateString()}
-                    </span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                {/* Info Card */}
-                <div className="mt-8 p-6 bg-form-background-dark rounded-lg border border-input-background-dark">
-                    <h3 className="text-lg font-semibold mb-3">About Group Invitations</h3>
-                    <div className="space-y-2 text-sm text-text-muted">
-                        <p>• Invitations expire after 7 days</p>
-                        <p>• Accepting an invitation makes you a member of the group</p>
-                        <p>• Group leaders can manage your security configurations</p>
-                        <p>• You can leave a group at any time from the Memberships page</p>
-                    </div>
-                </div>
-            </div>
+      {error && (
+        <div
+          style={{
+            marginBottom: 20,
+            padding: 12,
+            borderRadius: 8,
+            border: `1px solid ${palette.danger}`,
+            backgroundColor: 'rgba(239,68,68,0.12)',
+            color: palette.danger,
+          }}
+        >
+          {error}
         </div>
-    );
+      )}
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: 20,
+          alignItems: 'start',
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: palette.bgCard,
+            border: `1px solid ${palette.border}`,
+            borderRadius: 12,
+            padding: 24,
+            minHeight: 320,
+          }}
+        >
+          {loading ? (
+            <div style={{ textAlign: 'center', color: palette.textMuted, padding: '56px 0' }}>Loading invitations...</div>
+          ) : invitations.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '44px 0' }}>
+              <div
+                style={{
+                  width: 84,
+                  height: 84,
+                  borderRadius: '50%',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 18,
+                  fontSize: 38,
+                  backgroundColor: palette.accentSoft,
+                }}
+              >
+                📬
+              </div>
+              <h3 style={{ fontSize: 24, marginBottom: 10 }}>No Invitations</h3>
+              <p style={{ color: palette.textMuted, maxWidth: 520, margin: '0 auto' }}>
+                You don't have any pending group invitations at the moment.
+              </p>
+            </div>
+          ) : (
+            <div>
+              {invitations.map((invitation) => (
+                <div
+                  key={invitation.id}
+                  style={{
+                    border: `1px solid ${palette.border}`,
+                    borderRadius: 10,
+                    padding: 16,
+                    marginBottom: 12,
+                    backgroundColor: palette.bgCardAlt,
+                    opacity: isExpired(invitation.expiresAt) ? 0.6 : 1,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <div>
+                      <h4 style={{ marginBottom: 6 }}>{invitation.group?.name || 'Group'}</h4>
+                      <p style={{ color: palette.textMuted, fontSize: 13, marginBottom: 10 }}>
+                        {invitation.group?.description || 'No description available'}
+                      </p>
+                      <p style={{ color: palette.textMuted, fontSize: 12 }}>
+                        Expires: {new Date(invitation.expiresAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    {!isExpired(invitation.expiresAt) && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <button
+                          onClick={() => handleAccept(invitation.id)}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: 8,
+                            border: 'none',
+                            backgroundColor: palette.accent,
+                            color: '#fff',
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleReject(invitation.id)}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: 8,
+                            border: `1px solid ${palette.border}`,
+                            backgroundColor: 'transparent',
+                            color: palette.text,
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            backgroundColor: palette.bgCard,
+            border: `1px solid ${palette.border}`,
+            borderRadius: 12,
+            padding: 20,
+          }}
+        >
+          <h3 style={{ marginBottom: 14 }}>About Group Invitations</h3>
+          <ul style={{ listStyle: 'none', padding: 0 }}>
+            {invitationInfo.map((item, index) => (
+              <li key={index} style={{ marginBottom: 12, color: palette.textMuted, paddingLeft: 18, position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 0, color: palette.accent }}>•</span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Invitations;

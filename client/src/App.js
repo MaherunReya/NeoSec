@@ -152,6 +152,39 @@ function App() {
     };
     }, []);
 
+    useEffect(() => {
+        const handleUserUpdated = (event) => {
+            const updated = event?.detail;
+            if (updated) {
+                setUser(updated);
+                localStorage.setItem('user', JSON.stringify(updated));
+            }
+        };
+
+        window.addEventListener('neosec-user-updated', handleUserUpdated);
+        return () => window.removeEventListener('neosec-user-updated', handleUserUpdated);
+    }, []);
+
+    const refreshDashboardData = useCallback(async (withLoading = true) => {
+        if (!user) return;
+
+        try {
+            if (withLoading) setDashboardLoading(true);
+            setDashboardError(null);
+            const response = await dashboardAPI.getDashboard();
+            if (response.success) {
+                setDashboardData(response.data);
+            } else {
+                setDashboardError(response.message || 'Failed to load dashboard data');
+            }
+        } catch (error) {
+            console.error('Dashboard fetch error:', error);
+            setDashboardError(getErrorMessage(error, 'Failed to load dashboard data'));
+        } finally {
+            if (withLoading) setDashboardLoading(false);
+        }
+    }, [user]);
+
     // Persist currentView and validate for role
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -164,27 +197,10 @@ function App() {
 
     // Fetch dashboard data when user is logged in
     useEffect(() => {
-        const fetchDashboard = async () => {
-            if (user && currentView === 'dashboard') {
-                try {
-                    setDashboardLoading(true);
-                    setDashboardError(null);
-                    const response = await dashboardAPI.getDashboard();
-                    if (response.success) {
-                        setDashboardData(response.data);
-                    } else {
-                        setDashboardError(response.message || 'Failed to load dashboard data');
-                    }
-                } catch (error) {
-                    console.error('Dashboard fetch error:', error);
-                    setDashboardError(getErrorMessage(error, 'Failed to load dashboard data'));
-                } finally {
-                    setDashboardLoading(false);
-                }
-            }
-        };
-        fetchDashboard();
-    }, [user, currentView]);
+        if (user && currentView === 'dashboard') {
+            refreshDashboardData(true);
+        }
+    }, [user, currentView, refreshDashboardData]);
 
     // Admin Data Fetch
     useEffect(() => {
@@ -415,6 +431,7 @@ if (isShareManagementPage) {
                                 isMobile={isMobile}
                                 isTablet={isTablet}
                                 setCurrentView={setCurrentView}
+                                onRefreshDashboard={() => refreshDashboardData(false)}
                             />
                         )}
 
@@ -447,6 +464,8 @@ if (isShareManagementPage) {
                         {currentView === "subscription" && (
                         <Subscription
                             user={user}
+                            theme={theme}
+                            palette={palette}
                             onUpgradeSuccess={(updatedUser) => {
                                 setUser(updatedUser);
                                 localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -455,8 +474,8 @@ if (isShareManagementPage) {
                         )}
 
                         {currentView === "groups" && user.accountType === "leader" && <GroupManagement user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
-                        {currentView === "invitations" && <Invitations />}
-                        {currentView === "memberships" && <Memberships />}
+                        {currentView === "invitations" && <Invitations theme={theme} palette={palette} />}
+                        {currentView === "memberships" && <Memberships theme={theme} palette={palette} />}
 
 
                         {/* Audit View */}
