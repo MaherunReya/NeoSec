@@ -10,7 +10,7 @@ const Profile = sequelize.define('Profile', {
   userId: {
     type: DataTypes.UUID,
     allowNull: false,
-    field: 'userId', // Explicitly map to camelCase column (database has userId, not user_id)
+    field: 'userId', 
     references: {
       model: 'users',
       key: 'id'
