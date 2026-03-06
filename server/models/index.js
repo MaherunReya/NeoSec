@@ -13,6 +13,7 @@ const GroupMember = require('./GroupMember');
 const Invitation = require('./Invitation');
 
 const VpnConfig = require('./VpnConfig'); // only if you actually have this file
+const UserSettings = require('./UserSettings');
 
 // load associations AFTER models exist
 require('./associations');
@@ -41,4 +42,5 @@ module.exports = {
     Invitation,
 
     VpnConfig,
+    UserSettings,
 };

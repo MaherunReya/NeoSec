@@ -4,7 +4,7 @@ import { GoAlertFill } from 'react-icons/go';
 import { getCardBaseStyle } from '../../utils/styles';
 import { vpnAPI } from '../../services/api';
 
-function DashboardView({ user, theme, palette, dashboardData, dashboardLoading, dashboardError, isMobile, isTablet, setCurrentView }) {
+function DashboardView({ user, theme, palette, dashboardData, dashboardLoading, dashboardError, isMobile, isTablet, setCurrentView, onRefreshDashboard }) {
     const cardBase = getCardBaseStyle(palette, theme);
 
     return (
@@ -138,9 +138,19 @@ function DashboardView({ user, theme, palette, dashboardData, dashboardLoading, 
                                         e.target.style.backgroundColor = 'transparent';
                                     }}
                                     onClick={() => {
-                                        if (dashboardData?.vpnStatus?.configId) {
-                                            vpnAPI.toggleVpnConfig(dashboardData.vpnStatus.configId);
-                                        }
+                                        if (!dashboardData?.vpnStatus?.configId) return;
+
+                                        vpnAPI
+                                            .toggleVpnConfig(dashboardData.vpnStatus.configId)
+                                            .then(() => {
+                                                if (onRefreshDashboard) {
+                                                    return onRefreshDashboard();
+                                                }
+                                                return null;
+                                            })
+                                            .catch((error) => {
+                                                console.error('Failed to disconnect VPN:', error);
+                                            });
                                     }}
                                 >
                                     Disconnect

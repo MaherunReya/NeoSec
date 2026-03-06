@@ -11,6 +11,7 @@ const VpnConfig = require('./VpnConfig');
 const Profile = require('./Profile');
 const SharedProfile = require('./SharedProfile');
 const SharedProfileLog = require('./SharedProfileLog');
+const UserSettings = require('./UserSettings');
 
 
 // User <-> Group (Leader relationship)
@@ -161,6 +162,17 @@ User.hasOne(MFASettings, {
     as: 'mfaSettings'
 });
 
+// User <-> UserSettings
+User.hasOne(UserSettings, {
+    foreignKey: 'userId',
+    as: 'settings',
+    onDelete: 'CASCADE'
+});
+UserSettings.belongsTo(User, {
+    foreignKey: 'userId',
+    as: 'user'
+});
+
 // User <-> ImpersonationSession
 User.hasMany(ImpersonationSession, {
     foreignKey: 'adminUserId',
@@ -235,6 +247,7 @@ module.exports = {
     Profile,
     SharedProfile,
     SharedProfileLog,
+    UserSettings,
 };
 
 
