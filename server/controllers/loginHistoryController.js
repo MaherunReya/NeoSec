@@ -197,9 +197,78 @@ const toggleUserLock = async (req, res) => {
   }
 };
 
+const terminateSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const entry = await LoginHistory.findOne({
+      where: {
+        id: sessionId,
+        userId: req.user.id,
+        success: true
+      }
+    });
+
+    if (!entry) {
+      return res.status(404).json({
+        success: false,
+        message: 'Session not found'
+      });
+    }
+
+    await entry.destroy();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Session terminated successfully'
+    });
+  } catch (error) {
+    console.error('Terminate session error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to terminate session',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+const terminateAllSessions = async (req, res) => {
+  try {
+    const { exceptSessionId } = req.body || {};
+
+    const whereClause = {
+      userId: req.user.id,
+      success: true
+    };
+
+    if (exceptSessionId) {
+      whereClause.id = {
+        [Op.ne]: exceptSessionId
+      };
+    }
+
+    const deleted = await LoginHistory.destroy({ where: whereClause });
+
+    return res.status(200).json({
+      success: true,
+      message: 'All sessions terminated successfully',
+      deleted
+    });
+  } catch (error) {
+    console.error('Terminate all sessions error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to terminate all sessions',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 module.exports = {
   getLoginHistory,
   getSecurityEvents,
-  toggleUserLock
+  toggleUserLock,
+  terminateSession,
+  terminateAllSessions
 };
 

@@ -1,4 +1,4 @@
-// Automatic threat blocker scheduler
+// Automatic threat blocker scheduler that runs periodic updates
 const cron = require('node-cron');
 const BlocklistIP = require('../models/BlocklistIP');
 const ActivityLog = require('../models/ActivityLog');
@@ -7,12 +7,11 @@ const User = require('../models/User');
 const abuseIPDBService = require('../services/abuseIPDBService');
 const freeBlocklistService = require('../services/freeBlocklistService');
 
+// Variables to track scheduled job and update frequency
 let scheduledJob = null;
 let updateFrequency = 'daily'; // 'realtime', 'hourly', '6hours', 'daily'
 
-/**
- * Update blocklist from AbuseIPDB
- */
+// Main function to fetch and update threat blocklist from external sources
 async function updateBlocklist() {
   try {
     const apiKey = process.env.ABUSEIPDB_API_KEY;
@@ -97,46 +96,68 @@ async function updateBlocklist() {
     let addedCount = 0;
     let updatedCount = 0;
 
-    for (const ipData of blocklistData) {
-      const [blocklistIP, created] = await BlocklistIP.findOrCreate({
-        where: { ipAddress: ipData.ipAddress },
-        defaults: {
-          ipAddress: ipData.ipAddress,
-          threatType: ipData.threatType,
-          source: ipData.source,
-          confidence: ipData.abuseConfidenceScore,
-          country: ipData.countryCode,
-          countryName: null,
-          lastSeen: ipData.lastReportedAt ? new Date(ipData.lastReportedAt) : new Date(),
-          abuseConfidenceScore: ipData.abuseConfidenceScore,
-          usageType: ipData.usageType,
-          isp: ipData.isp,
-          domain: ipData.domain,
-          hostnames: ipData.hostnames,
-          totalReports: ipData.totalReports,
-          numDistinctUsers: ipData.numDistinctUsers
-        }
-      });
+    // Limit the number of IPs to process (to reduce CPU load)
+    const maxIPsToProcess = parseInt(process.env.THREAT_BLOCKER_MAX_IPS || '500', 10);
+    const batchSize = parseInt(process.env.THREAT_BLOCKER_BATCH_SIZE || '50', 10);
+    const delayBetweenBatches = parseInt(process.env.THREAT_BLOCKER_BATCH_DELAY || '100', 10); // milliseconds
 
-      if (!created) {
-        // Update existing record
-        await blocklistIP.update({
-          threatType: ipData.threatType,
-          source: ipData.source,
-          confidence: ipData.abuseConfidenceScore,
-          country: ipData.countryCode,
-          lastSeen: ipData.lastReportedAt ? new Date(ipData.lastReportedAt) : new Date(),
-          abuseConfidenceScore: ipData.abuseConfidenceScore,
-          usageType: ipData.usageType,
-          isp: ipData.isp,
-          domain: ipData.domain,
-          hostnames: ipData.hostnames,
-          totalReports: ipData.totalReports,
-          numDistinctUsers: ipData.numDistinctUsers
+    // Limit total IPs to process
+    const limitedBlocklistData = blocklistData.slice(0, maxIPsToProcess);
+    if (blocklistData.length > maxIPsToProcess) {
+      console.log(`⚠️  Limiting processing to ${maxIPsToProcess} IPs (${blocklistData.length} total available)`);
+    }
+
+    // Process in batches to reduce CPU load
+    for (let i = 0; i < limitedBlocklistData.length; i += batchSize) {
+      const batch = limitedBlocklistData.slice(i, i + batchSize);
+      
+      // Process batch
+      for (const ipData of batch) {
+        const [blocklistIP, created] = await BlocklistIP.findOrCreate({
+          where: { ipAddress: ipData.ipAddress },
+          defaults: {
+            ipAddress: ipData.ipAddress,
+            threatType: ipData.threatType,
+            source: ipData.source,
+            confidence: ipData.abuseConfidenceScore,
+            country: ipData.countryCode,
+            countryName: null,
+            lastSeen: ipData.lastReportedAt ? new Date(ipData.lastReportedAt) : new Date(),
+            abuseConfidenceScore: ipData.abuseConfidenceScore,
+            usageType: ipData.usageType,
+            isp: ipData.isp,
+            domain: ipData.domain,
+            hostnames: ipData.hostnames,
+            totalReports: ipData.totalReports,
+            numDistinctUsers: ipData.numDistinctUsers
+          }
         });
-        updatedCount++;
-      } else {
-        addedCount++;
+
+        if (!created) {
+          // Update existing record
+          await blocklistIP.update({
+            threatType: ipData.threatType,
+            source: ipData.source,
+            confidence: ipData.abuseConfidenceScore,
+            country: ipData.countryCode,
+            lastSeen: ipData.lastReportedAt ? new Date(ipData.lastReportedAt) : new Date(),
+            abuseConfidenceScore: ipData.abuseConfidenceScore,
+            usageType: ipData.usageType,
+            isp: ipData.isp,
+            domain: ipData.domain,
+            hostnames: ipData.hostnames,
+            totalReports: ipData.totalReports,
+            numDistinctUsers: ipData.numDistinctUsers
+          });
+          updatedCount++;
+        } else {
+          addedCount++;
+        }
+      }
+
+      // Add delay between batches to reduce CPU load
+      if (i + batchSize < limitedBlocklistData.length && delayBetweenBatches > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
       }
     }
 
@@ -178,6 +199,15 @@ async function updateBlocklist() {
     }
 
     console.log(`✅ Automatic blocklist update completed: ${addedCount} added, ${updatedCount} updated`);
+    
+    // Refresh in-memory cache after update
+    try {
+      const { refreshBlocklistCache } = require('../middleware/threatBlocker');
+      await refreshBlocklistCache();
+      console.log('✅ Blocklist cache refreshed after update');
+    } catch (cacheError) {
+      console.warn('⚠️  Could not refresh blocklist cache:', cacheError.message);
+    }
   } catch (error) {
     console.error('❌ Automatic blocklist update failed:', error.message);
     
@@ -197,11 +227,9 @@ async function updateBlocklist() {
   }
 }
 
-/**
- * Start scheduled updates based on frequency
- */
+// Function to start automatic scheduled blocklist updates
 function startScheduler(frequency = 'daily') {
-  // Stop existing job if any
+  // Stop any existing scheduled job before starting new one
   if (scheduledJob) {
     scheduledJob.stop();
     scheduledJob = null;
@@ -221,8 +249,12 @@ function startScheduler(frequency = 'daily') {
 
   console.log(`📅 Starting threat blocker scheduler with frequency: ${frequency} (${cronSchedule})`);
 
-  // Run immediately on start (for testing)
-  updateBlocklist().catch(console.error);
+  // Run immediately on start only if enabled via env var (disabled by default to reduce CPU load)
+  if (process.env.THREAT_BLOCKER_RUN_ON_START === 'true') {
+    updateBlocklist().catch(console.error);
+  } else {
+    console.log('⏸️  Skipping initial blocklist update (set THREAT_BLOCKER_RUN_ON_START=true to enable)');
+  }
 
   // Schedule recurring updates
   scheduledJob = cron.schedule(cronSchedule, () => {
@@ -236,9 +268,7 @@ function startScheduler(frequency = 'daily') {
   return scheduledJob;
 }
 
-/**
- * Stop scheduled updates
- */
+// Function to stop automatic scheduled updates
 function stopScheduler() {
   if (scheduledJob) {
     scheduledJob.stop();
@@ -247,9 +277,7 @@ function stopScheduler() {
   }
 }
 
-/**
- * Get current scheduler status
- */
+// Function to check if scheduler is running and get current frequency
 function getSchedulerStatus() {
   return {
     isRunning: scheduledJob !== null,

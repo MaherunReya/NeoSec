@@ -3,7 +3,9 @@ const router = express.Router();
 const {
     getNotifications,
     createNotification,
-    simulateNotification,
+    simulateVpnTunnelDown,
+    simulateCertificateExpiring,
+    simulateFirewallError,
     markAsRead,
     markAllAsRead,
     deleteNotification,
@@ -22,7 +24,9 @@ router.patch('/:id/read', markAsRead);                       // Mark as read
 router.patch('/mark-all-read', markAllAsRead);              // Mark all as read
 router.delete('/:id', deleteNotification);                   // Delete
 
-// Simulation route (for demo purposes)
-router.post('/simulate', simulateNotification);                     // Generic notification simulation
+// Simulation routes (for demo purposes)
+router.post('/simulate/vpn-down', simulateVpnTunnelDown);           // Simulate VPN down
+router.post('/simulate/cert-expiring', simulateCertificateExpiring); // Simulate cert expiring
+router.post('/simulate/firewall-error', simulateFirewallError);     // Simulate firewall error
 
 module.exports = router;

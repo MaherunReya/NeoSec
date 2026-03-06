@@ -1,275 +1,230 @@
 import QtQuick
 import QtQuick.Controls
-
+import QtQuick.Layouts
+import QtQuick.Effects
 
 Page {
+    id: loginPage
+    anchors.fill: parent
+    
     property color primary: "#36e27b"
-    property color background_light: "#f6f6f6"
-    property color background_dark: "#121212"
-    property color form_background_dark: "#181818"
-    property color input_background_dark: "#282828"
-    property color text_light: "#ffffff"
-    property color text_muted: "#b3b3b3"
-    property color error_red: "#d32f2f"
-
-    id: mainWindow
-
-    visible: true
-    title: "NeoSec"
-    height: 720
-    width: 1080
+    property color background_dark: "#050505"
+    property color text_main: "#ffffff"
+    property color text_muted: "#444444"
+    property color input_bg: "#111111"
+    property color error_red: "#ff3333"
+    property bool isLoading: true
 
     background: Rectangle {
-	    color: background_dark
+        color: background_dark
     }
 
-    Row {
-        id: loginHeader
-        width: 165
-        height: 22
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.leftMargin: 130
-        anchors.topMargin: 20
+    ColumnLayout {
+        anchors.centerIn: parent
+        width: 400
+        spacing: 40
 
-        Image {
-            id: loginHeaderLogo
-            width: 25
-            height: 25
-            anchors.verticalCenter: parent.verticalCenter
-            source: "images/logo.svg"
-            fillMode: Image.PreserveAspectFit
-            sourceSize.width: width
-            sourceSize.height: height
-        }
-
-        Text {
-            id: loginHeaderTitle
-            color: text_light
-            text: qsTr("NEOSEC")
-            anchors.verticalCenter: parent.verticalCenter
-            font.pixelSize: 24
-            font.weight: Font.Bold
-            font.family: "Verdana"
-        }
-    }
-
-    Rectangle {
-        id: loginHeaderDeviderBar
-        color: text_muted
-        anchors.top: loginHeader.bottom
-        anchors.topMargin: 20
-        anchors.horizontalCenter: parent.horizontalCenter
-        width: parent.width - 40
-        height: 2
-    }
-
-    Rectangle {
-        id: loginHolder
-        color: "#00000000"
-        anchors.top: loginHeaderDeviderBar.bottom
-        anchors.bottom: parent.bottom
-        anchors.topMargin: 0
-        anchors.bottomMargin: 0
-        anchors.horizontalCenter: parent.horizontalCenter
-
-        Text {
-            id: loginHolderHeader
-            text: qsTr("Login to NeoSec")
-            color: text_light
-            font.weight: 600
-            font.pixelSize: 30
-            font.family: "Sans Serif"
-            anchors.bottom: loginArea.top
-            anchors.bottomMargin: 20
-            anchors.horizontalCenter: parent.horizontalCenter
-        }
-
-        Rectangle {
-            id: loginArea
-            width: 580
-            height: 349
-            color: "#00000000"
-            anchors.centerIn: parent
-
-            Text {
-                id: loginUsernameLabel
-                text: qsTr("Email or username")
-                color: text_light
-                anchors.top: parent.top
-                anchors.topMargin: 0
-                font.pixelSize: 16
-                font.italic: false
-                font.weight: Font.Medium
-            }
-
-            TextField {
-                id: loginUsernameField
-                width: parent.width
-                height: 50
-                anchors.top: loginUsernameLabel.bottom
-                anchors.topMargin: 10
-                font.pixelSize: 16
-                placeholderText: "Enter your email or username"
-                placeholderTextColor: text_muted
-                leftPadding: 20
-                color: text_light
-                background: Rectangle {
-                    color: background_dark
-                    radius: 50
-                    border.color: parent.activeFocus ? primary : text_muted
-                }
-            }
-
-            Text {
-                id: loginPasswordLabel
-                text: qsTr("Password")
-                color: text_light
-                anchors.top: loginUsernameField.bottom
-                anchors.topMargin: 25
-                font.pixelSize: 14
-                font.weight: Font.Medium
-            }
-
-            TextField {
-                id: loginPasswordField
-                width: parent.width
-                height: 50
-                anchors.top: loginPasswordLabel.bottom
-                anchors.topMargin: 10
-                font.pixelSize: 16
-                font.italic: false
-                echoMode: TextInput.Password
-                placeholderText: "Enter your password"
-                placeholderTextColor: text_muted
-                leftPadding: 20
-                color: text_light
-                background: Rectangle {
-                    color: background_dark
-                    radius: 50
-                    border.color: parent.activeFocus ? primary : text_muted
-                }
-            }
-
-            Button {
-                id: loginButton
-                width: parent.width
-                text: loginButton.enabled ? qsTr("Login") : qsTr("Logging in...")
-                font.weight: 650
-                font.pixelSize: 20
-                height: 50
-                anchors.top: loginPasswordField.bottom
-                anchors.topMargin: 35
-                enabled: false
-                HoverHandler {
-                    cursorShape: parent.hovered ?
-                    (!parent.enabled ? Qt.ForbiddenCursor : Qt.PointingHandCursor) : Qt.ArrowCursor
-                }
-
-                background: Rectangle {
-                    color: loginButton.enabled ? primary : background_dark
-                    radius: 50
-                }
-                onClicked: {
-                    if (loginButton.enabled) {
-                        loginButton.enabled = false
-                        backend.authenticate(loginUsernameField.text, loginPasswordField.text)
-                    }
-                }
-            }
-
-            Rectangle {
-                id: orDevider
-                width: parent.width
-                color: "#000000"
-                anchors.top: loginButton.bottom
-                anchors.topMargin: 30
-
+        ColumnLayout {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 16
+            
+            Item {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: 64
+                Layout.preferredHeight: 64
+                
                 Rectangle {
-                    id: leftOr
-                    width: (parent.width - 30) / 2
-                    height: 1
-                    color: text_muted
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.left: parent.left
-                    anchors.leftMargin: 0
-                }
-
-                Text {
-                    id: or
-                    text: qsTr("Or")
-                    color: text_muted
-                    font.pixelSize: 12
                     anchors.centerIn: parent
+                    width: 60; height: 60
+                    radius: 30
+                    color: Qt.rgba(primary.r, primary.g, primary.b, 0.1)
+                    border.color: Qt.rgba(primary.r, primary.g, primary.b, 0.3)
+                    border.width: 1
+                }
+                
+                Image {
+                    source: "images/logo.svg"
+                    width: 32; height: 32
+                    sourceSize: Qt.size(64, 64)
+                    smooth: true
+                    antialiasing: true
+                    anchors.centerIn: parent
+                    fillMode: Image.PreserveAspectFit
+                }
+            }
+
+            Text {
+                text: "NEOSEC"
+                color: text_main
+                font.pixelSize: 24
+                font.weight: Font.Black
+                font.family: "Inter"
+                font.letterSpacing: 4
+                Layout.alignment: Qt.AlignHCenter
+            }
+            
+            Text {
+                text: "SECURITY CONTROL CENTER"
+                color: text_muted
+                font.pixelSize: 10
+                font.weight: Font.Bold
+                font.family: "Inter"
+                font.letterSpacing: 2
+                Layout.alignment: Qt.AlignHCenter
+            }
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 24
+            
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                
+                Text { 
+                    text: "Email" 
+                    color: text_muted 
+                    font { pixelSize: 10; weight: Font.Bold; family: "Inter"; letterSpacing: 1 }
                 }
 
-                Rectangle {
-                    id: rightOr
-                    width: (parent.width - 30) / 2
-                    height: 1
-                    color: text_muted
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.right: parent.right
-                    anchors.rightMargin: 0
+                TextField {
+                    id: loginUsernameField
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 50
+                    placeholderText: "user@neosec.com"
+                    color: text_main
+                    font { pixelSize: 14; family: "JetBrains Mono" }
+                    leftPadding: 16
+                    enabled: !loginPage.isLoading
+                    placeholderTextColor: "#333"
+
+                    background: Rectangle {
+                        color: input_bg
+                        radius: 4
+                        border.color: loginUsernameField.activeFocus ? primary : "#222"
+                        border.width: 1
+                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                        
+                        Rectangle {
+                            anchors.fill: parent
+                            color: "transparent"
+                            border.color: "#000"
+                            border.width: 1
+                            opacity: 0.5
+                            radius: 4
+                        }
+                    }
                 }
             }
 
-            Row {
-                id: signupContainer
-                anchors.top: orDevider.bottom
-                anchors.topMargin: 30
-                anchors.horizontalCenter: parent.horizontalCenter
-                spacing: 5
-                Text {
-                    text: "Don't have an account?"
-                    color: text_muted
-                    font.pixelSize: 14
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                
+                Text { 
+                    text: "Password" 
+                    color: text_muted 
+                    font { pixelSize: 10; weight: Font.Bold; family: "Inter"; letterSpacing: 1 }
                 }
-                Text {
-                    id: signupLink
-                    text: "Sign up"
-                    color: linkArea.containsMouse ? text_light : primary
-                    font.pixelSize: 14
-                    font.bold: true
-                    Rectangle {
-                        anchors.bottom: parent.bottom
-                        width: parent.width
-                        height: 1
-                        color: parent.color
-                        visible: linkArea.containsMouse
-                    }
-                    MouseArea {
-                        id: linkArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Qt.openUrlExternally(signup_url)
-                    }
-                    Behavior on color {
-                        ColorAnimation { duration: 150 }
-                    }
-                }
-            }
-            Label {
-                id: errorLabel
-                color: error_red
-                anchors.top: signupContainer.bottom
-                anchors.topMargin: 20
-                font.pointSize: 10
-                font.bold: true
-                anchors.horizontalCenter: parent.horizontalCenter
-            }
 
+                TextField {
+                    id: loginPasswordField
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 50
+                    echoMode: TextInput.Password
+                    placeholderText: "••••••••"
+                    color: text_main
+                    font { pixelSize: 14; family: "JetBrains Mono" }
+                    leftPadding: 16
+                    enabled: !loginPage.isLoading
+                    placeholderTextColor: "#333"
+
+                    background: Rectangle {
+                        color: input_bg
+                        radius: 4
+                        border.color: loginPasswordField.activeFocus ? primary : "#222"
+                        border.width: 1
+                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                    }
+                }
+            }
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 20
+            
+            Button {
+                id: loginBtn
+                Layout.fillWidth: true
+                Layout.preferredHeight: 48
+                enabled: !loginPage.isLoading
+                
+                contentItem: Text {
+                    text: loginPage.isLoading ? "AUTHENTICATING..." : "LOGIN"
+                    color: "#000000"
+                    font.pixelSize: 12
+                    font.weight: Font.Bold
+                    font.family: "Inter"
+                    font.letterSpacing: 1
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    color: loginBtn.enabled ? (loginBtn.pressed ? Qt.darker(primary, 1.1) : primary) : "#222"
+                    radius: 2
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    
+                    layer.enabled: loginBtn.enabled && !loginBtn.pressed
+                    layer.effect: MultiEffect {
+                        shadowEnabled: true
+                        shadowColor: Qt.rgba(primary.r, primary.g, primary.b, 0.4)
+                        shadowBlur: 1.0
+                    }
+                }
+                
+                onClicked: {
+                    loginPage.isLoading = true
+                    backend.authenticate(loginUsernameField.text, loginPasswordField.text)
+                }
+                
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+            }
+            
+            Text {
+                text: "NO ACCOUNT? SIGNUP"
+                color: text_muted
+                font { pixelSize: 10; weight: Font.Bold; family: "Inter" }
+                Layout.alignment: Qt.AlignHCenter
+                opacity: 0.5
+                
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    hoverEnabled: true
+                    onEntered: parent.opacity = 1.0
+                    onExited: parent.opacity = 0.5
+                    onClicked: Qt.openUrlExternally(signup_url)
+                }
+            }
+        }
+        
+        Text {
+            id: errorLabel
+            Layout.fillWidth: true
+            horizontalAlignment: Text.AlignHCenter
+            color: error_red
+            font { bold: true; pixelSize: 12; family: "JetBrains Mono" }
+            wrapMode: Text.WordWrap
+            visible: text !== ""
         }
     }
 
     Connections {
         target: backend
-        function onLoginFailed(message) {
-            errorLabel.text = message
-        }
-        function onAuthenticationFinished() {
-            loginButton.enabled = true
-        }
+        function onLoginFailed(message) { errorLabel.text = "[ERROR] " + message; loginPage.isLoading = false }
+        function onAuthenticationFinished() { loginPage.isLoading = false }
     }
 }

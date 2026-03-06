@@ -20,7 +20,7 @@ const getApiUrl = () => {
 
   if (isVercel || isProduction) {
     // Default production URL - update this with your actual Render backend URL
-    return 'https://neosec-0vzg.onrender.com/api';
+    return 'https://neosec.onrender.com/api';
   }
 
   // Priority 3: Development - use localhost
@@ -56,14 +56,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid - only redirect for non-subscription endpoints
-      const url = error.config?.url || '';
-      if (!url.includes('/subscription/')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/';
-      }
-      // For subscription endpoints, let the component handle the 401 error
+      // Token expired or invalid
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }
@@ -220,7 +216,7 @@ export const firewallAPI = {
 export const vpnAPI = {
   // Toggle VPN configuration (connect/disconnect)
   toggleVpnConfig: async (configId) => {
-    const response = await api.post(`/vpn/${configId}/toggle`);
+    const response = await api.patch(`/vpn/${configId}/toggle`);
     return response.data;
   }
 };
@@ -418,6 +414,10 @@ export const activityLogAPI = {
       responseType: format === 'csv' ? 'blob' : 'json'
     });
     return response.data;
+  },
+  clearLogs: async (days = 90) => {
+    const response = await api.delete('/activity-logs', { params: { days } });
+    return response.data;
   }
 };
 
@@ -457,6 +457,39 @@ export const loginHistoryAPI = {
   },
   toggleUserLock: async (userId, locked) => {
     const response = await api.put(`/login-history/user/${userId}/lock`, { locked });
+    return response.data;
+  },
+  terminateSession: async (sessionId) => {
+    const response = await api.delete(`/login-history/sessions/${sessionId}`);
+    return response.data;
+  },
+  terminateAllSessions: async (exceptSessionId = null) => {
+    const response = await api.delete('/login-history/sessions', {
+      data: exceptSessionId ? { exceptSessionId } : {}
+    });
+    return response.data;
+  }
+};
+
+export const settingsAPI = {
+  getMySettings: async () => {
+    const response = await api.get('/settings/me');
+    return response.data;
+  },
+  updateProfile: async (profileData) => {
+    const response = await api.put('/settings/me', profileData);
+    return response.data;
+  },
+  updateNotifications: async (notifications) => {
+    const response = await api.put('/settings/notifications', notifications);
+    return response.data;
+  },
+  updatePassword: async (payload) => {
+    const response = await api.put('/settings/password', payload);
+    return response.data;
+  },
+  deleteMyAccount: async () => {
+    const response = await api.delete('/settings/me');
     return response.data;
   }
 };

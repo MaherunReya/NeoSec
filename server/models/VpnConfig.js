@@ -37,8 +37,8 @@ const VpnConfig = sequelize.define('VpnConfig', {
     },
     isActive: {
         type: DataTypes.BOOLEAN,
-        defaultValue: false,
-        field:'isactive'
+        defaultValue: false
+     //   field:'isactive'
     },
     userId: {
         type: DataTypes.UUID,
@@ -50,8 +50,7 @@ const VpnConfig = sequelize.define('VpnConfig', {
     }
 }, {
     timestamps: true,
-    tableName: 'vpn_configs',
-    underscored: false // Disable underscored since database uses camelCase columns
+    tableName: 'vpn_configs'
 });
 
 // Define association

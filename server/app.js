@@ -25,11 +25,11 @@ const FeatureToggle = require('./models/FeatureToggle');
 const RoleTemplate = require('./models/RoleTemplate');
 const MFASettings = require('./models/MFASettings');
 const ImpersonationSession = require('./models/ImpersonationSession');
+const UserSettings = require('./models/UserSettings');
 
 // NEW: Add Module 3 models
 const BlocklistIP = require('./models/BlocklistIP');
 const ActivityLog = require('./models/ActivityLog');
-const ThreatBlockerSettings = require('./models/ThreatBlockerSettings');
 
 // NEW: Set up associations
 require('./models/associations');
@@ -57,6 +57,7 @@ const mfaRoutes = require('./routes/mfaRoutes');
 const impersonationRoutes = require('./routes/impersonationRoutes');
 const sharedProfileRoutes = require('./routes/sharedProfileRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
 
 // Initialize Express app
 const app = express();
@@ -78,7 +79,7 @@ app.use(
 // CORS configuration
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-    : ['http://localhost:3000', 'https://neosec-ui.onrender.com'];
+    : ['http://localhost:3000'];
 
 app.use(cors({
     origin: function (origin, callback) {
@@ -110,11 +111,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Threat blocker middleware - check IPs against blocklist
-// Add this early to block threats before they reach routes
-const threatBlockerMiddleware = require('./middleware/threatBlocker');
-app.use(threatBlockerMiddleware);
-
 // Routes
 app.use('/api/auth', authRoutes);
 const profileRoutes = require('./routes/profileRoutes');
@@ -131,6 +127,7 @@ const dataTransferRoutes = require('./routes/dataTransferRoutes');
 app.use('/api/data-transfer', dataTransferRoutes);
 app.use('/api/auth/shared-profiles', sharedProfileRoutes);
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // New Module 1 additional features routes
 app.use('/api/audit', auditRoutes);
@@ -223,14 +220,12 @@ if (!process.env.DATABASE_URL) {
     console.error('Please set DATABASE_URL in your environment variables.');
 }
 
-const HOST = process.env.HOST || '0.0.0.0';
-
-app.listen(PORT, HOST, () => {
-    console.log(`Server started on ${HOST}:${PORT}`);
+app.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`JWT_SECRET: ${process.env.JWT_SECRET ? 'Set' : 'NOT SET - THIS WILL CAUSE ERRORS!'}`);
     console.log(`DATABASE_URL: ${process.env.DATABASE_URL ? 'Set' : 'NOT SET - THIS WILL CAUSE ERRORS!'}`);
-    console.log(`Accessible at: http://${HOST}:${PORT}`);
+
 });
 
 

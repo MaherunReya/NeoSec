@@ -1,6 +1,31 @@
-// src/components/Hierarchy/Subscription.js
-import React, { useEffect, useState } from 'react';
-import api from '../../services/api';
+import React, { useCallback, useEffect, useState } from 'react';
+import { API_BASE } from '../../services/api';
+
+const defaultPalette = {
+  bgCard: '#111827',
+  bgCardAlt: '#0b1220',
+  text: '#f8fafc',
+  textMuted: '#94a3b8',
+  border: '#1e293b',
+  accent: '#6366f1',
+  accentSoft: 'rgba(99,102,241,0.18)',
+  success: '#22c55e',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+};
+
+const getPagePalette = (appPalette) => ({
+  bgCard: appPalette?.bgCard || defaultPalette.bgCard,
+  bgCardAlt: appPalette?.bgPanel || defaultPalette.bgCardAlt,
+  text: appPalette?.text || defaultPalette.text,
+  textMuted: appPalette?.textMuted || defaultPalette.textMuted,
+  border: appPalette?.border || defaultPalette.border,
+  accent: appPalette?.accent || defaultPalette.accent,
+  accentSoft: appPalette?.accentSoft || defaultPalette.accentSoft,
+  success: defaultPalette.success,
+  warning: defaultPalette.warning,
+  danger: appPalette?.danger || defaultPalette.danger,
+});
 
 const plans = [
   {
@@ -45,8 +70,36 @@ const plans = [
   },
 ];
 
-const Subscription = ({ theme, palette }) => {
-  const colors = palette;
+const getApiBaseUrl = () => {
+  if (API_BASE && API_BASE.trim()) {
+    let url = API_BASE.trim();
+    if (!url.endsWith('/api')) {
+      url = url.endsWith('/') ? `${url}api` : `${url}/api`;
+    }
+    return url;
+  }
+
+  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+    return 'https://neosec.onrender.com/api';
+  }
+
+  return 'http://localhost:5000/api';
+};
+
+const Subscription = ({ palette: appPalette, onUpgradeSuccess }) => {
+  const apiBaseUrl = getApiBaseUrl();
+  const palette = getPagePalette(appPalette);
+  const tableHeadStyle = {
+    textAlign: 'left',
+    padding: '12px 8px',
+    color: palette.textMuted,
+    fontWeight: 500,
+  };
+
+  const tableCellStyle = {
+    padding: '12px 8px',
+    color: palette.text,
+  };
 
   const [currentPlan, setCurrentPlan] = useState('free');
   const [billingHistory, setBillingHistory] = useState([]);
@@ -54,123 +107,45 @@ const Subscription = ({ theme, palette }) => {
   const [processingTier, setProcessingTier] = useState(null);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
-  const [selectedTier, setSelectedTier] = useState(() => {
-    // Load from localStorage if available
-    return localStorage.getItem('selectedTier') || 'basic';
-  });
 
+  const syncUserAfterPayment = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
 
-  useEffect(() => {
-    fetchData();
-    checkURLParams();
-  }, []);
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-
-  const checkURLParams = () => {
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.get('success')) {
-      // Show congratulations and refresh data to check leader status
-      handlePaymentSuccess();
-      // Clear URL params
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-    if (params.get('canceled')) {
-      setMessage('Payment was canceled.');
-      // Clear URL params
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  };
-
-  const handlePaymentSuccess = async () => {
-    try {
-      console.log('=== PAYMENT SUCCESS HANDLING ===');
-      console.log('Current selectedTier state:', selectedTier);
-      setMessage('🎉 Congratulations! Payment successful!');
-
-      // First, try manual upgrade (this creates subscription and billing history)
-      console.log('Attempting manual upgrade for tier:', selectedTier);
-      await manuallyUpgradeUser(selectedTier);
-
-      // Refresh user data to check if they became a leader
-      const token = localStorage.getItem('token');
-      const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000"; 
-      if (token) {
-        console.log('Refreshing user data...');
-        const response = await fetch(`${API_BASE}/api/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        const meRes = await fetch(`${apiBaseUrl}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (response.ok) {
-          const userData = await response.json();
-          console.log('Updated user data:', userData);
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          const latestUser = meData?.user;
 
-          // Update localStorage with fresh user data
-          localStorage.setItem('user', JSON.stringify(userData.user));
+          if (latestUser && (latestUser.isPaid || latestUser.accountType === 'leader')) {
+            localStorage.setItem('user', JSON.stringify(latestUser));
 
-          if (userData.user?.accountType === 'leader') {
-            console.log('User is now a leader!');
-            setMessage('🎉 Congratulations! You are now a Leader! You can create and manage groups.');
-            setTimeout(() => {
-              alert('🎉 Welcome to Leader status! You can now access group management features.');
-              // Refresh the page to ensure all components get updated user data
-              window.location.reload();
-            }, 1000);
-          } else {
-            console.log('User still not a leader after upgrade - this is unexpected');
-            setMessage('🎉 Payment successful! Your leader status is being processed.');
+            if (typeof onUpgradeSuccess === 'function') {
+              onUpgradeSuccess(latestUser);
+            }
+
+            window.dispatchEvent(new CustomEvent('neosec-user-updated', { detail: latestUser }));
+            break;
           }
-        } else {
-          console.log('Failed to refresh user data');
         }
+      } catch (err) {
+        // no-op: retry loop handles transient conditions
       }
 
-      // Refresh subscription data
-      console.log('Refreshing subscription data...');
-      await fetchData();
-
-    } catch (error) {
-      console.error('Error in payment success handling:', error);
-      setMessage('🎉 Payment successful! Please refresh the page to see your leader status.');
-    }
-  };
-
-  const manuallyUpgradeUser = async (selectedTier = 'basic') => {
-    try {
-      console.log('=== CALLING MANUAL UPGRADE ===');
-      console.log('Selected tier:', selectedTier);
-      // This is a fallback for test mode when webhook doesn't fire
-      console.log('Making API call to /subscription/upgrade-test with tier:', selectedTier);
-      const response = await api.post('/subscription/upgrade-test', { tier: selectedTier });
-      console.log('Manual upgrade response:', response);
-      console.log('Response data:', response.data);
-
-      if (response.data.success) {
-        console.log('Manual upgrade successful');
-        setMessage(`🎉 Congratulations! You are now a Leader with ${selectedTier.toUpperCase()} plan! You can create and manage groups.`);
-        setTimeout(() => {
-          alert(`🎉 Welcome to Leader status with ${selectedTier.toUpperCase()} plan! You can now access group management features.`);
-        }, 1000);
-
-        // Clear the stored tier after successful upgrade
-        localStorage.removeItem('selectedTier');
-
-        // Refresh data
-        console.log('Refreshing data after manual upgrade...');
-        await fetchData();
-      } else {
-        console.log('Manual upgrade response not successful:', response.data);
+      if (attempt < 4) {
+        await delay(2000);
       }
-    } catch (error) {
-      console.error('Manual upgrade failed:', error);
-      console.error('Error details:', error.response?.data || error.message);
-      setMessage('🎉 Payment successful! Your leader status may take a moment to update. Please refresh the page.');
     }
-  };
+  }, [apiBaseUrl, onUpgradeSuccess]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     const token = localStorage.getItem('token');
 
     if (!token) {
@@ -183,252 +158,223 @@ const Subscription = ({ theme, palette }) => {
       setLoading(true);
       setError(null);
 
-      // Fetch subscription
-      const subData = await api.get('/subscription/me');
-      const newPlan = subData?.data?.subscription?.tier || 'free';
-      setCurrentPlan(newPlan);
+      const subRes = await fetch(`${apiBaseUrl}/subscription/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!subRes.ok) throw new Error(`Failed to fetch subscription: ${subRes.status}`);
 
-      // Fetch billing history
-      const billData = await api.get('/subscription/billing');
-      setBillingHistory(billData?.data?.history || []);
+      const subData = await subRes.json();
+      setCurrentPlan(subData.subscription?.tier || 'free');
 
+      const billRes = await fetch(`${apiBaseUrl}/subscription/billing`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!billRes.ok) throw new Error(`Failed to fetch billing: ${billRes.status}`);
 
+      const billData = await billRes.json();
+      setBillingHistory(billData.history || []);
     } catch (err) {
-      console.error('Failed to load subscription data:', err?.response?.data?.message || err?.message);
-      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to load subscription data';
-      setError(errorMessage);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiBaseUrl]);
+
+  const checkURLParams = useCallback(async () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('success')) {
+      setMessage('Payment successful! Your subscription will be updated shortly.');
+      await syncUserAfterPayment();
+      await fetchData();
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    if (params.get('canceled')) {
+      setMessage('Payment was canceled.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [fetchData, syncUserAfterPayment]);
+
+  useEffect(() => {
+    const initialize = async () => {
+      await fetchData();
+      await checkURLParams();
+    };
+
+    initialize();
+  }, [fetchData, checkURLParams]);
 
   const startCheckout = async (tier) => {
-    console.log('startCheckout called with tier:', tier);
-
-    if (!tier || !['basic', 'pro', 'enterprise'].includes(tier)) {
-      console.error('Invalid tier:', tier);
-      alert('Invalid subscription tier selected');
-      return;
-    }
-
-    setSelectedTier(tier); // Store the selected tier
-    localStorage.setItem('selectedTier', tier); // Persist across page reloads
-    console.log('Set selectedTier to:', tier);
     setProcessingTier(tier);
     setError(null);
 
     try {
-      console.log('Starting checkout for tier:', tier);
       const token = localStorage.getItem('token');
-      console.log('Token exists:', !!token);
+      if (!token) throw new Error('No authentication token found');
 
-      if (!token) {
-        throw new Error('No authentication token found. Please log in first.');
-      }
+      const res = await fetch(`${apiBaseUrl}/subscription/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tier }),
+      });
 
-      console.log('Making API call to subscription endpoint...');
-      const response = await api.post('/subscription/create-checkout-session', { tier });
-      console.log('Raw API response:', response);
-      console.log('API response data:', response?.data);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to create checkout session');
+      if (!data.url) throw new Error('No checkout URL returned');
 
-      const data = response?.data;
-      if (!data) {
-        throw new Error('No response data received from server');
-      }
-
-      if (data.url) {
-        console.log('Redirecting to Stripe checkout:', data.url);
-        // Redirect to Stripe Checkout
-        window.location.href = data.url;
-      } else {
-        console.error('No URL in response:', data);
-        throw new Error('No checkout URL returned from server');
-      }
+      window.location.href = data.url;
     } catch (err) {
-      console.error('Checkout error occurred');
-      console.error('Error type:', typeof err);
-      console.error('Error object:', err);
-
-      // More defensive error handling
-      let errorMessage = 'Failed to create checkout session';
-      try {
-        if (err && typeof err === 'object') {
-          errorMessage = err.response?.data?.message || err.message || errorMessage;
-        } else if (typeof err === 'string') {
-          errorMessage = err;
-        }
-      } catch (parseError) {
-        console.error('Error parsing error message:', parseError);
-        errorMessage = 'An unexpected error occurred';
-      }
-
-      console.error('Final error message:', errorMessage);
-      setError(errorMessage);
-      alert(errorMessage);
+      setError(err.message);
+      alert(err.message);
+    } finally {
       setProcessingTier(null);
     }
   };
 
   if (loading) {
     return (
-      <div style={{ 
-        padding: 32, 
-        maxWidth: 1200, 
-        color: colors.text,
-        minHeight: '100vh'
-      }}>
-        <h2 style={{ fontSize: 30 }}>Loading subscription...</h2>
+      <div style={{ padding: 32, maxWidth: 1200, color: palette.text, minHeight: '100vh', fontFamily: 'inherit', fontSize: 16, fontWeight: 400 }}>
+        <h2 style={{ fontSize: 28 }}>Loading subscription...</h2>
       </div>
     );
   }
 
   return (
-    <div style={{ 
-      padding: 32, 
-      maxWidth: 1200, 
-      margin: '0 auto',
-      color: colors.text,
-      minHeight: '100vh'
-    }}>
-      <h2 style={{ fontSize: 30, marginBottom: 8 }}>Subscription & Billing</h2>
-      <p style={{ color: colors.textMuted, marginBottom: 24 }}>
-        Manage your plan and billing
-      </p>
+    <div style={{ padding: 32, maxWidth: 1200, margin: '0 auto', color: palette.text, minHeight: '100vh', fontFamily: 'inherit', fontSize: 16, fontWeight: 400 }}>
+      <h2 style={{ fontSize: 30, marginBottom: 8 }}>Subscriptions</h2>
+      <p style={{ color: palette.textMuted, marginBottom: 24 }}>Upgrade to unlock more features</p>
 
-      {/* Error Message */}
       {error && (
         <div
           style={{
-            backgroundColor: 'rgba(224, 72, 72, 0.12)',
-            border: `1px solid ${colors.danger}`,
+            backgroundColor: 'rgba(239,68,68,0.12)',
+            border: `1px solid ${palette.danger}`,
             padding: 14,
             borderRadius: 8,
             marginBottom: 24,
-            color: colors.danger,
+            color: palette.danger,
           }}
         >
           {error}
         </div>
       )}
 
-      {/* Success/Cancel Message */}
       {message && (
         <div
           style={{
-            backgroundColor: colors.accentSoft,
-            border: `1px solid ${colors.accent}`,
+            backgroundColor: palette.accentSoft,
+            border: `1px solid ${palette.accent}`,
             padding: 14,
             borderRadius: 8,
             marginBottom: 24,
-            color: colors.accent,
+            color: palette.text,
           }}
         >
           {message}
         </div>
       )}
 
-
-      {/* Current Plan Card */}
       <div
         style={{
-          backgroundColor: colors.bgCard,
-          border: `1px solid ${colors.border}`,
+          backgroundColor: palette.bgCard,
+          border: `1px solid ${palette.border}`,
           borderRadius: 12,
           padding: 24,
           marginBottom: 32,
         }}
       >
-        {console.log('=== RENDERING CURRENT PLAN ===', currentPlan)}
-        <h3 style={{ margin: 0, fontSize: 18, marginBottom: 8 }}>
+        <h3 style={{ margin: 0, fontSize: 22, marginBottom: 10 }}>
           Current Plan:{' '}
-          <span style={{ color: colors.accent, fontSize: 22, fontWeight: 700 }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '4px 10px',
+              borderRadius: 999,
+              fontSize: 13,
+              fontWeight: 500,
+              letterSpacing: '0.4px',
+              color: palette.warning,
+              backgroundColor: 'rgba(245,158,11,0.14)',
+              border: '1px solid rgba(245,158,11,0.35)',
+            }}
+          >
             {currentPlan.toUpperCase()}
           </span>
         </h3>
-        <p style={{ color: colors.textMuted, margin: 0 }}>
-          {currentPlan === 'free' 
-            ? 'Upgrade to unlock more features' 
-            : 'Thank you for being a premium member'}
-        </p>
+        <p style={{ color: palette.textMuted, margin: 0 }}>Upgrade to unlock more features</p>
       </div>
 
-      {/* Plans Grid */}
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: 20,
-          marginBottom: 40,
+          marginBottom: 36,
         }}
       >
         {plans.map((plan) => {
           const isCurrent = plan.id === currentPlan;
           const isProcessing = processingTier === plan.id;
+          const isPopular = !!plan.popular;
 
           return (
             <div
               key={plan.id}
               style={{
-                backgroundColor: colors.bgCard,
-                border: `2px solid ${
-                  isCurrent ? colors.accent : plan.popular ? colors.accent + '80' : colors.border
-                }`,
+                backgroundColor: isPopular ? palette.bgCardAlt : palette.bgCard,
+                border: `2px solid ${isCurrent ? palette.success : isPopular ? palette.accent : palette.border}`,
                 borderRadius: 14,
                 padding: 24,
                 position: 'relative',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                boxShadow: isPopular ? '0 14px 30px rgba(79,70,229,0.24)' : 'none',
+                transform: isPopular ? 'scale(1.02)' : 'scale(1)',
               }}
             >
-              {plan.popular && (
+              {isPopular && (
                 <div
                   style={{
                     position: 'absolute',
                     top: -12,
-                    right: 20,
-                    backgroundColor: colors.accent,
-                    color: '#121212',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: palette.accent,
+                    color: '#fff',
                     padding: '4px 12px',
                     borderRadius: 999,
                     fontSize: 12,
-                    fontWeight: 700,
+                    fontWeight: 500,
+                    letterSpacing: '0.4px',
                   }}
                 >
                   POPULAR
                 </div>
               )}
 
-              <h3 style={{ margin: 0, marginBottom: 8, fontSize: 22 }}>{plan.name}</h3>
-              
+              <h3 style={{ margin: '2px 0 8px 0', fontSize: 22 }}>{plan.name}</h3>
+
               <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: 20 }}>
-                <span style={{ fontSize: 32, fontWeight: 700, color: colors.accent }}>
+                <span style={{ fontSize: 34, fontWeight: 500, color: isPopular ? palette.accent : palette.text }}>
                   {plan.price}
                 </span>
-                <span style={{ fontSize: 16, color: colors.textMuted, marginLeft: 4 }}>
-                  {plan.period}
-                </span>
+                <span style={{ fontSize: 16, color: palette.textMuted, marginLeft: 6 }}>{plan.period}</span>
               </div>
 
-              <ul style={{ 
-                paddingLeft: 0, 
-                listStyle: 'none',
-                margin: '0 0 20px 0'
-              }}>
-                {plan.features.map((f, i) => (
-                  <li 
-                    key={i} 
-                    style={{ 
-                      color: colors.textMuted,
+              <ul style={{ paddingLeft: 0, listStyle: 'none', margin: '0 0 20px 0' }}>
+                {plan.features.map((feature, index) => (
+                  <li
+                    key={index}
+                    style={{
+                      color: palette.textMuted,
                       marginBottom: 12,
                       paddingLeft: 24,
-                      position: 'relative'
+                      position: 'relative',
                     }}
                   >
-                    <span style={{
-                      position: 'absolute',
-                      left: 0,
-                      color: colors.accent
-                    }}>✓</span>
-                    {f}
+                    <span style={{ position: 'absolute', left: 0, color: palette.success }}>✓</span>
+                    {feature}
                   </li>
                 ))}
               </ul>
@@ -440,66 +386,68 @@ const Subscription = ({ theme, palette }) => {
                   width: '100%',
                   padding: '12px 0',
                   borderRadius: 8,
-                  border: 'none',
-                  backgroundColor: isCurrent 
-                    ? colors.border 
-                    : isProcessing 
-                      ? colors.textMuted
-                      : colors.accent,
-                  color: isCurrent ? colors.textMuted : '#121212',
-                  fontWeight: 700,
+                  border: isPopular ? 'none' : `1px solid ${palette.border}`,
+                  backgroundColor: isCurrent
+                    ? palette.border
+                    : isProcessing
+                      ? palette.textMuted
+                      : isPopular
+                        ? palette.accent
+                        : 'transparent',
+                  color: isCurrent ? palette.textMuted : isPopular ? '#ffffff' : palette.text,
+                  fontWeight: 500,
                   fontSize: 15,
                   cursor: isCurrent || isProcessing ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s ease',
                   opacity: isCurrent || isProcessing ? 0.6 : 1,
                 }}
               >
-                {isCurrent 
-                  ? 'Current Plan' 
-                  : isProcessing 
-                    ? 'Processing...' 
-                    : 'Upgrade Now'}
+                {isCurrent ? 'Current Plan' : isProcessing ? 'Processing...' : 'Upgrade Now'}
               </button>
             </div>
           );
         })}
       </div>
 
-
-      {/* Billing History */}
       <div
         style={{
-          backgroundColor: colors.bgCard,
-          border: `1px solid ${colors.border}`,
+          backgroundColor: palette.bgCard,
+          border: `1px solid ${palette.border}`,
           borderRadius: 12,
           padding: 24,
         }}
       >
-        <h3 style={{ margin: 0, marginBottom: 20, fontSize: 20 }}>Billing History</h3>
+        <h3 style={{ margin: 0, marginBottom: 16, fontSize: 22 }}>Billing History</h3>
         {billingHistory.length === 0 ? (
-          <p style={{ color: colors.textMuted, margin: 0 }}>No invoices yet.</p>
+          <div
+            style={{
+              border: `1px solid ${palette.border}`,
+              borderRadius: 10,
+              padding: 24,
+              color: palette.textMuted,
+              textAlign: 'center',
+              backgroundColor: palette.bgCardAlt,
+            }}
+          >
+            No invoices yet.
+          </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ borderBottom: `1px solid ${colors.border}` }}>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', color: colors.textMuted, fontWeight: 600 }}>Plan</th>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', color: colors.textMuted, fontWeight: 600 }}>Amount</th>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', color: colors.textMuted, fontWeight: 600 }}>Date</th>
-                  <th style={{ textAlign: 'left', padding: '12px 8px', color: colors.textMuted, fontWeight: 600 }}>Status</th>
+                <tr style={{ borderBottom: `1px solid ${palette.border}` }}>
+                  <th style={tableHeadStyle}>Plan</th>
+                  <th style={tableHeadStyle}>Amount</th>
+                  <th style={tableHeadStyle}>Date</th>
+                  <th style={tableHeadStyle}>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {billingHistory.map((bill) => (
-                  <tr key={bill.id} style={{ borderBottom: `1px solid ${colors.border}` }}>
-                    <td style={{ padding: '12px 8px', color: colors.text }}>{bill.plan}</td>
-                    <td style={{ padding: '12px 8px', color: colors.text }}>{bill.amount}</td>
-                    <td style={{ padding: '12px 8px', color: colors.text }}>
-                      {new Date(bill.paidAt).toLocaleDateString()}
-                    </td>
-                    <td style={{ padding: '12px 8px', color: colors.accent, fontWeight: 600 }}>
-                      {bill.status}
-                    </td>
+                  <tr key={bill.id} style={{ borderBottom: `1px solid ${palette.border}` }}>
+                    <td style={tableCellStyle}>{bill.plan || '-'}</td>
+                    <td style={tableCellStyle}>{bill.amount || '-'}</td>
+                    <td style={tableCellStyle}>{bill.paidAt ? new Date(bill.paidAt).toLocaleDateString() : '-'}</td>
+                    <td style={{ ...tableCellStyle, color: palette.success, fontWeight: 500 }}>{bill.status || '-'}</td>
                   </tr>
                 ))}
               </tbody>

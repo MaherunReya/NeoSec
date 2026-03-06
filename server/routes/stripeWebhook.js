@@ -29,71 +29,65 @@ router.post(
       const userId = session.metadata.userId;
       const tier = session.metadata.tier;
 
-      // Update or create subscription
+      if (!userId || !tier) {
+        return res.status(400).json({
+          received: false,
+          message: 'Missing userId or tier in Stripe metadata',
+        });
+      }
+
       let sub = await Subscription.findOne({ where: { userId } });
 
       if (!sub) {
-        await Subscription.create({
+        sub = await Subscription.create({
           userId,
           tier,
           status: 'active',
+          startDate: new Date(),
+          autoRenew: true,
         });
       } else {
-        await sub.update({ tier, status: 'active' });
+        await sub.update({
+          tier,
+          status: 'active',
+          startDate: sub.startDate || new Date(),
+          autoRenew: true,
+        });
       }
 
-      // Update user account type and subscription tier when they pay
       await User.update(
         {
           accountType: 'leader',
           subscriptionTier: tier,
-          isPaid: true
+          isPaid: true,
         },
-        { where: { id: userId } }
+        {
+          where: { id: userId },
+        }
       );
 
-      console.log(`User ${userId} upgraded to leader account type after successful payment`);
-    } else if (event.type === 'invoice.payment_succeeded') {
-      // Handle successful payment for subscription
-      const invoice = event.data.object;
+      const amountText =
+        typeof session.amount_total === 'number'
+          ? `$${(session.amount_total / 100).toFixed(2)}`
+          : '$0.00';
 
-      // Only process subscription invoices (not one-time payments)
-      if (invoice.subscription && invoice.customer_email) {
-        try {
-          // Find user by email
-          const user = await User.findOne({ where: { email: invoice.customer_email } });
+      if (session.invoice) {
+        const existingInvoice = await BillingHistory.findOne({
+          where: { stripeInvoiceId: session.invoice },
+        });
 
-          if (user) {
-            // Find subscription by user ID
-            const subscription = await Subscription.findOne({ where: { userId: user.id } });
-
-            // Create billing history record
-            await BillingHistory.create({
-              userId: user.id,
-              subscriptionId: subscription ? subscription.id : null,
-              plan: invoice.lines.data[0]?.description || 'Subscription',
-              amount: (invoice.amount_paid / 100).toString(), // Convert from cents
-              status: 'paid',
-              paidAt: new Date(invoice.status_transitions.paid_at * 1000),
-              stripeInvoiceId: invoice.id,
-              stripePaymentIntentId: invoice.payment_intent
-            });
-
-            console.log(`Billing history created for user ${user.id}, amount: $${invoice.amount_paid / 100}`);
-          }
-        } catch (error) {
-          console.error('Error creating billing history:', error);
+        if (!existingInvoice) {
+          await BillingHistory.create({
+            userId,
+            subscriptionId: sub.id,
+            plan: tier,
+            amount: amountText,
+            status: 'paid',
+            paidAt: new Date(),
+            stripeInvoiceId: session.invoice,
+            stripePaymentIntentId: session.payment_intent || null,
+          });
         }
-      }
-    } else if (event.type === 'customer.subscription.deleted') {
-      // Handle subscription cancellation
-      const subscription = event.data.object;
-      const userId = subscription.metadata?.userId;
-
-      if (userId) {
-        // Note: According to business logic, once someone pays they remain a leader
-        // So we don't revert accountType back to regular user
-        console.log(`Subscription canceled for user ${userId}, but keeping leader status`);
       }
     }
 

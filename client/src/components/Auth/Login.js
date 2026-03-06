@@ -12,6 +12,7 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
     const [rememberMe, setRememberMe] = useState(false);
     const [capsLockOn, setCapsLockOn] = useState(false);
     const [showSuccessToast, setShowSuccessToast] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleChange = (e) => {
         setFormData({
@@ -244,31 +245,53 @@ const Login = ({ onSwitchToRegister, onLoginSuccess, theme }) => {
                         }}>
                             Password
                         </label>
-                        <input
-                            type="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            onKeyDown={handleKeyDown}
-                            onKeyUp={handleKeyDown}
-                            required
-                            placeholder="Enter your password"
-                            autoComplete="current-password"
-                            style={{
-                                width: '100%',
-                                padding: '12px 14px',
-                                backgroundColor: 'rgba(42, 42, 42, 0.6)',
-                                border: '1px solid rgba(58, 58, 58, 0.8)',
-                                borderRadius: '6px',
-                                color: '#fff',
-                                fontSize: '14px',
-                                outline: 'none',
-                                transition: 'border-color 0.2s',
-                                boxSizing: 'border-box'
-                            }}
-                            onFocus={(e) => e.target.style.borderColor = '#36E27B'}
-                            onBlur={(e) => e.target.style.borderColor = 'rgba(58, 58, 58, 0.8)'}
-                        />
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                onKeyDown={handleKeyDown}
+                                onKeyUp={handleKeyDown}
+                                required
+                                placeholder="Enter your password"
+                                autoComplete="current-password"
+                                style={{
+                                    width: '100%',
+                                    padding: '12px 56px 12px 14px',
+                                    backgroundColor: 'rgba(42, 42, 42, 0.6)',
+                                    border: '1px solid rgba(58, 58, 58, 0.8)',
+                                    borderRadius: '6px',
+                                    color: '#fff',
+                                    fontSize: '14px',
+                                    outline: 'none',
+                                    transition: 'border-color 0.2s',
+                                    boxSizing: 'border-box'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = '#36E27B'}
+                                onBlur={(e) => e.target.style.borderColor = 'rgba(58, 58, 58, 0.8)'}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((prev) => !prev)}
+                                style={{
+                                    position: 'absolute',
+                                    right: '10px',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    border: 'none',
+                                    background: 'transparent',
+                                    color: '#36E27B',
+                                    fontSize: '12px',
+                                    cursor: 'pointer',
+                                    fontWeight: 500,
+                                    padding: '4px 6px'
+                                }}
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                            >
+                                {showPassword ? 'Hide' : 'Show'}
+                            </button>
+                        </div>
                         {capsLockOn && (
                             <div style={{
                                 marginTop: '8px',

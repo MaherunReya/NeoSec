@@ -126,8 +126,7 @@ const Profile = sequelize.define('Profile', {
 
 }, {
   tableName: 'profiles',
-  timestamps: true,
-  underscored: false // Disable underscored since database uses camelCase for userId
+  timestamps: true
 });
 
 module.exports = Profile;

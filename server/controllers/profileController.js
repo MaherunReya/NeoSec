@@ -47,7 +47,7 @@ const getProfiles = async (req, res) => {
     
     res.status(500).json({
       success: false,
-      message: errorMessage,
+      message: 'Error fetching profiles',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

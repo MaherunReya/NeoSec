@@ -67,7 +67,6 @@ const Device = sequelize.define('Device', {
 }, {
   tableName: 'devices',
   timestamps: true,
-  underscored: false, // Disable underscored since database uses camelCase columns
   indexes: [
     { fields: ['userId'] },
     { fields: ['deviceId'] },

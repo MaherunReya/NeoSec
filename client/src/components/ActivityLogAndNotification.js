@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { notificationAPI, activityLogAPI, getErrorMessage } from '../services/api';
+import { notificationAPI, activityLogAPI } from '../services/api';
 import { 
   FiSearch,
   FiFilter,

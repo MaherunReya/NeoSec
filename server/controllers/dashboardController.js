@@ -4,14 +4,10 @@ const User = require('../models/User');
 const VpnConfig = require('../models/VpnConfig');
 const Threat = require('../models/Threat');
 const Profile = require('../models/Profile');
+const ProfileLog = require('../models/ProfileLog');
+const ActivityLog = require('../models/ActivityLog');
 const Notification = require('../models/Notification');
 const DataTransfer = require('../models/DataTransfer');
-const ActivityLog = require('../models/ActivityLog');
-const BlocklistIP = require('../models/BlocklistIP');
-const GroupMember = require('../models/GroupMember');
-const Device = require('../models/Device');
-const LoginHistory = require('../models/LoginHistory');
-const { getClientIP } = require('../utils/ipUtils');
 
 // Helper to format time ago
 const getTimeAgo = (date) => {
@@ -25,281 +21,6 @@ const getTimeAgo = (date) => {
   if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
   if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
   return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-};
-
-// Helper to format inactive time
-const formatInactiveTime = (minutes) => {
-  if (minutes < 60) {
-    return `${Math.floor(minutes)}m ago`;
-  } else {
-    const hours = Math.floor(minutes / 60);
-    const mins = Math.floor(minutes % 60);
-    return mins > 0 ? `${hours}h ${mins}m ago` : `${hours}h ago`;
-  }
-};
-
-// Helper to get active users
-const getActiveUsers = async (userId, userRole) => {
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-  const now = new Date();
-  
-  if (userRole === 'admin') {
-    // Admins see all active users
-    // Get all devices (both active and inactive within 1 hour)
-    const allDevices = await Device.findAll({
-      where: {
-        lastOnlineAt: { [Op.gte]: oneHourAgo },
-        isActive: true
-      },
-      attributes: ['userId', 'lastOnlineAt'],
-      order: [['lastOnlineAt', 'DESC']]
-    });
-    
-    // Get device user IDs
-    const deviceUserIds = [...new Set(allDevices.map(d => d.userId).filter(id => id && id !== userId))];
-    
-    // Get login history for users without devices or as fallback
-    const recentLogins = await LoginHistory.findAll({
-      where: {
-        success: true,
-        createdAt: { [Op.gte]: oneHourAgo }
-      },
-      attributes: ['userId', 'createdAt'],
-      raw: true,
-      order: [['createdAt', 'DESC']]
-    });
-    
-    // Combine user IDs from devices and logins
-    const allUserIds = [...new Set([
-      ...deviceUserIds,
-      ...recentLogins.map(l => l.userId).filter(id => id && id !== userId)
-    ])];
-    
-    if (allUserIds.length === 0) {
-      return [];
-    }
-    
-    // Get users with approved accounts
-    const users = await User.findAll({
-      where: { 
-        id: { [Op.in]: allUserIds },
-        isApproved: true
-      },
-      attributes: ['id', 'email', 'role', 'accountType']
-    });
-    
-    // Enrich users with status information
-    const usersWithStatus = users.map(user => {
-      // Find most recent device activity
-      const userDevices = allDevices.filter(d => d.userId === user.id);
-      const mostRecentDevice = userDevices.length > 0 
-        ? userDevices.reduce((latest, current) => 
-            current.lastOnlineAt > latest.lastOnlineAt ? current : latest
-          )
-        : null;
-      
-      // Find most recent login
-      const userLogins = recentLogins.filter(l => l.userId === user.id);
-      const mostRecentLogin = userLogins.length > 0
-        ? userLogins.reduce((latest, current) => 
-            new Date(current.createdAt) > new Date(latest.createdAt) ? current : latest
-          )
-        : null;
-      
-      // Determine status
-      let isActive = false;
-      let inactiveDuration = null;
-      let statusText = 'now';
-      
-      if (mostRecentDevice) {
-        const deviceMinutesAgo = (now - new Date(mostRecentDevice.lastOnlineAt)) / (1000 * 60);
-        if (deviceMinutesAgo <= 5) {
-          isActive = true;
-          statusText = 'now';
-        } else {
-          isActive = false;
-          inactiveDuration = deviceMinutesAgo;
-          statusText = formatInactiveTime(deviceMinutesAgo);
-        }
-      } else if (mostRecentLogin) {
-        const loginMinutesAgo = (now - new Date(mostRecentLogin.createdAt)) / (1000 * 60);
-        if (loginMinutesAgo <= 5) {
-          isActive = true;
-          statusText = 'now';
-        } else {
-          isActive = false;
-          inactiveDuration = loginMinutesAgo;
-          statusText = formatInactiveTime(loginMinutesAgo);
-        }
-      }
-      
-      // Only include users inactive for less than 1 hour
-      if (inactiveDuration !== null && inactiveDuration >= 60) {
-        return null; // Filter out users inactive > 1 hour
-      }
-      
-      return {
-        ...user.toJSON(),
-        isActive,
-        inactiveDuration,
-        statusText
-      };
-    }).filter(u => u !== null) // Remove null entries
-      .sort((a, b) => {
-        // Sort: Active users first (green), then inactive users (yellow)
-        // Within each group, sort by most recent activity first
-        if (a.isActive !== b.isActive) {
-          return b.isActive - a.isActive; // true (1) comes before false (0)
-        }
-        // If both have same status, sort by inactiveDuration (lower = more recent)
-        const aDuration = a.inactiveDuration || 0;
-        const bDuration = b.inactiveDuration || 0;
-        return aDuration - bDuration;
-      });
-    
-    return usersWithStatus;
-  } else {
-    // Regular users see only active users in their groups
-    const userGroups = await GroupMember.findAll({
-      where: {
-        userId: userId,
-        status: 'accepted'
-      },
-      attributes: ['groupId']
-    });
-    
-    if (userGroups.length === 0) {
-      return [];
-    }
-    
-    const groupIds = userGroups.map(gm => gm.groupId);
-    
-    // Get all members of user's groups
-    const groupMembers = await GroupMember.findAll({
-      where: {
-        groupId: { [Op.in]: groupIds },
-        status: 'accepted',
-        userId: { [Op.ne]: userId }
-      },
-      attributes: ['userId']
-    });
-    
-    const memberUserIds = [...new Set(groupMembers.map(gm => gm.userId))];
-    
-    if (memberUserIds.length === 0) {
-      return [];
-    }
-    
-    // Get all devices for group members (within 1 hour)
-    const allDevices = await Device.findAll({
-      where: {
-        userId: { [Op.in]: memberUserIds },
-        lastOnlineAt: { [Op.gte]: oneHourAgo },
-        isActive: true
-      },
-      attributes: ['userId', 'lastOnlineAt'],
-      order: [['lastOnlineAt', 'DESC']]
-    });
-    
-    // Get login history for group members
-    const recentLogins = await LoginHistory.findAll({
-      where: {
-        userId: { [Op.in]: memberUserIds },
-        success: true,
-        createdAt: { [Op.gte]: oneHourAgo }
-      },
-      attributes: ['userId', 'createdAt'],
-      raw: true,
-      order: [['createdAt', 'DESC']]
-    });
-    
-    // Combine user IDs
-    const allUserIds = [...new Set([
-      ...allDevices.map(d => d.userId),
-      ...recentLogins.map(l => l.userId)
-    ])];
-    
-    if (allUserIds.length === 0) {
-      return [];
-    }
-    
-    const users = await User.findAll({
-      where: { id: { [Op.in]: allUserIds } },
-      attributes: ['id', 'email', 'role', 'accountType']
-    });
-    
-    // Enrich users with status information
-    const usersWithStatus = users.map(user => {
-      // Find most recent device activity
-      const userDevices = allDevices.filter(d => d.userId === user.id);
-      const mostRecentDevice = userDevices.length > 0 
-        ? userDevices.reduce((latest, current) => 
-            current.lastOnlineAt > latest.lastOnlineAt ? current : latest
-          )
-        : null;
-      
-      // Find most recent login
-      const userLogins = recentLogins.filter(l => l.userId === user.id);
-      const mostRecentLogin = userLogins.length > 0
-        ? userLogins.reduce((latest, current) => 
-            new Date(current.createdAt) > new Date(latest.createdAt) ? current : latest
-          )
-        : null;
-      
-      // Determine status
-      let isActive = false;
-      let inactiveDuration = null;
-      let statusText = 'now';
-      
-      if (mostRecentDevice) {
-        const deviceMinutesAgo = (now - new Date(mostRecentDevice.lastOnlineAt)) / (1000 * 60);
-        if (deviceMinutesAgo <= 5) {
-          isActive = true;
-          statusText = 'now';
-        } else {
-          isActive = false;
-          inactiveDuration = deviceMinutesAgo;
-          statusText = formatInactiveTime(deviceMinutesAgo);
-        }
-      } else if (mostRecentLogin) {
-        const loginMinutesAgo = (now - new Date(mostRecentLogin.createdAt)) / (1000 * 60);
-        if (loginMinutesAgo <= 5) {
-          isActive = true;
-          statusText = 'now';
-        } else {
-          isActive = false;
-          inactiveDuration = loginMinutesAgo;
-          statusText = formatInactiveTime(loginMinutesAgo);
-        }
-      }
-      
-      // Only include users inactive for less than 1 hour
-      if (inactiveDuration !== null && inactiveDuration >= 60) {
-        return null; // Filter out users inactive > 1 hour
-      }
-      
-      return {
-        ...user.toJSON(),
-        isActive,
-        inactiveDuration,
-        statusText
-      };
-    }).filter(u => u !== null) // Remove null entries
-      .sort((a, b) => {
-        // Sort: Active users first (green), then inactive users (yellow)
-        // Within each group, sort by most recent activity first
-        if (a.isActive !== b.isActive) {
-          return b.isActive - a.isActive; // true (1) comes before false (0)
-        }
-        // If both have same status, sort by inactiveDuration (lower = more recent)
-        const aDuration = a.inactiveDuration || 0;
-        const bDuration = b.inactiveDuration || 0;
-        return aDuration - bDuration;
-      });
-    
-    return usersWithStatus;
-  }
 };
 
 // @desc    Get dashboard data (VPN status and threats blocked)
@@ -348,16 +69,11 @@ const getDashboard = async (req, res) => {
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const lastWeekAgo = new Date();
     lastWeekAgo.setDate(lastWeekAgo.getDate() - 14);
-    const oneDayAgo = new Date();
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
     let threatsThisWeek = 0;
     let threatsLastWeek = 0;
-    let last24HoursThreats = 0;
-    let totalThreats = 0;
     
     try {
-      // Count from Threat table (actual blocked threats)
       threatsThisWeek = await Threat.count({
         where: {
           userId: userId,
@@ -378,63 +94,6 @@ const getDashboard = async (req, res) => {
           }
         }
       });
-
-      last24HoursThreats = await Threat.count({
-        where: {
-          userId: userId,
-          blocked: true,
-          createdAt: {
-            [Op.gte]: oneDayAgo
-          }
-        }
-      });
-
-      totalThreats = await Threat.count({
-        where: {
-          userId: userId,
-          blocked: true
-        }
-      });
-
-      // Also count from ActivityLog for more accurate blocking stats
-      // This includes blocks even when user wasn't authenticated
-      const activityLogThreatsThisWeek = await ActivityLog.count({
-        where: {
-          eventType: 'Blocked Threat',
-          status: 'Blocked',
-          createdAt: {
-            [Op.gte]: oneWeekAgo
-          },
-          // Include system blocks (userId is null) or user-specific blocks
-          [Op.or]: [
-            { userId: userId },
-            { userId: null } // System-wide blocks
-          ]
-        }
-      });
-
-      // Use the higher count (ActivityLog is more comprehensive)
-      if (activityLogThreatsThisWeek > threatsThisWeek) {
-        threatsThisWeek = activityLogThreatsThisWeek;
-      }
-
-      const activityLogThreatsLast24h = await ActivityLog.count({
-        where: {
-          eventType: 'Blocked Threat',
-          status: 'Blocked',
-          createdAt: {
-            [Op.gte]: oneDayAgo
-          },
-          [Op.or]: [
-            { userId: userId },
-            { userId: null }
-          ]
-        }
-      });
-
-      if (activityLogThreatsLast24h > last24HoursThreats) {
-        last24HoursThreats = activityLogThreatsLast24h;
-      }
     } catch (threatError) {
       console.error('Error counting threats:', threatError);
       // Continue with zero values
@@ -445,12 +104,9 @@ const getDashboard = async (req, res) => {
       ? Math.round(((threatsThisWeek - threatsLastWeek) / threatsLastWeek) * 100)
       : threatsThisWeek > 0 ? 100 : 0;
 
-    // Get total unique blocked IPs from both Threat table and BlocklistIP table
+    // Get total unique blocked IPs
     let uniqueBlockedIPs = [];
-    let totalBlocklistIPs = 0;
-    
     try {
-      // Get unique IPs from Threat table (actually blocked)
       uniqueBlockedIPs = await Threat.findAll({
         where: {
           userId: userId,
@@ -460,9 +116,6 @@ const getDashboard = async (req, res) => {
         attributes: ['sourceIp'],
         group: ['sourceIp']
       });
-
-      // Also get total IPs in blocklist (available to block)
-      totalBlocklistIPs = await BlocklistIP.count();
     } catch (uniqueIPsError) {
       console.error('Error getting unique blocked IPs:', uniqueIPsError);
       // Continue with empty array
@@ -481,7 +134,7 @@ const getDashboard = async (req, res) => {
       console.error('Error getting active profile:', profileError);
     }
 
-    // Get recent activity logs (combine threats, notifications, and activity logs)
+    // Get recent activity logs (combine threats, notifications, profile logs, and activity logs)
     const oneWeekAgoForLogs = new Date();
     oneWeekAgoForLogs.setDate(oneWeekAgoForLogs.getDate() - 7);
 
@@ -520,7 +173,23 @@ const getDashboard = async (req, res) => {
       console.error('Error getting recent notifications:', notificationsError);
     }
 
-    // Get ActivityLog entries (VPN, Firewall, Profile activities, etc.)
+    let recentProfileLogs = [];
+    try {
+      recentProfileLogs = await ProfileLog.findAll({
+        where: {
+          userId: userId,
+          createdAt: {
+            [Op.gte]: oneWeekAgoForLogs
+          }
+        },
+        order: [['createdAt', 'DESC']],
+        limit: 10,
+        attributes: ['id', 'action', 'description', 'createdAt']
+      });
+    } catch (profileLogsError) {
+      console.error('Error getting recent profile logs:', profileLogsError);
+    }
+
     let recentActivityLogs = [];
     try {
       recentActivityLogs = await ActivityLog.findAll({
@@ -531,11 +200,11 @@ const getDashboard = async (req, res) => {
           }
         },
         order: [['createdAt', 'DESC']],
-        limit: 15, // Get more to account for filtering
+        limit: 10,
         attributes: ['id', 'eventType', 'description', 'status', 'severity', 'createdAt']
       });
-    } catch (activityLogError) {
-      console.error('Error getting recent activity logs:', activityLogError);
+    } catch (activityLogsError) {
+      console.error('Error getting recent activity logs:', activityLogsError);
     }
 
     // Combine and sort activities
@@ -552,16 +221,24 @@ const getDashboard = async (req, res) => {
         type: 'notification',
         message: n.message || n.title,
         timestamp: n.createdAt,
-        isBlocked: n.eventType ? (n.eventType.includes('error') || n.eventType.includes('failed')) : false
+        isBlocked: n.eventType ? (String(n.eventType).toLowerCase().includes('error') || String(n.eventType).toLowerCase().includes('failed')) : false
       })),
-      ...recentActivityLogs.map(log => ({
-        id: log.id,
-        type: log.eventType.toLowerCase().replace(/\s+/g, '_'), // e.g., 'vpn_connection', 'firewall_rule_update'
-        message: log.description,
-        timestamp: log.createdAt,
-        isBlocked: log.status === 'Blocked' || log.severity === 'critical',
-        eventType: log.eventType,
-        status: log.status
+      ...recentProfileLogs.map(p => ({
+        id: `profile-${p.id}`,
+        type: 'profile',
+        message: p.description || `Profile ${String(p.action || 'updated').toLowerCase()}`,
+        timestamp: p.createdAt,
+        isBlocked: false
+      })),
+      ...recentActivityLogs.map(a => ({
+        id: `activity-${a.id}`,
+        type: 'activity',
+        message: a.description || a.eventType || 'Activity',
+        timestamp: a.createdAt,
+        isBlocked:
+          String(a.status || '').toLowerCase() === 'blocked' ||
+          String(a.status || '').toLowerCase() === 'failed' ||
+          String(a.severity || '').toLowerCase() === 'critical'
       }))
     ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 10);
 
@@ -606,38 +283,33 @@ const getDashboard = async (req, res) => {
     const sentPercentage = Math.min((gbSent / maxGB) * 100, 100);
     const receivedPercentage = Math.min((gbReceived / maxGB) * 100, 100);
 
-    // Note: last24HoursThreats and totalThreats are already calculated above
-
-    // Get client IP address (actual connection IP when VPN is active)
-    let clientIP = null;
-    if (activeVpn) {
-      try {
-        clientIP = getClientIP(req);
-        // If it's localhost in development, use server address as fallback
-        if (clientIP === '127.0.0.1 (Local Development)' || clientIP === '127.0.0.1' || clientIP === 'unknown') {
-          clientIP = activeVpn.serverAddress || null;
-        }
-      } catch (ipError) {
-        console.error('Error getting client IP:', ipError);
-        // Fallback to server address
-        clientIP = activeVpn.serverAddress || null;
-      }
-    }
-
-    // Get active users
-    let activeUsers = [];
+    // Calculate additional threat counts
+    let last24HoursThreats = 0;
+    let totalThreats = 0;
+    
     try {
-      console.log(`dashboard: Getting active users for user ${userId}, role: ${req.user.role}`);
-      activeUsers = await getActiveUsers(userId, req.user.role);
-      console.log(`dashboard: Found ${activeUsers.length} active users for ${req.user.role}`);
-      if (activeUsers.length > 0) {
-        console.log(`dashboard: Active users:`, activeUsers.map(u => u.email));
-      } else {
-        console.log(`dashboard: No active users found (current user ${userId} is excluded)`);
-      }
-    } catch (activeUsersError) {
-      console.error('Error getting active users:', activeUsersError);
-      console.error('Active users error stack:', activeUsersError.stack);
+      last24HoursThreats = await Threat.count({
+        where: {
+          userId: userId,
+          blocked: true,
+          createdAt: {
+            [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000)
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Error counting last24Hours threats:', err);
+    }
+    
+    try {
+      totalThreats = await Threat.count({
+        where: {
+          userId: userId,
+          blocked: true
+        }
+      });
+    } catch (err) {
+      console.error('Error counting total threats:', err);
     }
 
     res.status(200).json({
@@ -645,18 +317,18 @@ const getDashboard = async (req, res) => {
       data: {
         vpnStatus: {
           connected: !!activeVpn,
+          configId: activeVpn ? activeVpn.id : null,
           server: activeVpn ? activeVpn.serverAddress : null,
           protocol: activeVpn ? activeVpn.protocol : null,
           configName: activeVpn ? activeVpn.name : null,
           serverLocation: activeVpn ? (activeVpn.description || 'Unknown Location') : null,
-          ipAddress: clientIP, // Dynamic IP from request or server address
+          ipAddress: activeVpn ? '192.168.1.50' : null, // Placeholder - would need actual connection IP
           connectionTime: connectionTime
         },
         threatsBlocked: {
           thisWeek: threatsThisWeek,
           percentageChange: percentageChange,
           totalBlockedIPs: uniqueBlockedIPs.length || 0,
-          totalBlocklistIPs: totalBlocklistIPs, // Total IPs in blocklist (available to block)
           last24Hours: last24HoursThreats,
           total: totalThreats
         },
@@ -679,8 +351,7 @@ const getDashboard = async (req, res) => {
           timestamp: a.timestamp,
           timeAgo: getTimeAgo(new Date(a.timestamp)),
           isBlocked: a.isBlocked
-        })),
-        activeUsers: activeUsers
+        }))
       }
     });
   } catch (error) {

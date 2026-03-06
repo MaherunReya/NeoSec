@@ -176,7 +176,7 @@ const Register = ({ onSwitchToLogin }) => {
                     fontSize: '14px',
                     margin: '0 0 32px 0'
                 }}>
-                    {step === 1 ? 'Join NeoShield today' : 'Enter verification code'}
+                    {step === 1 ? 'Join NeoSec today' : 'Enter verification code'}
                 </p>
 
                 {error && (
