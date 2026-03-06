@@ -14,6 +14,7 @@ import { useScreenSize } from './hooks/useScreenSize';
 
 // Layout Components
 import Sidebar from './components/Layout/Sidebar';
+import FloatingTopNav from './components/Layout/FloatingTopNav';
 import DashboardView from './components/Views/DashboardView';
 import AdminUsersView from './components/Views/AdminUsersView';
 import Toast from './components/Common/Toast';
@@ -366,13 +367,19 @@ if (isShareManagementPage) {
                     setSidebarOpen={setSidebarOpen}
                     handleLogout={handleLogout}
                 />
+                <FloatingTopNav
+                    user={user}
+                    currentView={currentView}
+                    setCurrentView={setCurrentView}
+                    isMobile={isMobile}
+                />
                 <div style={{
                     flex: 1,
                     padding: isMobile ? '16px' : isTablet ? '24px' : '40px',
-                    paddingTop: isMobile ? '64px' : (isTablet ? '24px' : '40px'),
+                    paddingTop: isMobile ? '64px' : '96px',
                     overflowY: 'auto',
                     backgroundColor: palette.bgMain,
-                    marginLeft: isMobile ? (sidebarOpen ? '260px' : '0') : '260px',
+                    marginLeft: isMobile ? (sidebarOpen ? '240px' : '0') : '72px',
                     transition: 'all 0.3s ease',
                     height: '100vh'
                 }}>
@@ -406,17 +413,23 @@ if (isShareManagementPage) {
                         setSidebarOpen={setSidebarOpen}
                         handleLogout={handleLogout}
                     />
+                    <FloatingTopNav
+                        user={user}
+                        currentView={currentView}
+                        setCurrentView={setCurrentView}
+                        isMobile={isMobile}
+                    />
                     
 
                     {/* Main Content */}
                     <div style={{
                         flex: 1,
                         padding: isMobile ? '16px' : isTablet ? '24px' : '40px',
-                        paddingTop: isMobile ? '64px' : (isTablet ? '24px' : '40px'),
+                        paddingTop: isMobile ? '64px' : '96px',
                         overflowY: 'auto',
                         backgroundColor: palette.bgMain,
                         color: palette.text,
-                        marginLeft: isMobile ? (sidebarOpen ? '260px' : '0') : '260px',  
+                        marginLeft: isMobile ? (sidebarOpen ? '240px' : '0') : '72px',
                         transition: 'background-color 0.3s ease, color 0.3s ease, padding 0.3s ease, margin-left 0.3s ease, padding-top 0.3s ease',
                         height: '100vh'  
                     }}>
