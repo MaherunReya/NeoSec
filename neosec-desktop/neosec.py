@@ -1,4 +1,4 @@
-from socket_client import SocketClient
+from client import NeosecClient
 from PySide6.QtCore import QObject, Signal, Slot, QRunnable, QThreadPool
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtGui import QGuiApplication
@@ -10,13 +10,6 @@ import requests
 import json
 from pathlib import Path
 
-SIGNUP_URL = "http://localhost:3000"
-BACKEND_URL = "http://localhost:5000"
-AUTH_FILE = Path.home() / ".local/share/neosec/auth.json"
-AUTH_FILE.parent.mkdir(parents=True, exist_ok=True)
-AUTH_URL = f"{BACKEND_URL}/api/auth/login"
-VERIFICATION_URL = f"{BACKEND_URL}/api/auth/verify"
-FIREWALL_URL = f"{BACKEND_URL}/api/firewall"
 from config import *
 
 class AuthWorker(QRunnable):
@@ -284,8 +277,7 @@ class Backend(QObject):
 if __name__ == "__main__":
     app = QGuiApplication(sys.argv)
     
-    socket_client = SocketClient()
-    socket_client = SocketClient()
+    socket_client = NeosecClient()
     # socket_client.connect("neosec") - Removed, connection happens after login
     
     engine = QQmlApplicationEngine()
