@@ -1,9 +1,7 @@
-const brevo = require('@getbrevo/brevo');
+const { BrevoClient } = require('@getbrevo/brevo');
 
 // Initialize Brevo API client
-let apiInstance = new brevo.TransactionalEmailsApi();
-let apiKey = apiInstance.authentications['apiKey'];
-apiKey.apiKey = process.env.BREVO_API_KEY || '';
+let apiInstance = new BrevoClient({ apiKey: process.env.BREVO_API_KEY || '' });
 
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@yourdomain.com';
 const FROM_NAME = process.env.FROM_NAME || 'NeoSec Security';
@@ -18,22 +16,20 @@ const sendEmail = async ({ to, subject, text, html }) => {
             return { success: false, message: 'Email service not configured' };
         }
 
-        let sendSmtpEmail = new brevo.SendSmtpEmail();
-
-        sendSmtpEmail.sender = {
-            email: FROM_EMAIL,
-            name: FROM_NAME
+        const sendSmtpEmail = {
+            sender: {
+                email: FROM_EMAIL,
+                name: FROM_NAME
+            },
+            to: Array.isArray(to)
+                ? to.map(email => ({ email }))
+                : [{ email: to }],
+            subject: subject,
+            htmlContent: html || `<html><body><pre>${text}</pre></body></html>`,
+            textContent: text
         };
 
-        sendSmtpEmail.to = Array.isArray(to)
-            ? to.map(email => ({ email }))
-            : [{ email: to }];
-
-        sendSmtpEmail.subject = subject;
-        sendSmtpEmail.htmlContent = html || `<html><body><pre>${text}</pre></body></html>`;
-        sendSmtpEmail.textContent = text;
-
-        const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+        const result = await apiInstance.transactionalEmails.sendTransacEmail(sendSmtpEmail);
         console.log('Email sent successfully:', result.messageId);
 
         return {

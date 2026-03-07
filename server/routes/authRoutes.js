@@ -4,7 +4,9 @@ const {
   register,
   login,
   getMe,
-  updateProfile
+  updateProfile,
+  sendOtp,
+  verifyOtpAndRegister
 } = require('../controllers/authController');
 const { validateRegister, validateLogin, validateSendOtp, validateVerifyOtpRegister } = require('../validations/authValidation');
 const { protect } = require('../middleware/auth');
