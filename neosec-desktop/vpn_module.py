@@ -3,6 +3,7 @@ import json
 import subprocess
 import re
 from PySide6.QtCore import QObject, Signal, Property, Slot, QTimer
+from config import VPN_DIR, VPN_METADATA_FILE
 
 class VpnManager(QObject):
     configsChanged = Signal()
@@ -12,8 +13,8 @@ class VpnManager(QObject):
 
     def __init__(self):
         super().__init__()
-        self._vpn_dir = os.path.expanduser("~/.local/share/neosec/vpns/")
-        self._metadata_file = os.path.join(self._vpn_dir, "vpns.json")
+        self._vpn_dir = str(VPN_DIR)
+        self._metadata_file = str(VPN_METADATA_FILE)
         self._configs = []
         self._active_vpn_id = ""
         self._ensure_dir_exists()
