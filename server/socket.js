@@ -21,25 +21,37 @@ const initializeSocket = (server) => {
 
     // Authentication middleware
     io.use((socket, next) => {
-        const token = socket.handshake.auth.token || socket.handshake.headers.token;
+        let token = socket.handshake.auth.token || socket.handshake.headers.token;
         if (!token) {
             return next(new Error('Authentication error: Token missing'));
         }
 
+        // Support tokens passed as "Bearer eyJhb..."
+        if (token.startsWith('Bearer ')) {
+            token = token.slice(7);
+        }
+
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            socket.userId = decoded.id; // Store userId in socket object
+            console.log("[Socket] Token decoded:", decoded);
+            
+            socket.userId = decoded.userId;
+            
+            if (!socket.userId) {
+                console.error("[Socket] Failed to find userId in token payload");
+            }
             next();
         } catch (err) {
+            console.error("[Socket] Token verification failed:", err.message);
             next(new Error('Authentication error: Invalid token'));
         }
     });
 
     io.on('connection', (socket) => {
-        console.log(`Socket connected: ${socket.id} for user ${socket.userId}`);
+        const userId = String(socket.userId);
+        console.log(`Socket connected: ${socket.id} for user ${userId}`);
 
         // Add socket to user's list of connected sockets
-        const userId = socket.userId;
         if (!userSockets.has(userId)) {
             userSockets.set(userId, new Set());
         }
@@ -80,11 +92,17 @@ const emitToUser = (userId, event, data) => {
         return;
     }
 
-    const socketIds = userSockets.get(userId);
+    const uid = String(userId);
+    console.log(`[Socket] Attempting to emit '${event}' to user ${uid}`);
+    
+    const socketIds = userSockets.get(uid);
     if (socketIds && socketIds.size > 0) {
+        console.log(`[Socket] Found ${socketIds.size} sockets for user ${uid}, emitting...`);
         socketIds.forEach((socketId) => {
             io.to(socketId).emit(event, data);
         });
+    } else {
+        console.log(`[Socket] No active sockets found for user ${uid}.`);
     }
 };
 
