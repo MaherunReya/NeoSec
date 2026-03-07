@@ -153,13 +153,16 @@ const createCheckoutSession = async (req, res) => {
         paidAt: new Date(),
       });
 
+      const dynamicClientUrl = req.headers.origin || process.env.CLIENT_URL || 'http://localhost:3000';
       return res.json({
         success: true,
-        url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/?view=subscription&success=true&mock=true`,
+        url: `${dynamicClientUrl}/?view=subscription&success=true&mock=true`,
         mock: true,
         message: 'Stripe is not configured; applied development upgrade flow.',
       });
     }
+
+    const dynamicClientUrl = req.headers.origin || process.env.CLIENT_URL || 'http://localhost:3000';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -171,8 +174,8 @@ const createCheckoutSession = async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/?view=subscription&success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/?view=subscription&canceled=true`,
+      success_url: `${dynamicClientUrl}/?view=subscription&success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${dynamicClientUrl}/?view=subscription&canceled=true`,
       metadata: {
         userId: req.user.id,
         tier,
