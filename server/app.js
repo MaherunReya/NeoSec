@@ -87,31 +87,37 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
     : ['http://localhost:3000'];
 
-app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
+app.use(cors("*"))
 
-        // Check if origin is in allowed list
-        if (allowedOrigins.includes(origin)) {
-            callback(null, true);
-        }
-        // Also allow any Vercel preview URL in production
-        else if (process.env.NODE_ENV === 'production' && origin.includes('.vercel.app')) {
-            callback(null, true);
-        }
-        else {
-            console.log('CORS blocked origin:', origin);
-            console.log('Allowed origins:', allowedOrigins);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    preflightContinue: false,
-    optionsSuccessStatus: 204
-}));
+// app.use(cors({
+//     origin: function (origin, callback) {
+//         // Allow requests with no origin (like mobile apps or curl requests)
+//         if (!origin) return callback(null, true);
+
+//         // Check if origin is in allowed list
+//         if (allowedOrigins.includes(origin)) {
+//             callback(null, true);
+//         }
+//         // Also allow any Vercel preview URL in production
+//         else if (process.env.NODE_ENV === 'production' && origin.includes('.vercel.app')) {
+//             callback(null, true);
+//         }
+//         // Allow neosec domain
+//         else if (origin.endsWith('linuxis.fun')) {
+//             callback(null, true);
+//         }
+//         else {
+//             console.log('CORS blocked origin:', origin);
+//             console.log('Allowed origins:', allowedOrigins);
+//             callback(new Error('Not allowed by CORS'));
+//         }
+//     },
+//     credentials: true,
+//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+//     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+//     preflightContinue: false,
+//     optionsSuccessStatus: 204
+// }));
 
 // Body parser middleware
 app.use(express.json());
