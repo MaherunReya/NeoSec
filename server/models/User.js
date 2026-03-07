@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/db');
 const bcrypt = require('bcryptjs');
+const { emitToUser } = require('../socket');
 
 const User = sequelize.define('User', {
     id: {
@@ -64,6 +65,16 @@ const User = sequelize.define('User', {
                 const salt = await bcrypt.genSalt(10);
                 user.password = await bcrypt.hash(user.password, salt);
             }
+        },
+        afterUpdate: async (user, options) => {
+            // Trigger WebSocket update
+            emitToUser(user.id, 'userUpdated', user.toJSON());
+        },
+        afterSave: async (user, options) => {
+             // Only emit if it is not a new record to avoid duplication with afterCreate
+             if (!user.isNewRecord) {
+                 emitToUser(user.id, 'userUpdated', user.toJSON());
+             }
         }
     }
 });
