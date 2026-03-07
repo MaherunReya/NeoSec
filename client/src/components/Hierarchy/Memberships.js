@@ -39,7 +39,7 @@ const permissions = [
   'View group activity logs',
 ];
 
-const Memberships = ({ palette: appPalette }) => {
+const Memberships = ({ palette: appPalette, showToast }) => {
   const palette = getPagePalette(appPalette);
   const [memberships, setMemberships] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +72,7 @@ const Memberships = ({ palette: appPalette }) => {
         setMemberships(memberships.filter((membership) => membership.id !== membershipId));
       }
     } catch (leaveError) {
-      alert('Failed to leave group');
+      showToast('Failed to leave group', 'error');
     }
   };
 

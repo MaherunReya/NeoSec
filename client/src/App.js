@@ -261,7 +261,6 @@ function App() {
             console.error('Update user error:', error);
             const msg = error.response?.data?.message || error.message || 'Failed to update user';
             showToast(msg, 'error');
-            alert(msg);
         }
     };
 
@@ -278,7 +277,6 @@ function App() {
             console.error('Delete user error:', error);
             const msg = error.response?.data?.message || error.message || 'Failed to delete user';
             showToast(msg, 'error');
-            alert(msg);
         }
     };
 
@@ -407,7 +405,7 @@ function App() {
     if (showHome) {
         return (
             <>
-                <HomePage user={user} onGetStarted={() => {
+                <HomePage user={user} showToast={showToast} onGetStarted={() => {
                     setShowHome(false);
                     if (typeof window !== 'undefined' && window.location.search.includes('home=true')) {
                         window.history.replaceState({}, document.title, window.location.pathname);
@@ -494,7 +492,7 @@ function App() {
 
                         {/* Account Settings View */}
                         {currentView === 'account-settings' && (
-                            <AccountSettings theme={theme} palette={palette} />
+                            <AccountSettings theme={theme} palette={palette} showToast={showToast} />
                         )}
 
                         {/* Scan View */}
@@ -513,6 +511,7 @@ function App() {
                             user={user}
                             theme={theme}
                             palette={palette}
+                            showToast={showToast}
                             onUpgradeSuccess={(updatedUser) => {
                                 setUser(updatedUser);
                                 localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -520,9 +519,9 @@ function App() {
                         />
                         )}
 
-                        {currentView === "groups" && user.accountType === "leader" && <Groups user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
-                        {currentView === "invitations" && <Invitations theme={theme} palette={palette} />}
-                        {currentView === "memberships" && <Memberships theme={theme} palette={palette} />}
+                        {currentView === "groups" && user.accountType === "leader" && <Groups user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} showToast={showToast} />}
+                        {currentView === "invitations" && <Invitations theme={theme} palette={palette} showToast={showToast} />}
+                        {currentView === "memberships" && <Memberships theme={theme} palette={palette} showToast={showToast} />}
 
 
                         {/* Audit View */}

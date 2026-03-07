@@ -411,7 +411,7 @@ function FeatureCard({ icon, title, description, accentColor = '#36E27B', delay 
     );
 }
 
-const HomePage = ({ onGetStarted, user }) => {
+const HomePage = ({ onGetStarted, user, showToast }) => {
     const [navSolid, setNavSolid] = useState(false);
     const [currentPlan, setCurrentPlan] = useState(null);
     const [processingTier, setProcessingTier] = useState(null);
@@ -470,7 +470,7 @@ const HomePage = ({ onGetStarted, user }) => {
             if (!res.ok) throw new Error(data.message || 'Failed to create checkout session');
             if (data.url) window.location.href = data.url;
         } catch (err) {
-            alert(err.message);
+            showToast(err.message, 'error');
         } finally {
             setProcessingTier(null);
         }

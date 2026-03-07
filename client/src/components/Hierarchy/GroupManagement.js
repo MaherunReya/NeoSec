@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { hierarchyAPI } from '../../services/hierarchyAPI';
 
-const GroupManagement = ({ user, theme, palette, isMobile, isTablet }) => {
+const GroupManagement = ({ user, theme, palette, isMobile, isTablet, showToast }) => {
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -33,11 +33,11 @@ const GroupManagement = ({ user, theme, palette, isMobile, isTablet }) => {
             const response = await hierarchyAPI.getGroupDetails(group.id);
             if (response.success) {
                 // TODO: Display group details in a modal or separate view
-                alert(`Group: ${response.group.name}\nMembers: ${response.group.members?.length || 0}`);
+                showToast(`Group: ${response.group.name}\nMembers: ${response.group.members?.length || 0}`, 'info');
             }
         } catch (error) {
             console.error('Fetch group details error:', error);
-            alert('Failed to load group details');
+            showToast('Failed to load group details', 'error');
         }
     };
 
@@ -115,7 +115,7 @@ const GroupManagement = ({ user, theme, palette, isMobile, isTablet }) => {
                     <button
                         onClick={() => {
                             // TODO: Implement create group modal
-                            alert('Create group functionality coming soon');
+                            showToast('Create group functionality coming soon', 'info');
                         }}
                         style={{
                             padding: '12px 24px',
@@ -171,7 +171,7 @@ const GroupManagement = ({ user, theme, palette, isMobile, isTablet }) => {
                         <button
                             onClick={() => {
                                 // TODO: Implement create group modal
-                                alert('Create group functionality coming soon');
+                                showToast('Create group functionality coming soon', 'info');
                             }}
                             style={{
                                 padding: '12px 24px',
@@ -239,7 +239,7 @@ const GroupManagement = ({ user, theme, palette, isMobile, isTablet }) => {
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             // TODO: Implement invite member modal
-                                            alert('Invite member functionality coming soon');
+                                            showToast('Invite member functionality coming soon', 'info');
                                         }}
                                         style={{
                                             padding: '6px 12px',

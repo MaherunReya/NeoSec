@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { hierarchyAPI } from '../../services/hierarchyAPI';
 
-const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
+const Groups = ({ user, theme, palette, isMobile, isTablet, showToast }) => {
     const [ownedGroups, setOwnedGroups] = useState([]);
     const [memberships, setMemberships] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -77,11 +77,11 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
             const response = await hierarchyAPI.leaveGroup(membershipId);
             if (response.success) {
                 setMemberships(memberships.filter(m => m.id !== membershipId));
-                alert('You have left the group successfully.');
+                showToast('You have left the group successfully.', 'success');
             }
         } catch (error) {
             console.error('Leave group error:', error);
-            alert('Failed to leave group: ' + (error.message || 'Unknown error'));
+            showToast('Failed to leave group: ' + (error.message || 'Unknown error'), 'error');
         }
     };
 
@@ -89,11 +89,11 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
         try {
             const response = await hierarchyAPI.getGroupDetails(group.id);
             if (response.success) {
-                alert(`Group: ${response.group.name}\nMembers: ${response.group.members?.length || 0}`);
+                showToast(`Group: ${response.group.name}\nMembers: ${response.group.members?.length || 0}`, 'info');
             }
         } catch (error) {
             console.error('Fetch group details error:', error || 'Unknown error');
-            alert('Failed to load group details');
+            showToast('Failed to load group details', 'error');
         }
     };
 
@@ -104,13 +104,13 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
 
     const handleSendInvite = async () => {
         if (!inviteEmail.trim()) {
-            alert('Please enter an email address');
+            showToast('Please enter an email address', 'error');
             return;
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(inviteEmail.trim())) {
-            alert('Please enter a valid email address');
+            showToast('Please enter a valid email address', 'error');
             return;
         }
 
@@ -118,16 +118,16 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
         try {
             const response = await hierarchyAPI.inviteMember(selectedGroupForInvite.id, inviteEmail.trim());
             if (response.success) {
-                alert(`Invitation sent to ${inviteEmail.trim()} successfully!`);
+                showToast(`Invitation sent to ${inviteEmail.trim()} successfully!`, 'success');
                 setInviteModalOpen(false);
                 setInviteEmail('');
                 setSelectedGroupForInvite(null);
             } else {
-                alert(response.message || 'Failed to send invitation');
+                showToast(response.message || 'Failed to send invitation', 'error');
             }
         } catch (error) {
             console.error('Invite member error:', error || 'Unknown error');
-            alert('Failed to send invitation: ' + (error?.message || 'Unknown error'));
+            showToast('Failed to send invitation: ' + (error?.message || 'Unknown error'), 'error');
         } finally {
             setInviteLoading(false);
         }
@@ -140,11 +140,11 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
                 // Remove invitation from list and refresh data
                 setInvitations(invitations.filter(inv => inv.id !== invitationId));
                 await fetchAllData(); // Refresh to get updated memberships
-                alert('Invitation accepted! You are now a member of the group.');
+                showToast('Invitation accepted! You are now a member of the group.', 'success');
             }
         } catch (error) {
             console.error('Accept invitation error:', error || 'Unknown error');
-            alert('Failed to accept invitation: ' + (error?.message || 'Unknown error'));
+            showToast('Failed to accept invitation: ' + (error?.message || 'Unknown error'), 'error');
         }
     };
 
@@ -158,18 +158,18 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
             if (response.success) {
                 // Remove invitation from list
                 setInvitations(invitations.filter(inv => inv.id !== invitationId));
-                alert('Invitation rejected.');
+                showToast('Invitation rejected.', 'success');
             }
         } catch (error) {
             console.error('Reject invitation error:', error || 'Unknown error');
-            alert('Failed to reject invitation: ' + (error?.message || 'Unknown error'));
+            showToast('Failed to reject invitation: ' + (error?.message || 'Unknown error'), 'error');
         }
     };
 
 
     const handleCreateGroup = async () => {
         if (!newGroupName.trim()) {
-            alert('Please enter a group name');
+            showToast('Please enter a group name', 'error');
             return;
         }
 
@@ -182,18 +182,18 @@ const Groups = ({ user, theme, palette, isMobile, isTablet }) => {
             });
 
             if (response.success) {
-                alert('Group created successfully!');
+                showToast('Group created successfully!', 'success');
                 setCreateModalOpen(false);
                 setNewGroupName('');
                 setNewGroupDescription('');
                 setNewGroupMaxMembers(10);
                 await fetchAllData();
             } else {
-                alert(response.message || 'Failed to create group');
+                showToast(response.message || 'Failed to create group', 'error');
             }
         } catch (error) {
             console.error('Create group error:', error);
-            alert('Failed to create group: ' + (error?.message || 'Unknown error'));
+            showToast('Failed to create group: ' + (error?.message || 'Unknown error'), 'error');
         } finally {
             setCreateLoading(false);
         }
