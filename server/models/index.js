@@ -28,7 +28,7 @@ ProfileLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 Profile.hasMany(ProfileLog, { foreignKey: 'profileId', as: 'logs', onDelete: 'CASCADE' });
 ProfileLog.belongsTo(Profile, { foreignKey: 'profileId', as: 'profile' });
 
-module.exports = {
+const models = {
     User,
     Profile,
     ProfileLog,
@@ -44,3 +44,53 @@ module.exports = {
     VpnConfig,
     UserSettings,
 };
+
+// --- Setup Global WebSockets Broadcasting Hooks ---
+const { emitToUser } = require('../socket');
+
+Object.values(models).forEach(Model => {
+    if (Model && Model.addHook) {
+        Model.addHook('afterSave', (instance, options) => {
+            const modelName = Model.name;
+            const data = instance.toJSON();
+            
+            // Determine which user to broadcast to
+            let userId = null;
+            if (modelName === 'User') {
+                userId = instance.id;
+            } else if (data.userId) {
+                userId = data.userId;
+            } else if (data.UserId) {
+                userId = data.UserId;
+            }
+
+            // Broadcast event automatically if a user is associated
+            if (userId) {
+                // Determine if it was just created or updated
+                const isNew = instance.isNewRecord || (options && options.isNewRecord);
+                const eventName = isNew ? `${modelName}Created` : `${modelName}Updated`;
+                emitToUser(userId, eventName, data);
+            }
+        });
+
+        Model.addHook('afterDestroy', (instance, options) => {
+            const modelName = Model.name;
+            const data = instance.toJSON();
+            
+            let userId = null;
+            if (modelName === 'User') {
+                userId = instance.id;
+            } else if (data.userId) {
+                userId = data.userId;
+            } else if (data.UserId) {
+                userId = data.UserId;
+            }
+
+            if (userId) {
+                emitToUser(userId, `${modelName}Deleted`, data);
+            }
+        });
+    }
+});
+
+module.exports = models;

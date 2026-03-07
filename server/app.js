@@ -62,6 +62,12 @@ const settingsRoutes = require('./routes/settingsRoutes');
 // Initialize Express app
 const app = express();
 
+// Set up HTTP Server for Socket.io
+const http = require('http');
+const server = http.createServer(app);
+const { initializeSocket } = require('./socket');
+initializeSocket(server);
+
 // Trust proxy - important for getting real client IP when behind reverse proxy (Render, etc.)
 app.set('trust proxy', true);
 
@@ -220,7 +226,7 @@ if (!process.env.DATABASE_URL) {
     console.error('Please set DATABASE_URL in your environment variables.');
 }
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`JWT_SECRET: ${process.env.JWT_SECRET ? 'Set' : 'NOT SET - THIS WILL CAUSE ERRORS!'}`);
@@ -228,6 +234,5 @@ app.listen(PORT, () => {
 
 });
 
-
-module.exports = app;
+module.exports = { app, server };
 
