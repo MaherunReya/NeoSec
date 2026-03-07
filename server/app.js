@@ -83,7 +83,12 @@ app.use(
 );
 
 // CORS configuration
-app.use(cors());
+app.use(cors({
+    origin: true,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'token']
+}));
 
 // Body parser middleware
 app.use(express.json());

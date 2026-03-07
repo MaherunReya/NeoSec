@@ -10,7 +10,9 @@ let io;
 const initializeSocket = (server) => {
     io = new Server(server, {
         cors: {
-            origin: "*"
+            origin: true,
+            credentials: true,
+            methods: ['GET', 'POST']
         },
         pingTimeout: 60000, // Heartbeat mechanism is built-in
         pingInterval: 25000,
