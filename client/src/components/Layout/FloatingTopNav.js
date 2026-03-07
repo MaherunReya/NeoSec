@@ -228,7 +228,7 @@ function FloatingTopNav({ user, currentView, setCurrentView, isMobile }) {
 
         {hierarchyItems.length > 0 && (
           <DropdownGroup
-            group={{ key: 'hierarchy', label: 'Hierarchy', items: hierarchyItems.map((item) => ({ ...item, icon: FiUsers })) }}
+            group={{ key: 'hierarchy', label: 'Groups',items: hierarchyItems.map((item) => ({ ...item, icon: FiUsers })) }}
             activeView={currentView}
             onNavigate={setCurrentView}
             openKey={openKey}

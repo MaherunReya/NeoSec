@@ -277,7 +277,7 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
                     <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                         <thead>
                             <tr style={{ background: colors.bgPanel }}>
-                                <th style={{ padding: 12, textAlign: 'left', color: colors.text, width: '16.66%' }}>Status</th>
+                                <th style={{ padding: 12, textAlign: 'left', color: colors.text, width: '16.66%' }}>No.</th>
                                 <th style={{ padding: 12, textAlign: 'left', color: colors.text, width: '16.66%' }}>Name</th>
                                 <th style={{ padding: 12, textAlign: 'left', color: colors.text, width: '16.66%' }}>Protocol</th>
                                 <th style={{ padding: 12, textAlign: 'left', color: colors.text, width: '16.66%' }}>File</th>
@@ -286,15 +286,10 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {configs.map((c) => (
+                            {configs.map((c, index) => (
                                 <tr key={c.id} style={{ borderTop: `1px solid ${colors.border}` }}>
-                                    <td style={{ padding: 12, width: '16.66%' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={c.isActive}
-                                            onChange={() => toggleConfig(c.id)}
-                                            style={{ cursor: 'pointer' }}
-                                        />
+                                    <td style={{ padding: 12, width: '16.66%', color: colors.text }}>
+                                        {index + 1}
                                     </td>
                                     <td style={{ padding: 12, color: colors.text, width: '16.66%' }}>{c.name}</td>
                                     <td style={{ padding: 12, color: colors.text, width: '16.66%' }}>{c.protocol}</td>

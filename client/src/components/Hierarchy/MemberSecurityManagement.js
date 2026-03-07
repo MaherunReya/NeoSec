@@ -4,7 +4,7 @@ import { hierarchyAPI } from '../../services/hierarchyAPI';
 import api from '../../services/api';
 import { FiSettings, FiShield, FiWifi, FiLock, FiUser, FiAlertCircle } from 'react-icons/fi';
 
-const MemberSecurityManagement = ({ user, theme = 'dark', palette = null }) => {
+const MemberSecurityManagement = ({ user, theme = 'dark', palette = null, showToast }) => {
   const darkPalette = {
     bgMain: '#121212', bgCard: '#181818', bgPanel: '#0a0a0a', text: '#ffffff',
     textMuted: '#9aa3b5', border: '#242424', accent: '#1E8C4A', accentSoft: 'rgba(54, 226, 123, 0.12)',
@@ -118,11 +118,11 @@ const MemberSecurityManagement = ({ user, theme = 'dark', palette = null }) => {
       if (response.data.success) {
         // Refresh member profiles
         fetchMemberSecurityData(selectedMember.userId);
-        alert('Profile updated successfully');
+        showToast('Profile updated successfully', 'success');
       }
     } catch (err) {
       console.error('Error updating member profile:', err);
-      alert('Failed to update profile');
+      showToast('Failed to update profile', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -136,11 +136,11 @@ const MemberSecurityManagement = ({ user, theme = 'dark', palette = null }) => {
       if (response.data.success) {
         // Refresh member firewall rules
         fetchMemberSecurityData(selectedMember.userId);
-        alert('Firewall rule updated successfully');
+        showToast('Firewall rule updated successfully', 'success');
       }
     } catch (err) {
       console.error('Error updating firewall rule:', err);
-      alert('Failed to update firewall rule');
+      showToast('Failed to update firewall rule', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -154,11 +154,11 @@ const MemberSecurityManagement = ({ user, theme = 'dark', palette = null }) => {
       if (response.data.success) {
         // Refresh member VPN configs
         fetchMemberSecurityData(selectedMember.userId);
-        alert('VPN configuration updated successfully');
+        showToast('VPN configuration updated successfully', 'success');
       }
     } catch (err) {
       console.error('Error updating VPN config:', err);
-      alert('Failed to update VPN configuration');
+      showToast('Failed to update VPN configuration', 'error');
     } finally {
       setActionLoading(false);
     }

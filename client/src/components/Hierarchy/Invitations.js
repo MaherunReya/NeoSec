@@ -30,7 +30,7 @@ const invitationInfo = [
   'You can leave a group at any time from the Memberships page.',
 ];
 
-const Invitations = ({ palette: appPalette }) => {
+const Invitations = ({ palette: appPalette, showToast }) => {
   const palette = getPagePalette(appPalette);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +61,7 @@ const Invitations = ({ palette: appPalette }) => {
         setInvitations(invitations.filter((inv) => inv.id !== invitationId));
       }
     } catch (acceptError) {
-      alert('Failed to accept invitation');
+      showToast('Failed to accept invitation', 'error');
     }
   };
 
@@ -74,7 +74,7 @@ const Invitations = ({ palette: appPalette }) => {
         setInvitations(invitations.filter((inv) => inv.id !== invitationId));
       }
     } catch (rejectError) {
-      alert('Failed to reject invitation');
+      showToast('Failed to reject invitation', 'error');
     }
   };
 
