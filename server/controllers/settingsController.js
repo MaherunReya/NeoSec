@@ -1,6 +1,27 @@
 const User = require('../models/User');
 const UserSettings = require('../models/UserSettings');
 const LoginHistory = require('../models/LoginHistory');
+const Notification = require('../models/Notification');
+const Profile = require('../models/Profile');
+const ProfileLog = require('../models/ProfileLog');
+const ScanHistory = require('../models/scanhistory');
+const VpnConfig = require('../models/VpnConfig');
+const FirewallRule = require('../models/FirewallRule');
+const DataTransfer = require('../models/DataTransfer');
+const Threat = require('../models/Threat');
+const Device = require('../models/Device');
+const MFASettings = require('../models/MFASettings');
+const Subscription = require('../models/Subscription');
+const BillingHistory = require('../models/BillingHistory');
+const GroupMember = require('../models/GroupMember');
+const Invitation = require('../models/Invitation');
+const SharedProfile = require('../models/SharedProfile');
+const SharedProfileLog = require('../models/SharedProfileLog');
+const ImpersonationSession = require('../models/ImpersonationSession');
+const AuditLog = require('../models/AuditLog');
+const ActivityLog = require('../models/ActivityLog');
+const OtpVerification = require('../models/OtpVerification');
+const { sequelize } = require('../config/db');
 
 const getDefaultNameParts = (email = '') => {
   const local = String(email || '').split('@')[0] || '';
@@ -194,21 +215,83 @@ const changePassword = async (req, res) => {
 };
 
 const deleteAccount = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
-    const user = await User.findByPk(req.user.id);
+    const user = await User.findByPk(req.user.id, { transaction });
     if (!user) {
+      await transaction.rollback();
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    await LoginHistory.destroy({ where: { userId: user.id } });
-    await UserSettings.destroy({ where: { userId: user.id } });
-    await user.destroy();
+    const profileIds = (
+      await Profile.findAll({
+        where: { userId: user.id },
+        attributes: ['id'],
+        transaction
+      })
+    ).map((profile) => profile.id);
+
+    await Promise.all([
+      LoginHistory.destroy({ where: { userId: user.id }, transaction }),
+      UserSettings.destroy({ where: { userId: user.id }, transaction }),
+      Notification.destroy({ where: { userId: user.id }, transaction }),
+      ScanHistory.destroy({ where: { userId: user.id }, transaction }),
+      VpnConfig.destroy({ where: { userId: user.id }, transaction }),
+      FirewallRule.destroy({ where: { userId: user.id }, transaction }),
+      DataTransfer.destroy({ where: { userId: user.id }, transaction }),
+      Threat.destroy({ where: { userId: user.id }, transaction }),
+      Device.destroy({ where: { userId: user.id }, transaction }),
+      MFASettings.destroy({ where: { userId: user.id }, transaction }),
+      Subscription.destroy({ where: { userId: user.id }, transaction }),
+      BillingHistory.destroy({ where: { userId: user.id }, transaction }),
+      GroupMember.destroy({ where: { userId: user.id }, transaction }),
+      Invitation.destroy({ where: { inviteeId: user.id }, transaction }),
+      Invitation.destroy({ where: { inviterId: user.id }, transaction }),
+      ImpersonationSession.destroy({ where: { adminUserId: user.id }, transaction }),
+      ImpersonationSession.destroy({ where: { targetUserId: user.id }, transaction }),
+      AuditLog.destroy({ where: { adminUserId: user.id }, transaction }),
+      AuditLog.destroy({ where: { targetUserId: user.id }, transaction }),
+      ActivityLog.destroy({ where: { userId: user.id }, transaction }),
+      OtpVerification.destroy({ where: { userId: user.id }, transaction })
+    ]);
+
+    if (profileIds.length > 0) {
+      const sharedProfileIds = (
+        await SharedProfile.findAll({
+          where: { profileId: profileIds },
+          attributes: ['id'],
+          transaction
+        })
+      ).map((share) => share.id);
+
+      if (sharedProfileIds.length > 0) {
+        await SharedProfileLog.destroy({
+          where: { sharedProfileId: sharedProfileIds },
+          transaction
+        });
+      }
+
+      await SharedProfile.destroy({ where: { profileId: profileIds }, transaction });
+      await ProfileLog.destroy({ where: { profileId: profileIds }, transaction });
+      await Profile.destroy({ where: { id: profileIds }, transaction });
+    }
+
+    await SharedProfile.destroy({ where: { userId: user.id }, transaction });
+    await SharedProfile.update(
+      { revokedBy: null },
+      { where: { revokedBy: user.id }, transaction }
+    );
+
+    await user.destroy({ transaction });
+    await transaction.commit();
 
     return res.status(200).json({
       success: true,
       message: 'Account deleted successfully'
     });
   } catch (error) {
+    await transaction.rollback();
     console.error('Delete account error:', error);
     return res.status(500).json({ success: false, message: 'Failed to delete account' });
   }

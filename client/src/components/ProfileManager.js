@@ -636,6 +636,18 @@ function ProfileManager({ theme = 'dark', palette }) {
     setShowShareDialog(true);
   };
 
+  const openShareManagement = (profile) => {
+    if (profile?.id && typeof window !== 'undefined') {
+      window.sessionStorage.setItem('highlightShareProfileId', profile.id);
+    }
+
+    if (typeof window !== 'undefined' && typeof window.setCurrentView === 'function') {
+      window.setCurrentView('share-management');
+      return;
+    }
+    window.location.href = '/share-management';
+  };
+
   const createShareLink = async () => {
     if (!shareTarget) return;
 
@@ -1667,11 +1679,11 @@ function ProfileManager({ theme = 'dark', palette }) {
                     Delete
                   </button>
                   <button
-                    onClick={() => openShareDialog(profile)}
+                    onClick={() => openShareManagement(profile)}
                     style={{ marginLeft: 'auto', border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.text, padding: '7px 11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
                     <FiShare2 size={13} />
-                    Share
+                    Share Link Management
                   </button>
                 </div>
               </div>

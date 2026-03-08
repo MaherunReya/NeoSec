@@ -333,6 +333,8 @@ const ShareManagement = ({ theme = 'dark', palette }) => {
   const [toast, setToast] = useState(null);
   const [confirmModal, setConfirmModal] = useState(null);
   const [logsModal, setLogsModal] = useState(null);
+  const [highlightProfileId, setHighlightProfileId] = useState(null);
+  const [highlightActive, setHighlightActive] = useState(false);
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
   };
@@ -356,6 +358,25 @@ const fetchShareLinks = useCallback(async () => {
 useEffect(() => {
   fetchShareLinks();
 }, [fetchShareLinks]);
+
+useEffect(() => {
+  if (typeof window === 'undefined') return undefined;
+
+  const selectedProfileId = window.sessionStorage.getItem('highlightShareProfileId');
+  if (!selectedProfileId) return undefined;
+
+  setHighlightProfileId(selectedProfileId);
+  setHighlightActive(true);
+  window.sessionStorage.removeItem('highlightShareProfileId');
+
+  const fadeTimer = setTimeout(() => setHighlightActive(false), 1200);
+  const clearTimer = setTimeout(() => setHighlightProfileId(null), 2100);
+
+  return () => {
+    clearTimeout(fadeTimer);
+    clearTimeout(clearTimer);
+  };
+}, []);
 
   const handleCopyLink = (shareToken) => {
     const url = `${window.location.origin}/shared-profiles/${shareToken}`;
@@ -479,13 +500,22 @@ useEffect(() => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {shareLinks.map((link) => (
+            (() => {
+              const isHighlighted = highlightProfileId && link.profile?.id === highlightProfileId;
+              return (
             <div
               key={link.id}
               style={{
                 backgroundColor: colors.bgCard,
-                border: `1px solid ${colors.border}`,
+                border: `1px solid ${isHighlighted && highlightActive ? colors.accent : colors.border}`,
                 borderRadius: 12,
                 padding: 20,
+                boxShadow: isHighlighted && highlightActive
+                  ? `0 0 0 1px ${colors.accent}, 0 0 22px ${theme === 'light' ? 'rgba(30,140,74,0.35)' : 'rgba(30,140,74,0.55)'}`
+                  : 'none',
+                opacity: isHighlighted && highlightActive ? 1 : 1,
+                transform: isHighlighted && highlightActive ? 'translateY(-1px)' : 'none',
+                transition: 'box-shadow 0.9s ease, border-color 0.9s ease, transform 0.4s ease',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
@@ -633,6 +663,8 @@ useEffect(() => {
                 </div>
               </div>
             </div>
+              );
+            })()
           ))}
         </div>
       )}

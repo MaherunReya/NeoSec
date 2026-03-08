@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import HomePage from './components/HomePage';
-import { authAPI, dashboardAPI, adminAPI, getErrorMessage } from './services/api';
+import { authAPI, dashboardAPI, adminAPI, notificationAPI, getErrorMessage } from './services/api';
 import './index.css';
 
 
@@ -81,6 +81,8 @@ function App() {
     const [dashboardData, setDashboardData] = useState(null);
     const [dashboardLoading, setDashboardLoading] = useState(true);
     const [dashboardError, setDashboardError] = useState(null);
+    const seenNotificationIdsRef = useRef(new Set());
+    const initializedNotificationFeedRef = useRef(false);
 
     // Admin State
     const [users, setUsers] = useState([]);
@@ -226,6 +228,52 @@ function App() {
     useEffect(() => {
         loadAdminData();
     }, [loadAdminData]);
+
+    useEffect(() => {
+        if (!user) {
+            seenNotificationIdsRef.current = new Set();
+            initializedNotificationFeedRef.current = false;
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        const pollNotifications = async () => {
+            try {
+                const response = await notificationAPI.getNotifications({
+                    status: 'unread',
+                    userId: user.id
+                });
+
+                const items = Array.isArray(response?.data) ? response.data : [];
+                const sorted = items
+                    .filter((item) => item?.id)
+                    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+
+                if (!initializedNotificationFeedRef.current) {
+                    sorted.forEach((item) => seenNotificationIdsRef.current.add(item.id));
+                    initializedNotificationFeedRef.current = true;
+                    return;
+                }
+
+                sorted.forEach((item) => {
+                    if (seenNotificationIdsRef.current.has(item.id) || cancelled) return;
+                    seenNotificationIdsRef.current.add(item.id);
+                    showToast(item.title || item.message || 'New notification', 'info');
+                });
+            } catch (error) {
+                console.error('Notification polling error:', error);
+            }
+        };
+
+        pollNotifications();
+        const interval = setInterval(pollNotifications, 30000);
+
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [user, showToast]);
 
     // Admin User Management Handlers
     const handleEditUser = (userToEdit) => {
