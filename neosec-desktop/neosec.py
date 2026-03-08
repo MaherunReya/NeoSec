@@ -127,7 +127,7 @@ class VpnFetcher(QRunnable):
         super().__init__()
         self.token = token
         self.signals = backend_signals
-        self.api_base = VPN_API_BASE
+        self.api_base = VPN_URL
 
     def run(self):
         try:
@@ -164,7 +164,7 @@ class VpnDeleter(QRunnable):
         self.token = token
         self.vpn_id = vpn_id
         self.signals = backend_signals
-        self.api_base = f"{VPN_API_BASE}/{vpn_id}"
+        self.api_base = f"{VPN_URL}/{vpn_id}"
 
     def run(self):
         try:
