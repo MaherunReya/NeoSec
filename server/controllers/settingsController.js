@@ -253,7 +253,7 @@ const deleteAccount = async (req, res) => {
       AuditLog.destroy({ where: { adminUserId: user.id }, transaction }),
       AuditLog.destroy({ where: { targetUserId: user.id }, transaction }),
       ActivityLog.destroy({ where: { userId: user.id }, transaction }),
-      OtpVerification.destroy({ where: { userId: user.id }, transaction })
+      OtpVerification.destroy({ where: { email: user.email }, transaction })
     ]);
 
     if (profileIds.length > 0) {

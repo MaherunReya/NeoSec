@@ -654,6 +654,12 @@ const AccountSettings = ({ palette: appPalette, showToast }) => {
             <h3 style={{ margin: '0 0 14px 0', fontSize: 20, fontWeight: 500 }}>Security & Authentication</h3>
 
             <h4 style={{ margin: '0 0 10px 0', fontSize: 16, fontWeight: 500 }}>Password</h4>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleUpdatePassword();
+              }}
+            >
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
               {[
                 { key: 'current', label: 'Current Password' },
@@ -693,10 +699,11 @@ const AccountSettings = ({ palette: appPalette, showToast }) => {
             </div>
 
             <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="button" disabled={savingPassword} onClick={handleUpdatePassword} style={{ ...buttonPrimary, opacity: savingPassword ? 0.7 : 1, cursor: savingPassword ? 'not-allowed' : 'pointer' }}>
+              <button type="submit" disabled={savingPassword} style={{ ...buttonPrimary, opacity: savingPassword ? 0.7 : 1, cursor: savingPassword ? 'not-allowed' : 'pointer' }}>
                 {savingPassword ? 'Updating...' : 'Update Password'}
               </button>
             </div>
+            </form>
 
             <div style={{ margin: '18px 0', borderTop: `1px solid ${palette.border}` }} />
 

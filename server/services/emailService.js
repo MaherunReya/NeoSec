@@ -1,7 +1,9 @@
 const { BrevoClient } = require('@getbrevo/brevo');
 
+const BREVO_API_KEY = process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY || '';
+
 // Initialize Brevo API client
-let apiInstance = new BrevoClient({ apiKey: process.env.BREVO_API_KEY || '' });
+let apiInstance = new BrevoClient({ apiKey: BREVO_API_KEY });
 
 const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@yourdomain.com';
 const FROM_NAME = process.env.FROM_NAME || 'NeoSec Security';
@@ -11,7 +13,7 @@ const FROM_NAME = process.env.FROM_NAME || 'NeoSec Security';
  */
 const sendEmail = async ({ to, subject, text, html }) => {
     try {
-        if (!process.env.BREVO_API_KEY) {
+        if (!BREVO_API_KEY) {
             console.warn('Brevo not configured. Skipping email send.');
             return { success: false, message: 'Email service not configured' };
         }

@@ -49,6 +49,7 @@ const register = async (req, res) => {
 const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
+    const brevoConfigured = Boolean(process.env.BREVO_API_KEY || process.env.SENDINBLUE_API_KEY);
 
     if (!email) {
       return res.status(400).json({ success: false, message: 'Email is required' });
@@ -99,13 +100,29 @@ const sendOtp = async (req, res) => {
     try {
       const emailResult = await sendOtpEmail(email, otp);
       if (!emailResult.success) {
-        throw new Error(emailResult.error || 'Failed to send email');
+        const providerError = emailResult.error || emailResult.message || 'Failed to send email';
+
+        if (!brevoConfigured && process.env.NODE_ENV !== 'production') {
+          console.warn('BREVO_API_KEY not configured. OTP generated for local development only.');
+          return res.status(200).json({
+            success: true,
+            message: 'Verification code generated (email service not configured in local environment).',
+            devOtp: otp
+          });
+        }
+
+        return res.status(503).json({
+          success: false,
+          message: 'Email service unavailable. Please try again later.',
+          error: process.env.NODE_ENV === 'development' ? providerError : undefined
+        });
       }
     } catch (emailError) {
       console.error('Error sending OTP email:', emailError);
-      return res.status(500).json({ 
+      return res.status(503).json({ 
         success: false, 
-        message: 'Error sending verification email. Please try again later.' 
+        message: 'Error sending verification email. Please try again later.',
+        error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
       });
     }
 
