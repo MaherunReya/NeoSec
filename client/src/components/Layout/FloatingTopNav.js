@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FiActivity,
+  FiArrowLeft,
   FiBarChart2,
   FiBell,
   FiChevronDown,
@@ -97,7 +98,7 @@ function DropdownGroup({ group, activeView, onNavigate, openKey, setOpenKey }) {
   );
 }
 
-function FloatingTopNav({ user, currentView, setCurrentView, isMobile }) {
+function FloatingTopNav({ user, currentView, setCurrentView, isMobile, handleBack }) {
   const [openKey, setOpenKey] = useState(null);
   const wrapperRef = useRef(null);
 
@@ -200,6 +201,34 @@ function FloatingTopNav({ user, currentView, setCurrentView, isMobile }) {
         pointerEvents: 'none'
       }}
     >
+      <button
+        onClick={handleBack}
+        style={{
+          pointerEvents: 'auto',
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          border: '1px solid rgba(30,140,74,0.4)',
+          borderRadius: 18,
+          backgroundColor: 'rgba(30,140,74,0.1)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          boxShadow: '0 20px 30px rgba(0,0,0,0.3)',
+          color: '#1E8C4A',
+          padding: '8px 15px',
+          fontSize: 13,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          cursor: 'pointer',
+          transition: 'all 0.15s ease'
+        }}
+        title="Go Back"
+      >
+        <FiArrowLeft size={14} />
+        Back
+      </button>
+
       <div
         style={{
           pointerEvents: 'auto',
