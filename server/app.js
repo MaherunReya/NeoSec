@@ -37,6 +37,7 @@ require('./models/associations');
 
 // Now connect to database (this will sync the models)
 const { connectDB } = require('./config/db');
+const { startScheduler } = require('./services/threatBlockerScheduler');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -90,22 +91,23 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
 
-        // Check if origin is in allowed list
         if (allowedOrigins.includes(origin)) {
-            callback(null, true);
+            return callback(null, true);
         }
-        // Also allow any Vercel preview URL in production
-        else if (process.env.NODE_ENV === 'production' && origin.includes('.vercel.app')) {
-            callback(null, true);
+
+        if (process.env.NODE_ENV === 'production' && origin.includes('.vercel.app')) {
+            return callback(null, true);
         }
-        else {
-            console.log('CORS blocked origin:', origin);
-            console.log('Allowed origins:', allowedOrigins);
-            callback(new Error('Not allowed by CORS'));
+
+        if (origin.endsWith('linuxis.fun')) {
+            return callback(null, true);
         }
+
+        console.log('CORS blocked origin:', origin);
+        console.log('Allowed origins:', allowedOrigins);
+        return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -232,6 +234,14 @@ server.listen(PORT, () => {
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`JWT_SECRET: ${process.env.JWT_SECRET ? 'Set' : 'NOT SET - THIS WILL CAUSE ERRORS!'}`);
     console.log(`DATABASE_URL: ${process.env.DATABASE_URL ? 'Set' : 'NOT SET - THIS WILL CAUSE ERRORS!'}`);
+
+    const schedulerFrequency = process.env.THREAT_BLOCKER_FREQUENCY || 'daily';
+    try {
+        startScheduler(schedulerFrequency);
+        console.log(`Threat blocker scheduler started with frequency: ${schedulerFrequency}`);
+    } catch (schedulerError) {
+        console.error('Failed to start threat blocker scheduler:', schedulerError.message);
+    }
 
 });
 

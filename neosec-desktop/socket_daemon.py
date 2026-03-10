@@ -5,9 +5,8 @@ import struct
 import subprocess
 import sys
 from pathlib import Path
-AUTH_FILE = Path.home() / ".local/share/neosec/auth.json"
 
-SOCKET_PATH = "/tmp/neosec.sock"
+from config import AUTH_FILE, SOCKET_PATH
 
 class UnixSocketServer:
     def __init__(self):

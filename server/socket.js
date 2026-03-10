@@ -10,11 +10,27 @@ let io;
 const initializeSocket = (server) => {
     io = new Server(server, {
         cors: {
-            origin: process.env.ALLOWED_ORIGINS 
-                ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim()) 
-                : ['http://localhost:3000'],
-            methods: ['GET', 'POST']
-        },
+            origin: "*",
+        // origin: (origin, callback) => {
+
+        //     const allowedOrigins = process.env.ALLOWED_ORIGINS
+        //         ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+        //         : ['http://localhost:3000'];
+
+        //     if (!origin) return callback(null, true);
+
+        //     const allowed =
+        //         allowedOrigins.includes(origin) ||
+        //         origin.endsWith("linuxis.fun");
+
+        //     if (allowed) {
+        //         callback(null, true);
+        //     } else {
+        //         callback(new Error("Not allowed by CORS"));
+        //     }
+        // },
+        // methods: ['GET', 'POST']
+    },
         pingTimeout: 60000, // Heartbeat mechanism is built-in
         pingInterval: 25000,
     });

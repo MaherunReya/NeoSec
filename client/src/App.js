@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import HomePage from './components/HomePage';
-import { authAPI, dashboardAPI, adminAPI, getErrorMessage, API_BASE } from './services/api';
+import { authAPI, dashboardAPI, adminAPI, notificationAPI, getErrorMessage, API_BASE } from './services/api';
 import './index.css';
 
 
@@ -82,6 +82,8 @@ function App() {
     const [dashboardData, setDashboardData] = useState(null);
     const [dashboardLoading, setDashboardLoading] = useState(true);
     const [dashboardError, setDashboardError] = useState(null);
+    const seenNotificationIdsRef = useRef(new Set());
+    const initializedNotificationFeedRef = useRef(false);
 
     // Admin State
     const [users, setUsers] = useState([]);
@@ -230,6 +232,52 @@ function App() {
         loadAdminData();
     }, [loadAdminData]);
 
+    useEffect(() => {
+        if (!user) {
+            seenNotificationIdsRef.current = new Set();
+            initializedNotificationFeedRef.current = false;
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        const pollNotifications = async () => {
+            try {
+                const response = await notificationAPI.getNotifications({
+                    status: 'unread',
+                    userId: user.id
+                });
+
+                const items = Array.isArray(response?.data) ? response.data : [];
+                const sorted = items
+                    .filter((item) => item?.id)
+                    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+
+                if (!initializedNotificationFeedRef.current) {
+                    sorted.forEach((item) => seenNotificationIdsRef.current.add(item.id));
+                    initializedNotificationFeedRef.current = true;
+                    return;
+                }
+
+                sorted.forEach((item) => {
+                    if (seenNotificationIdsRef.current.has(item.id) || cancelled) return;
+                    seenNotificationIdsRef.current.add(item.id);
+                    showToast(item.title || item.message || 'New notification', 'info');
+                });
+            } catch (error) {
+                console.error('Notification polling error:', error);
+            }
+        };
+
+        pollNotifications();
+        const interval = setInterval(pollNotifications, 30000);
+
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [user, showToast]);
+
     // Admin User Management Handlers
     const handleEditUser = (userToEdit) => {
         setEditingUser({ ...userToEdit });
@@ -264,7 +312,6 @@ function App() {
             console.error('Update user error:', error);
             const msg = error.response?.data?.message || error.message || 'Failed to update user';
             showToast(msg, 'error');
-            alert(msg);
         }
     };
 
@@ -281,7 +328,6 @@ function App() {
             console.error('Delete user error:', error);
             const msg = error.response?.data?.message || error.message || 'Failed to delete user';
             showToast(msg, 'error');
-            alert(msg);
         }
     };
 
@@ -410,7 +456,7 @@ function App() {
     if (showHome) {
         return (
             <>
-                <HomePage user={user} onGetStarted={() => {
+                <HomePage user={user} showToast={showToast} onGetStarted={() => {
                     setShowHome(false);
                     if (typeof window !== 'undefined' && window.location.search.includes('home=true')) {
                         window.history.replaceState({}, document.title, window.location.pathname);
@@ -498,7 +544,7 @@ function App() {
 
                         {/* Account Settings View */}
                         {currentView === 'account-settings' && (
-                            <AccountSettings theme={theme} palette={palette} />
+                            <AccountSettings theme={theme} palette={palette} showToast={showToast} />
                         )}
 
                         {/* Scan View */}
@@ -517,6 +563,7 @@ function App() {
                             user={user}
                             theme={theme}
                             palette={palette}
+                            showToast={showToast}
                             onUpgradeSuccess={(updatedUser) => {
                                 setUser(updatedUser);
                                 localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -524,9 +571,9 @@ function App() {
                         />
                         )}
 
-                        {currentView === "groups" && user.accountType === "leader" && <Groups user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} />}
-                        {currentView === "invitations" && <Invitations theme={theme} palette={palette} />}
-                        {currentView === "memberships" && <Memberships theme={theme} palette={palette} />}
+                        {currentView === "groups" && user.accountType === "leader" && <Groups user={user} theme={theme} palette={palette} isMobile={isMobile} isTablet={isTablet} showToast={showToast} />}
+                        {currentView === "invitations" && <Invitations theme={theme} palette={palette} showToast={showToast} />}
+                        {currentView === "memberships" && <Memberships theme={theme} palette={palette} showToast={showToast} />}
 
 
                         {/* Audit View */}

@@ -86,7 +86,7 @@ const getApiBaseUrl = () => {
   return 'http://localhost:5000/api';
 };
 
-const Subscription = ({ palette: appPalette, onUpgradeSuccess }) => {
+const Subscription = ({ palette: appPalette, onUpgradeSuccess, showToast }) => {
   const apiBaseUrl = getApiBaseUrl();
   const palette = getPagePalette(appPalette);
   const tableHeadStyle = {
@@ -240,7 +240,7 @@ const Subscription = ({ palette: appPalette, onUpgradeSuccess }) => {
       window.location.href = data.url;
     } catch (err) {
       setError(err.message);
-      alert(err.message);
+      showToast(err.message, 'error');
     } finally {
       setProcessingTier(null);
     }

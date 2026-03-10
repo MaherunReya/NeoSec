@@ -2,6 +2,7 @@ import time
 import requests
 import platform
 from PySide6.QtCore import QObject, Signal, Slot, QRunnable, QThreadPool
+from config import IP_INFO_URL
 
 class IpInfoWorker(QRunnable):
     def __init__(self, signals):
@@ -13,7 +14,7 @@ class IpInfoWorker(QRunnable):
             ip_data = {}
             for attempt in range(3):
                 try:
-                    resp = requests.get("http://ip-api.com/json/", timeout=5)
+                    resp = requests.get(IP_INFO_URL, timeout=5)
                     if resp.status_code == 200:
                         ip_data = resp.json()
                         break

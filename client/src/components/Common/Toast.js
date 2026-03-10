@@ -28,9 +28,9 @@ function Toast({ toasts, palette }) {
                         boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
                         fontSize: '14px',
                         fontWeight: 500,
-                        animation: t.visible !== false
-                            ? 'toastSlideIn 0.3s ease-out'
-                            : 'toastFadeOut 0.3s ease-in',
+                        animationName: t.visible !== false ? 'toastSlideIn' : 'toastFadeOut',
+                        animationDuration: '0.3s',
+                        animationTimingFunction: t.visible !== false ? 'ease-out' : 'ease-in',
                         animationFillMode: 'forwards',
                         pointerEvents: 'auto',
                         transition: 'opacity 0.3s ease, transform 0.3s ease'

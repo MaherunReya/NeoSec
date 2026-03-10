@@ -1,4 +1,7 @@
-const { Profile, ProfileLog, User } = require('../models');
+const { Profile, ProfileLog, User, VpnConfig, DataTransfer } = require('../models');
+const { Op } = require('sequelize');
+const { getClientIP } = require('../utils/ipUtils');
+const ActivityLog = require('../models/ActivityLog');
 
 const createLog = async (profileId, userId, action, changes, req, description) => {
   try {
@@ -245,6 +248,86 @@ const activateProfile = async (req, res) => {
       activationCount: profile.activationCount + 1
     });
 
+    // Auto-implement VPN connection if enabled on profile
+    if (profile.vpnEnabled && profile.vpnServer) {
+      const targetVpnId = profile.vpnServer;
+      try {
+        const vpnConfig = await VpnConfig.findOne({
+          where: {
+            // vpnServer may be storing either the ID or Name. Looking for ID or Name mismatch is complex, so try both.
+            // If stored as string ID, use it. If name, use that.
+            [Op.or]: [
+              { id: targetVpnId },
+              { name: targetVpnId }
+            ],
+            userId: req.user.id
+          }
+        });
+
+        if (vpnConfig) {
+          // Deactivate any other active VPNs for this user
+          await VpnConfig.update(
+            { isActive: false },
+            {
+              where: {
+                userId: req.user.id,
+                id: { [Op.ne]: vpnConfig.id }
+              }
+            }
+          );
+
+          // Close existing DataTransfer session
+          try {
+            await DataTransfer.update(
+              { isActive: false, sessionEnd: new Date() },
+              {
+                where: {
+                  userId: req.user.id,
+                  isActive: true
+                }
+              }
+            );
+
+            // Open new DataTransfer session
+            await DataTransfer.create({
+              userId: req.user.id,
+              vpnConfigId: vpnConfig.id,
+              bytesSent: 0,
+              bytesReceived: 0,
+              sessionStart: new Date(),
+              isActive: true
+            });
+          } catch (dtError) {
+             console.log('DataTransfer model failed to log session on profile activation');
+          }
+
+          // Activate this VPN
+          await vpnConfig.update({ isActive: true });
+
+          try {
+              const ipAddress = getClientIP(req);
+              await ActivityLog.create({
+                  eventType: 'VPN Connection',
+                  description: `VPN connected via Profile: ${vpnConfig.name} (${vpnConfig.protocol})`,
+                  status: 'Success',
+                  severity: 'info',
+                  userId: req.user.id,
+                  ipAddress: ipAddress,
+                  metadata: {
+                      vpnConfigId: vpnConfig.id,
+                      profileId: profile.id,
+                      protocol: vpnConfig.protocol
+                  }
+              });
+          } catch (logError) {
+              console.error('Error logging VPN connection on profile auth:', logError);
+          }
+        }
+      } catch (vpnError) {
+        console.error('Error auto-implementing VPN for profile: ', vpnError);
+      }
+    }
+
     // Log profile activation to activity log
     try {
       const ipAddress = getClientIP(req);
@@ -379,6 +462,62 @@ const deactivateProfile = async (req, res) => {
     await profile.update({
       isActive: false
     });
+
+    // Disconnect VPN if the profile was using it
+    if (profile.vpnEnabled && profile.vpnServer) {
+        try {
+            const vpnConfig = await VpnConfig.findOne({
+              where: {
+                  [Op.or]: [
+                    { id: profile.vpnServer },
+                    { name: profile.vpnServer }
+                  ],
+                  userId: req.user.id,
+                  isActive: true
+              }
+            });
+
+            if (vpnConfig) {
+                await vpnConfig.update({ isActive: false });
+
+                // End DataTransfer Session
+                try {
+                    await DataTransfer.update(
+                        { isActive: false, sessionEnd: new Date() },
+                        {
+                            where: {
+                                userId: req.user.id,
+                                vpnConfigId: vpnConfig.id,
+                                isActive: true
+                            }
+                        }
+                    );
+                } catch (err) {
+                    console.log('Skipping data transfer session on VPN disconnect via profile.');
+                }
+
+                try {
+                    const ipAddress = getClientIP(req);
+                    await ActivityLog.create({
+                        eventType: 'VPN Disconnection',
+                        description: `VPN disconnected via Profile Deactivation: ${vpnConfig.name}`,
+                        status: 'Disconnected',
+                        severity: 'info',
+                        userId: req.user.id,
+                        ipAddress: ipAddress,
+                        metadata: {
+                            vpnConfigId: vpnConfig.id,
+                            profileId: profile.id
+                        }
+                    });
+                } catch (logError) {
+                    console.error('Error logging VPN disconnect on profile:', logError);
+                }
+            }
+        } catch (vpnError) {
+            console.error('Error disconnecting VPN on profile deactivation:', vpnError);
+        }
+    }
 
     // Log profile deactivation to activity log
     try {

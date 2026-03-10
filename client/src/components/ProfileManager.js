@@ -273,6 +273,33 @@ const getTypeColor = (profileType, isDark) => {
   return { bg: isDark ? 'rgba(37,99,235,0.28)' : '#dbeafe', fg: isDark ? '#60a5fa' : '#1d4ed8' };
 };
 
+const getFirewallActionName = (action) => {
+  if (action === 0) return 'ACCEPT';
+  if (action === 1) return 'REJECT';
+  if (action === 2) return 'DROP';
+  return String(action || 'N/A').toUpperCase();
+};
+
+const getFirewallProtocolName = (protocol) => {
+  if (protocol === 0) return 'TCP';
+  if (protocol === 1) return 'UDP';
+  if (protocol === 2) return 'BOTH';
+  return String(protocol || 'ANY').toUpperCase();
+};
+
+const formatFirewallRule = (rule) => {
+  if (!rule) return 'Unknown Rule';
+  if (rule.action === undefined) return rule.name || `Rule ${rule.id}`;
+  
+  const actionText = getFirewallActionName(rule.action);
+  const protoText = getFirewallProtocolName(rule.protocol);
+  const portText = (rule.port_start === rule.port_end || !rule.port_end) 
+    ? rule.port_start 
+    : `${rule.port_start}-${rule.port_end}`;
+    
+  return `[${actionText}] ${rule.ip_address || rule.source || 'Any'} | Port: ${portText || 'Any'} | Proto: ${protoText}`;
+};
+
 const getFeatureTone = (enabled, kind, isDark) => {
   if (!enabled) {
     return {
@@ -294,7 +321,7 @@ const createEmptyFormData = () => ({
   vpnProtocol: 'OpenVPN',
   vpnPort: '',
   vpnUsername: '',
-  firewallRuleId: 'none',
+  firewallRuleIds: [],
   defaultFirewallAction: 'DENY',
   schedule: {
     enabled: false,
@@ -332,6 +359,7 @@ function ProfileManager({ theme = 'dark', palette }) {
   const [profiles, setProfiles] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [firewallRulesets, setFirewallRulesets] = useState([]);
+  const [vpnConfigs, setVpnConfigs] = useState([]);
   const [shareLinks, setShareLinks] = useState([]);
 
   const [loading, setLoading] = useState(true);
@@ -378,17 +406,19 @@ function ProfileManager({ theme = 'dark', palette }) {
         setLoading(true);
         setError('');
 
-        const [profilesRes, logsRes, firewallRes, sharesRes] = await Promise.all([
+        const [profilesRes, logsRes, firewallRes, sharesRes, vpnRes] = await Promise.all([
           api.get('/profiles'),
           api.get('/profiles/logs/all'),
           api.get('/firewall'),
-          api.get('/auth/shared-profiles/my/shares')
+          api.get('/auth/shared-profiles/my/shares'),
+          api.get('/vpn')
         ]);
 
         setProfiles(profilesRes.data?.profiles || []);
         setActivityLogs(logsRes.data?.logs || []);
         setFirewallRulesets(firewallRes.data?.data || []);
         setShareLinks(sharesRes.data?.data || []);
+        setVpnConfigs(vpnRes.data?.data || vpnRes.data || []);
       } catch (loadError) {
         setError(getErrorMessage(loadError, 'Failed to load security profile manager data'));
       } finally {
@@ -475,10 +505,7 @@ function ProfileManager({ theme = 'dark', palette }) {
       vpnProtocol: profile.vpnProtocol || 'OpenVPN',
       vpnPort: profile.vpnPort ? String(profile.vpnPort) : '',
       vpnUsername: profile.vpnUsername || '',
-      firewallRuleId:
-        Array.isArray(profile.firewallRules) && profile.firewallRules.length > 0
-          ? String(profile.firewallRules[0])
-          : 'none',
+      firewallRuleIds: Array.isArray(profile.firewallRules) ? profile.firewallRules.map(String) : [],
       defaultFirewallAction: profile.defaultFirewallAction || 'DENY',
       schedule: {
         enabled: Boolean(profile.isScheduled),
@@ -504,7 +531,7 @@ function ProfileManager({ theme = 'dark', palette }) {
       vpnPort: formData.vpnEnabled && formData.vpnPort ? parseInt(formData.vpnPort, 10) : null,
       vpnUsername: formData.vpnEnabled ? formData.vpnUsername.trim() || null : null,
       firewallEnabled: true,
-      firewallRules: formData.firewallRuleId === 'none' ? [] : [formData.firewallRuleId],
+      firewallRules: formData.firewallRuleIds,
       defaultFirewallAction: formData.defaultFirewallAction,
       isScheduled: formData.schedule.enabled,
       scheduleType: formData.schedule.enabled ? scheduleTypeReverseMap[formData.schedule.type] : 'NONE',
@@ -607,6 +634,18 @@ function ProfileManager({ theme = 'dark', palette }) {
     setShareTarget(profile);
     setShareForm({ permissions: 'VIEW', password: '', expiresInDays: '', maxAccess: '' });
     setShowShareDialog(true);
+  };
+
+  const openShareManagement = (profile) => {
+    if (profile?.id && typeof window !== 'undefined') {
+      window.sessionStorage.setItem('highlightShareProfileId', profile.id);
+    }
+
+    if (typeof window !== 'undefined' && typeof window.setCurrentView === 'function') {
+      window.setCurrentView('share-management');
+      return;
+    }
+    window.location.href = '/share-management';
   };
 
   const createShareLink = async () => {
@@ -1054,47 +1093,32 @@ function ProfileManager({ theme = 'dark', palette }) {
                     borderRadius: 10,
                     padding: 10,
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))',
                     gap: 10
                   }}
                 >
                   <div>
-                    <label style={{ fontSize: 12, color: colors.textMuted }}>Server Address</label>
-                    <input
-                      value={formData.vpnServer}
-                      onChange={(event) => setFormData((prev) => ({ ...prev, vpnServer: event.target.value }))}
-                      style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 12, color: colors.textMuted }}>Protocol</label>
+                    <label style={{ fontSize: 12, color: colors.textMuted }}>Select VPN Configuration</label>
                     <select
-                      value={formData.vpnProtocol}
-                      onChange={(event) => setFormData((prev) => ({ ...prev, vpnProtocol: event.target.value }))}
+                      value={formData.vpnServer}
+                      onChange={(event) => {
+                        const selectedVal = event.target.value;
+                        const selectedVpn = vpnConfigs.find(v => String(v.id) === selectedVal || String(v.name) === selectedVal);
+                        
+                        setFormData((prev) => ({
+                          ...prev,
+                          vpnServer: selectedVal,
+                          vpnProtocol: selectedVpn ? selectedVpn.protocol : 'OpenVPN'
+                        }));
+                      }}
                       style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
                     >
-                      {vpnProtocolOptions.map((protocol) => (
-                        <option key={protocol} value={protocol}>
-                          {protocol}
+                      <option value="">-- Choose a VPN Configuration --</option>
+                      {vpnConfigs.map((vpn) => (
+                        <option key={vpn.id} value={vpn.id || vpn.name}>
+                          {vpn.name} ({vpn.protocol})
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 12, color: colors.textMuted }}>Port</label>
-                    <input
-                      value={formData.vpnPort}
-                      onChange={(event) => setFormData((prev) => ({ ...prev, vpnPort: event.target.value }))}
-                      style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 12, color: colors.textMuted }}>Username</label>
-                    <input
-                      value={formData.vpnUsername}
-                      onChange={(event) => setFormData((prev) => ({ ...prev, vpnUsername: event.target.value }))}
-                      style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
-                    />
                   </div>
                 </div>
               )}
@@ -1106,44 +1130,55 @@ function ProfileManager({ theme = 'dark', palette }) {
                 Firewall Rule Selection
               </h4>
               <div>
-                <label style={{ fontSize: 12, color: colors.textMuted }}>Select Ruleset</label>
-                <select
-                  value={formData.firewallRuleId}
-                  onChange={(event) => setFormData((prev) => ({ ...prev, firewallRuleId: event.target.value }))}
-                  style={{ width: '100%', marginTop: 4, borderRadius: 8, border: `1px solid ${colors.inputBorder}`, backgroundColor: colors.inputBg, color: colors.text, padding: '8px 10px' }}
-                >
-                  <option value="none">None (Default)</option>
-                  {firewallRulesets.map((rule) => (
-                    <option key={rule.id} value={rule.id}>
-                      {rule.name || `Rule ${rule.id}`}
-                    </option>
-                  ))}
-                </select>
+                <label style={{ fontSize: 12, color: colors.textMuted }}>Select Rules</label>
+                <div style={{ marginTop: 4, maxHeight: 160, overflowY: 'auto', border: `1px solid ${colors.inputBorder}`, borderRadius: 8, backgroundColor: colors.inputBg, padding: 8 }}>
+                  {firewallRulesets.map((rule) => {
+                    const isChecked = formData.firewallRuleIds.includes(String(rule.id));
+                    return (
+                      <label key={rule.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer', fontSize: 13 }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData(prev => ({ ...prev, firewallRuleIds: [...prev.firewallRuleIds, String(rule.id)] }));
+                            } else {
+                              setFormData(prev => ({ ...prev, firewallRuleIds: prev.firewallRuleIds.filter(id => id !== String(rule.id)) }));
+                            }
+                          }}
+                        />
+                        {formatFirewallRule(rule)}
+                      </label>
+                    );
+                  })}
+                  {firewallRulesets.length === 0 && <div style={{ fontSize: 13, color: colors.textMuted }}>No firewall rules available.</div>}
+                </div>
               </div>
 
-              {formData.firewallRuleId !== 'none' && (
-                <div style={{ marginTop: 10, border: `1px solid ${colors.border}`, borderRadius: 10, padding: 10, backgroundColor: colors.bgPanel }}>
-                  {(() => {
-                    const selected = firewallRulesets.find((rule) => String(rule.id) === String(formData.firewallRuleId));
-                    if (!selected) return <span style={{ color: colors.textMuted, fontSize: 12 }}>Selected rule details unavailable.</span>;
+              {formData.firewallRuleIds.length > 0 && (
+                <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                  <label style={{ fontSize: 12, color: colors.textMuted }}>Selected Rules Details</label>
+                  {formData.firewallRuleIds.map(ruleId => {
+                    const selected = firewallRulesets.find((rule) => String(rule.id) === String(ruleId));
+                    if (!selected) return null;
                     return (
-                      <>
+                      <div key={ruleId} style={{ border: `1px solid ${colors.border}`, borderRadius: 10, padding: 10, backgroundColor: colors.bgPanel }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                          <strong>{selected.name || 'Firewall Rule'}</strong>
-                          <span style={{ fontSize: 11, color: colors.textMuted }}>{String(selected.action || 'N/A').toUpperCase()}</span>
+                          <strong>{selected.name || formatFirewallRule(selected)}</strong>
+                          <span style={{ fontSize: 11, color: colors.textMuted }}>{getFirewallActionName(selected.action)}</span>
                         </div>
                         <div style={{ marginTop: 6, fontSize: 12, color: colors.textMuted }}>
                           {selected.description || 'No description provided'}
                         </div>
                         <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 8, fontSize: 11 }}>
-                          <div><span style={{ color: colors.textMuted }}>Protocol:</span> {selected.protocol || 'Any'}</div>
+                          <div><span style={{ color: colors.textMuted }}>Protocol:</span> {getFirewallProtocolName(selected.protocol)}</div>
                           <div><span style={{ color: colors.textMuted }}>Direction:</span> {selected.direction || 'Any'}</div>
-                          <div><span style={{ color: colors.textMuted }}>Source:</span> {selected.sourceIP || selected.source || 'Any'}</div>
-                          <div><span style={{ color: colors.textMuted }}>Destination:</span> {selected.destinationIP || selected.destination || 'Any'}</div>
+                          <div><span style={{ color: colors.textMuted }}>IP Address:</span> {selected.ip_address || selected.source || 'Any'}</div>
+                          <div><span style={{ color: colors.textMuted }}>Ports:</span> {(selected.port_start === selected.port_end || !selected.port_end) ? selected.port_start : `${selected.port_start}-${selected.port_end}`}</div>
                         </div>
-                      </>
+                      </div>
                     );
-                  })()}
+                  })}
                 </div>
               )}
             </div>
@@ -1462,10 +1497,7 @@ function ProfileManager({ theme = 'dark', palette }) {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(420px,1fr))', gap: 12 }}>
           {filteredProfiles.map((profile) => {
-            const selectedRule =
-              Array.isArray(profile.firewallRules) && profile.firewallRules.length > 0
-                ? firewallRulesets.find((rule) => String(rule.id) === String(profile.firewallRules[0]))
-                : null;
+            const activeRulesCount = Array.isArray(profile.firewallRules) ? profile.firewallRules.length : 0;
 
             const linkedShares = shareLinks.filter(
               (link) => String(link.profileId) === String(profile.id) && link.isActive && !link.revokedAt
@@ -1485,7 +1517,7 @@ function ProfileManager({ theme = 'dark', palette }) {
               : { bg: isDark ? '#374151' : '#f3f4f6', fg: isDark ? '#9ca3af' : '#4b5563' };
             const typeTone = getTypeColor(profile.profileType, isDark);
             const vpnTone = getFeatureTone(profile.vpnEnabled, 'vpn', isDark);
-            const fwTone = getFeatureTone(Boolean(selectedRule), 'firewall', isDark);
+            const fwTone = getFeatureTone(activeRulesCount > 0, 'firewall', isDark);
             const schTone = getFeatureTone(profile.isScheduled, 'schedule', isDark);
 
             return (
@@ -1587,7 +1619,7 @@ function ProfileManager({ theme = 'dark', palette }) {
                     }}
                   >
                     <FiShield size={13} />
-                    {selectedRule ? selectedRule.name : 'Default Firewall'}
+                    {activeRulesCount > 0 ? `${activeRulesCount} Rule${activeRulesCount > 1 ? 's' : ''}` : 'Default Firewall'}
                   </div>
                   <div
                     style={{
@@ -1647,11 +1679,11 @@ function ProfileManager({ theme = 'dark', palette }) {
                     Delete
                   </button>
                   <button
-                    onClick={() => openShareDialog(profile)}
+                    onClick={() => openShareManagement(profile)}
                     style={{ marginLeft: 'auto', border: `1px solid ${colors.border}`, borderRadius: 8, backgroundColor: 'transparent', color: colors.text, padding: '7px 11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
                     <FiShare2 size={13} />
-                    Share
+                    Share Link Management
                   </button>
                 </div>
               </div>

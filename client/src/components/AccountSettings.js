@@ -70,7 +70,7 @@ const deviceLabel = (userAgent = '') => {
   return 'Browser Session';
 };
 
-const AccountSettings = ({ palette: appPalette }) => {
+const AccountSettings = ({ palette: appPalette, showToast }) => {
   const palette = getPagePalette(appPalette);
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(true);
@@ -79,7 +79,6 @@ const AccountSettings = ({ palette: appPalette }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const [error, setError] = useState(null);
-  const [toastMessage, setToastMessage] = useState(null);
 
   const [showPassword, setShowPassword] = useState({ current: false, next: false, confirm: false });
   const [passwordData, setPasswordData] = useState({ current: '', next: '', confirm: '' });
@@ -93,12 +92,6 @@ const AccountSettings = ({ palette: appPalette }) => {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [emailEditable, setEmailEditable] = useState(false);
   const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    if (!toastMessage) return undefined;
-    const timer = setTimeout(() => setToastMessage(null), 3000);
-    return () => clearTimeout(timer);
-  }, [toastMessage]);
 
   const [notifications, setNotifications] = useState({
     groupInvitations: true,
@@ -238,7 +231,7 @@ const AccountSettings = ({ palette: appPalette }) => {
       localStorage.setItem('user', JSON.stringify(updatedAuthUser));
       window.dispatchEvent(new CustomEvent('neosec-user-updated', { detail: updatedAuthUser }));
 
-      setToastMessage('Personal information updated successfully.');
+      showToast('Personal information updated successfully.', 'success');
     } catch (saveError) {
       setError(saveError?.response?.data?.message || 'Failed to save personal information.');
     } finally {
@@ -266,7 +259,7 @@ const AccountSettings = ({ palette: appPalette }) => {
       });
 
       setPasswordData({ current: '', next: '', confirm: '' });
-      setToastMessage('Password updated successfully.');
+      showToast('Password updated successfully.', 'success');
     } catch (passwordError) {
       setError(passwordError?.response?.data?.message || 'Failed to update password.');
     } finally {
@@ -280,7 +273,7 @@ const AccountSettings = ({ palette: appPalette }) => {
       if (mfaEnabled) {
         await mfaAPI.disableMFA();
         setMfaEnabled(false);
-        setToastMessage('Two-factor authentication disabled.');
+        showToast('Two-factor authentication disabled.', 'success');
         return;
       }
 
@@ -293,7 +286,7 @@ const AccountSettings = ({ palette: appPalette }) => {
 
       await mfaAPI.verifyMFA(code);
       setMfaEnabled(true);
-      setToastMessage('Two-factor authentication enabled.');
+      showToast('Two-factor authentication enabled.', 'success');
       setError(null);
     } catch (toggleError) {
       setError('Unable to update 2FA settings.');
@@ -307,7 +300,7 @@ const AccountSettings = ({ palette: appPalette }) => {
       await loginHistoryAPI.terminateSession(sessionId);
       setSessions((prev) => prev.filter((session) => session.id !== sessionId));
       setLoginHistory((prev) => prev.filter((row) => row.id !== sessionId));
-      setToastMessage('Session terminated successfully.');
+      showToast('Session terminated successfully.', 'success');
       setError(null);
     } catch (sessionError) {
       setError(sessionError?.response?.data?.message || 'Failed to terminate session.');
@@ -322,7 +315,7 @@ const AccountSettings = ({ palette: appPalette }) => {
       if (current?.id) {
         setLoginHistory((prev) => prev.filter((row) => row.id === current.id));
       }
-      setToastMessage('All other sessions have been terminated.');
+      showToast('All other sessions have been terminated.', 'success');
       setError(null);
     } catch (sessionError) {
       setError(sessionError?.response?.data?.message || 'Failed to terminate sessions.');
@@ -353,7 +346,7 @@ const AccountSettings = ({ palette: appPalette }) => {
       setSavingNotifications(true);
       setNotifications(nextState);
       await settingsAPI.updateNotifications(nextState);
-      setToastMessage('Notification preferences updated.');
+      showToast('Notification preferences updated.', 'success');
       setError(null);
     } catch (notificationError) {
       setNotifications(notifications);
@@ -371,7 +364,7 @@ const AccountSettings = ({ palette: appPalette }) => {
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setUserData((prev) => ({ ...prev, avatarUrl: reader.result }));
-        setToastMessage('Photo selected. Click Save Changes to persist it.');
+        showToast('Photo selected. Click Save Changes to persist it.', 'info');
         setError(null);
       }
     };
@@ -383,7 +376,7 @@ const AccountSettings = ({ palette: appPalette }) => {
 
   const handleRemoveAvatar = () => {
     setUserData((prev) => ({ ...prev, avatarUrl: null }));
-    setToastMessage('Photo removed. Click Save Changes to persist it.');
+    showToast('Photo removed. Click Save Changes to persist it.', 'info');
     setError(null);
   };
 
@@ -447,28 +440,6 @@ const AccountSettings = ({ palette: appPalette }) => {
     <div style={{ maxWidth: 1200, margin: '0 auto', color: palette.text, fontFamily: 'inherit', fontSize: 16, fontWeight: 400 }}>
       <style>
         {`
-          @keyframes neosecToastIn {
-            from {
-              opacity: 0;
-              transform: translate(-50%, -12px);
-            }
-            to {
-              opacity: 1;
-              transform: translate(-50%, 0);
-            }
-          }
-
-          @keyframes neosecToastOut {
-            from {
-              opacity: 1;
-              transform: translate(-50%, 0);
-            }
-            to {
-              opacity: 0;
-              transform: translate(-50%, -10px);
-            }
-          }
-
           @keyframes neosecTabFadeIn {
             from {
               opacity: 0;
@@ -499,27 +470,6 @@ const AccountSettings = ({ palette: appPalette }) => {
           }}
         >
           {error}
-        </div>
-      )}
-
-      {toastMessage && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 20,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 10000,
-            padding: '12px 14px',
-            borderRadius: 8,
-            border: `1px solid ${palette.accent}`,
-            backgroundColor: palette.accentSoft,
-            color: palette.text,
-            boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
-            fontSize: 14,
-          }}
-        >
-          {toastMessage}
         </div>
       )}
 
@@ -704,6 +654,12 @@ const AccountSettings = ({ palette: appPalette }) => {
             <h3 style={{ margin: '0 0 14px 0', fontSize: 20, fontWeight: 500 }}>Security & Authentication</h3>
 
             <h4 style={{ margin: '0 0 10px 0', fontSize: 16, fontWeight: 500 }}>Password</h4>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                handleUpdatePassword();
+              }}
+            >
             <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
               {[
                 { key: 'current', label: 'Current Password' },
@@ -743,10 +699,11 @@ const AccountSettings = ({ palette: appPalette }) => {
             </div>
 
             <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="button" disabled={savingPassword} onClick={handleUpdatePassword} style={{ ...buttonPrimary, opacity: savingPassword ? 0.7 : 1, cursor: savingPassword ? 'not-allowed' : 'pointer' }}>
+              <button type="submit" disabled={savingPassword} style={{ ...buttonPrimary, opacity: savingPassword ? 0.7 : 1, cursor: savingPassword ? 'not-allowed' : 'pointer' }}>
                 {savingPassword ? 'Updating...' : 'Update Password'}
               </button>
             </div>
+            </form>
 
             <div style={{ margin: '18px 0', borderTop: `1px solid ${palette.border}` }} />
 
