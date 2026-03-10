@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import HomePage from './components/HomePage';
-import { authAPI, dashboardAPI, adminAPI, getErrorMessage } from './services/api';
+import { authAPI, dashboardAPI, adminAPI, getErrorMessage, API_BASE } from './services/api';
 import './index.css';
 
 
@@ -12,6 +12,7 @@ import './index.css';
 import { useTheme } from './hooks/useTheme';
 import { useToastManager } from './hooks/useToastManager';
 import { useScreenSize } from './hooks/useScreenSize';
+import { useSessionHistory } from './hooks/useSessionHistory';
 
 // Layout Components
 import Sidebar from './components/Layout/Sidebar';
@@ -100,6 +101,8 @@ function App() {
     const isShareProfilePage = pathname.startsWith('/shared-profiles/');
     const isShareManagementPage = pathname === '/share-management';
 
+    // Session History Hook
+    const { handleBack } = useSessionHistory(currentView, setCurrentView);
 
 
     // Close sidebar on mobile when clicking outside
@@ -447,6 +450,7 @@ function App() {
                         currentView={currentView}
                         setCurrentView={setCurrentView}
                         isMobile={isMobile}
+                        handleBack={handleBack}
                     />
 
                     {/* Main Content */}
