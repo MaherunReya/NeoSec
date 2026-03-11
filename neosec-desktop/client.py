@@ -7,37 +7,16 @@ import time
 
 from config import SOCKET_PATH, BACKEND_URL
 
-class NeosecClient:
+class NeosecWebSocketClient:
     """
-    A unified client handling both remote Socket.IO connections and local 
-    Unix socket daemon connections.
+    Handles remote Socket.IO connections and events.
     """
-    def __init__(self, server_url=BACKEND_URL, socket_path=SOCKET_PATH):
+    def __init__(self, server_url=BACKEND_URL):
         self.server_url = server_url
         self.token = None
-        self.socket_path = socket_path
-        
-        # Web Socket (Socket.IO)
         self.sio = socketio.Client()
         self.sio_connected = False
         self.setup_sio_events()
-        
-        # Daemon Socket (Unix)
-        self.daemon_sock = None
-        self.daemon_connected = False
-
-    @property
-    def is_connected(self):
-        return self.daemon_connected
-
-    def connect(self, token):
-        """
-        Connects to both the remote WebSocket server and local Unix daemon.
-        WebSocket connects in the background and does not block.
-        """
-        self.token = token
-        self.connect_daemon()
-        self.connect_websocket()
 
     def setup_sio_events(self):
         @self.sio.event
@@ -65,10 +44,11 @@ class NeosecClient:
         def catch_all(event, data):
             print(f"📩 [Global Event] '{event}' payload received: {data}")
 
-    def connect_websocket(self):
+    def connect(self, token):
         if self.sio_connected:
             return
             
+        self.token = token
         print(f"Attempting to connect to WebSocket at {self.server_url}...")
         
         # Handle the case where the server is behind a path (e.g., /api)
@@ -76,13 +56,10 @@ class NeosecClient:
         socketio_path = '/socket.io'
         
         if '/api' in url:
-            # If URL ends with /api, we strip it from the base URL 
-            # and prepend it to the socketio_path
             if url.endswith('/api'):
                 url = url[:-4]
                 socketio_path = '/api/socket.io'
             elif '/api/' in url:
-                # Handle cases like https://example.com/api/v1
                 parts = url.split('/api', 1)
                 url = parts[0]
                 socketio_path = f"/api{parts[1].rstrip('/')}/socket.io"
@@ -96,12 +73,32 @@ class NeosecClient:
             )
         except socketio.exceptions.ConnectionError as e:
             print(f"❌ Failed to connect to WebSocket at {url} (path: {socketio_path}): {e}")
-            print(f"   Common causes: Server down, invalid URL, or path mismatch.")
 
-    def connect_daemon(self):
+    def close(self):
+        if self.sio_connected:
+            print("Disconnecting WebSocket client...")
+            self.sio.disconnect()
+
+
+class NeosecDaemonClient:
+    """
+    Handles local Unix socket daemon connections.
+    """
+    def __init__(self, socket_path=SOCKET_PATH):
+        self.socket_path = socket_path
+        self.token = None
+        self.daemon_sock = None
+        self.daemon_connected = False
+
+    @property
+    def is_connected(self):
+        return self.daemon_connected
+
+    def connect(self, token):
         if self.daemon_connected:
             return True
 
+        self.token = token
         if not os.path.exists(self.socket_path):
              print(f"Socket file {self.socket_path} not found.")
              return False
@@ -121,12 +118,12 @@ class NeosecClient:
                 return True
             else:
                 print(f"❌ [Daemon] Authentication Failed: {response.get('output')}")
-                self.close_daemon()
+                self.close()
                 return False
 
         except Exception as e:
             print(f"❌ [Daemon] Connection error: {e}")
-            self.close_daemon()
+            self.close()
             return False
 
     def send_command(self, cmd):
@@ -170,10 +167,10 @@ class NeosecClient:
             
         except Exception as e:
             print(f"Communication error: {e}")
-            self.close_daemon()
+            self.close()
             return {"status": "error", "output": str(e)}
 
-    def close_daemon(self):
+    def close(self):
         if self.daemon_sock:
             try:
                 self.daemon_sock.close()
@@ -181,11 +178,4 @@ class NeosecClient:
                 pass
         self.daemon_sock = None
         self.daemon_connected = False
-
-    def close(self):
-        """Disconnects both clients gracefully."""
-        if self.sio_connected:
-            print("Disconnecting WebSocket client...")
-            self.sio.disconnect()
-        self.close_daemon()
         print("🔌 [Daemon] Disconnected.")
