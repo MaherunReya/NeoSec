@@ -70,14 +70,32 @@ class NeosecClient:
             return
             
         print(f"Attempting to connect to WebSocket at {self.server_url}...")
+        
+        # Handle the case where the server is behind a path (e.g., /api)
+        url = self.server_url
+        socketio_path = '/socket.io'
+        
+        if '/api' in url:
+            # If URL ends with /api, we strip it from the base URL 
+            # and prepend it to the socketio_path
+            if url.endswith('/api'):
+                url = url[:-4]
+                socketio_path = '/api/socket.io'
+            elif '/api/' in url:
+                # Handle cases like https://example.com/api/v1
+                parts = url.split('/api', 1)
+                url = parts[0]
+                socketio_path = f"/api{parts[1].rstrip('/')}/socket.io"
+
         try:
             self.sio.connect(
-                self.server_url, 
+                url, 
                 auth={'token': self.token},
+                socketio_path=socketio_path,
                 wait_timeout=10
             )
         except socketio.exceptions.ConnectionError as e:
-            print(f"❌ Failed to connect to WebSocket at {self.server_url}: {e}")
+            print(f"❌ Failed to connect to WebSocket at {url} (path: {socketio_path}): {e}")
             print(f"   Common causes: Server down, invalid URL, or path mismatch.")
 
     def connect_daemon(self):
