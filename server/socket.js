@@ -1,5 +1,6 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+const { corsOptionsDelegate } = require('./utils/corsOptions');
 
 // Maintain a mapping of userId to their connected socket IDs
 // A single user might be connected from multiple devices/tabs
@@ -9,28 +10,8 @@ let io;
 
 const initializeSocket = (server) => {
     io = new Server(server, {
-        cors: {
-            origin: "*",
-        // origin: (origin, callback) => {
-
-        //     const allowedOrigins = process.env.ALLOWED_ORIGINS
-        //         ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-        //         : ['http://localhost:3000'];
-
-        //     if (!origin) return callback(null, true);
-
-        //     const allowed =
-        //         allowedOrigins.includes(origin) ||
-        //         origin.endsWith("linuxis.fun");
-
-        //     if (allowed) {
-        //         callback(null, true);
-        //     } else {
-        //         callback(new Error("Not allowed by CORS"));
-        //     }
-        // },
-        // methods: ['GET', 'POST']
-    },
+        path: '/api/socket.io',
+        cors: corsOptionsDelegate,
         pingTimeout: 60000, // Heartbeat mechanism is built-in
         pingInterval: 25000,
     });
@@ -50,9 +31,9 @@ const initializeSocket = (server) => {
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             console.log("[Socket] Token decoded:", decoded);
-            
+
             socket.userId = decoded.userId;
-            
+
             if (!socket.userId) {
                 console.error("[Socket] Failed to find userId in token payload");
             }
@@ -75,19 +56,19 @@ const initializeSocket = (server) => {
 
         socket.on('disconnect', () => {
             console.log(`Socket disconnected: ${socket.id} for user ${userId}`);
-            
+
             // Remove socket from user's active sockets
             if (userSockets.has(userId)) {
                 const userSocketSet = userSockets.get(userId);
                 userSocketSet.delete(socket.id);
-                
+
                 // Optional cleanup: remove the key if there are no more active sockets for this user
                 if (userSocketSet.size === 0) {
                     userSockets.delete(userId);
                 }
             }
         });
-        
+
         socket.on('error', (err) => {
             console.error(`Socket error for ${socket.id}:`, err);
         });
@@ -110,7 +91,7 @@ const emitToUser = (userId, event, data) => {
 
     const uid = String(userId);
     console.log(`[Socket] Attempting to emit '${event}' to user ${uid}`);
-    
+
     const socketIds = userSockets.get(uid);
     if (socketIds && socketIds.size > 0) {
         console.log(`[Socket] Found ${socketIds.size} sockets for user ${uid}, emitting...`);

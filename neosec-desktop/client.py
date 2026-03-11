@@ -49,6 +49,8 @@ class NeosecClient:
         def connect_error(data):
             self.sio_connected = False
             print(f"❌ [WebSocket] Connection failed! Details: {data}")
+            if isinstance(data, dict) and 'message' in data:
+                print(f"   Error Message: {data['message']}")
 
         @self.sio.event
         def disconnect():
@@ -69,9 +71,14 @@ class NeosecClient:
             
         print(f"Attempting to connect to WebSocket at {self.server_url}...")
         try:
-            self.sio.connect(self.server_url, auth={'token': self.token})
+            self.sio.connect(
+                self.server_url, 
+                auth={'token': self.token},
+                wait_timeout=10
+            )
         except socketio.exceptions.ConnectionError as e:
-            print(f"❌ Failed to connect to WebSocket: {e}")
+            print(f"❌ Failed to connect to WebSocket at {self.server_url}: {e}")
+            print(f"   Common causes: Server down, invalid URL, or path mismatch.")
 
     def connect_daemon(self):
         if self.daemon_connected:

@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const { corsOptionsDelegate } = require('./utils/corsOptions');
 
 // IMPORTANT: Load models BEFORE connecting to database
 const User = require('./models/User');
@@ -80,41 +81,11 @@ connectDB().catch(err => {
     // For now, log the error and let the server start
 });
 app.use(
-  '/api/stripe',
-  require('./routes/stripeWebhook')
+    '/api/stripe',
+    require('./routes/stripeWebhook')
 );
 
-// CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-    : ['http://localhost:3000'];
-
-app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-
-        if (allowedOrigins.includes(origin)) {
-            return callback(null, true);
-        }
-
-        if (process.env.NODE_ENV === 'production' && origin.includes('.vercel.app')) {
-            return callback(null, true);
-        }
-
-        if (origin.endsWith('linuxis.fun')) {
-            return callback(null, true);
-        }
-
-        console.log('CORS blocked origin:', origin);
-        console.log('Allowed origins:', allowedOrigins);
-        return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    preflightContinue: false,
-    optionsSuccessStatus: 204
-}));
+app.use(cors(corsOptionsDelegate));
 
 // Body parser middleware
 app.use(express.json());
