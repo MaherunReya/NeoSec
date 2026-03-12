@@ -91,12 +91,24 @@ chmod +x "$INSTALL_DIR/main.py"
 
 # 4. Create Virtual Environment
 echo "Creating Python virtual environment in $VENV_DIR..."
-python3 -m venv "$VENV_DIR"
+
+VENV_OPTS=""
+# Optimization: Check if PySide6 is already installed on the system to avoid large downloads
+if python3 -c "import PySide6" 2>/dev/null; then
+    echo "✅ Found system-wide PySide6. Using --system-site-packages to avoid extra downloads."
+    VENV_OPTS="--system-site-packages"
+else
+    echo "💡 System-wide PySide6 not found. Will install pyside6-essentials (approx. 70MB) into venv."
+fi
+
+python3 -m venv $VENV_OPTS "$VENV_DIR"
 
 # 5. Install Python Dependencies into venv
 if [ -f "$INSTALL_DIR/requirements.txt" ]; then
     echo "Installing Python dependencies into virtual environment..."
     "$VENV_DIR/bin/pip" install --upgrade pip
+    
+    # If using system site packages, we might still need other dependencies from requirements.txt
     "$VENV_DIR/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 else
     echo "Warning: requirements.txt not found. Skipping dependency installation."

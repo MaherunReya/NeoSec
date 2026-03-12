@@ -1,2 +1,2 @@
-PySide6
+pyside6-essentials
 requests
