@@ -5,7 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from config import AUTH_FILE, SOCKET_PATH
+from neosec.config import AUTH_FILE, SOCKET_PATH
 
 class UnixSocketServer:
     def __init__(self):
