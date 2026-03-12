@@ -1,5 +1,5 @@
 
-from firewall_module import Firewall
+from neosec.firewall import Firewall
 from PySide6.QtCore import QModelIndex
 
 def test_filtering():
@@ -22,7 +22,10 @@ def test_filtering():
     assert fw.rowCount() == 2, f"Expected 2 rows (enabled), got {fw.rowCount()}"
     # Verify content
     idx0 = fw.index(0, 0)
-    assert fw.data(idx0, fw.roleNames()[list(fw.roleNames().keys())[0]]) # Just checking if accessible
+    # Updated test to pass role ID instead of role value
+    roles = fw.roleNames()
+    role_ids = list(roles.keys())
+    assert fw.data(idx0, role_ids[0])
     ip_role = [k for k,v in fw.roleNames().items() if v == b"ip_address"][0]
     ips = [fw.data(fw.index(i,0), ip_role) for i in range(fw.rowCount())]
     assert "192.168.1.1" in ips and "192.168.1.2" in ips

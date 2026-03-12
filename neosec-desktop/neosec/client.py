@@ -5,7 +5,7 @@ import struct
 import os
 import time
 
-from config import SOCKET_PATH, BACKEND_URL
+from .config import SOCKET_PATH, BACKEND_URL
 
 class NeosecClient:
     """

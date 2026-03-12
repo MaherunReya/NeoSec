@@ -3,7 +3,7 @@ import json
 import subprocess
 import re
 from PySide6.QtCore import QObject, Signal, Property, Slot, QTimer
-from config import VPN_DIR, VPN_METADATA_FILE
+from .config import VPN_DIR, VPN_METADATA_FILE
 
 class VpnManager(QObject):
     configsChanged = Signal()

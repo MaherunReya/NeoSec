@@ -12,7 +12,7 @@ set -e
 INSTALL_DIR="/opt/neosec"
 VENV_DIR="$INSTALL_DIR/venv"
 SERVICE_NAME="neosec-daemon"
-SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # 1. Check for root privileges
 if [[ $EUID -ne 0 ]]; then
@@ -86,8 +86,8 @@ mkdir -p "$INSTALL_DIR"
 cp -r "$SOURCE_DIR/." "$INSTALL_DIR/"
 
 # Ensure the main python files are executable
-chmod +x "$INSTALL_DIR/socket_daemon.py"
-chmod +x "$INSTALL_DIR/neosec.py"
+chmod +x "$INSTALL_DIR/daemon.py"
+chmod +x "$INSTALL_DIR/main.py"
 
 # 4. Create Virtual Environment
 echo "Creating Python virtual environment in $VENV_DIR..."
@@ -110,7 +110,7 @@ Description=Neosec Security Daemon
 After=network.target
 
 [Service]
-ExecStart=$VENV_DIR/bin/python3 $INSTALL_DIR/socket_daemon.py
+ExecStart=$VENV_DIR/bin/python3 $INSTALL_DIR/daemon.py
 Restart=always
 User=root
 WorkingDirectory=$INSTALL_DIR
@@ -134,7 +134,7 @@ su - "$REAL_USER" -c "mkdir -p $AUTOSTART_DIR"
 cat <<EOF > "$REAL_HOME/.config/autostart/neosec.desktop"
 [Desktop Entry]
 Type=Application
-Exec=$VENV_DIR/bin/python3 $INSTALL_DIR/neosec.py
+Exec=$VENV_DIR/bin/python3 $INSTALL_DIR/main.py
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true

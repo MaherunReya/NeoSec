@@ -1,7 +1,7 @@
 import json
 import requests
 from PySide6.QtCore import QRunnable
-from config import AUTH_FILE, AUTH_URL, VERIFICATION_URL
+from .config import AUTH_FILE, AUTH_URL, VERIFICATION_URL
 
 class AuthWorker(QRunnable):
     def __init__(self, user, password, backend_signals):

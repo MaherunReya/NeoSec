@@ -2,7 +2,7 @@ import time
 import requests
 import platform
 from PySide6.QtCore import QObject, Signal, Slot, QRunnable, QThreadPool
-from config import IP_INFO_URL
+from .config import IP_INFO_URL
 
 class IpInfoWorker(QRunnable):
     def __init__(self, signals):
