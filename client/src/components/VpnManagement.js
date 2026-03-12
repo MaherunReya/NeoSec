@@ -44,6 +44,8 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
     const [editingId, setEditingId] = useState(null);
     const [fileError, setFileError] = useState('');
     const [showInstallModal, setShowInstallModal] = useState(false);
+    const [connectingId, setConnectingId] = useState(null); // id of VPN currently being toggled
+    const [toasts, setToasts] = useState([]);
 
     const initialForm = {
         name: '',
@@ -54,6 +56,13 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
     };
 
     const [form, setForm] = useState(initialForm);
+
+    /* ===================== TOASTS ===================== */
+    const showToast = (message, type = 'info') => {
+        const id = Date.now();
+        setToasts(prev => [...prev, { id, message, type }]);
+        setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+    };
 
     /* ===================== FETCH ===================== */
     const loadConfigs = async () => {
@@ -191,10 +200,14 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
     };
 
     const toggleConfig = async (id) => {
+        if (connectingId) return; // prevent double-click while one is in flight
+        setConnectingId(id);
+        showToast("Your request is being processed…", 'info');
         try {
             setError('');
             const res = await vpnAPI.toggleConfig(id);
             if (res.success) {
+                // Only update UI state on confirmed server success
                 setConfigs((p) =>
                     p.map((c) =>
                         c.id === id
@@ -202,17 +215,24 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
                             : { ...c, isActive: false }
                     )
                 );
+                const nowActive = res.data?.isActive;
+                showToast(nowActive ? 'VPN connected successfully!' : 'VPN disconnected.', 'success');
             } else {
-                throw new Error(res.message || 'Toggle failed');
+                showToast(res.message || 'Connection failed, please try again. Ensure that your desktop is on.', 'error');
             }
         } catch (e) {
             console.error('Toggle config error:', e);
             const errData = e.response?.data || e;
-            if (errData.code === 'REQUIRE_DESKTOP_CLIENT' || (errData.message && errData.message.includes('REQUIRE_DESKTOP_CLIENT'))) {
+            if (errData.code === 'REQUIRE_DESKTOP_CLIENT') {
                 setShowInstallModal(true);
             } else {
-                setError(e?.response?.data?.message || e?.message || 'Failed to toggle VPN config');
+                showToast(
+                    errData.message || 'Connection failed, please try again. Ensure that your desktop is on.',
+                    'error'
+                );
             }
+        } finally {
+            setConnectingId(null);
         }
     };
 
@@ -361,25 +381,43 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
                                         {/* Connect/Disconnect Button */}
                                         <button
                                             onClick={() => toggleConfig(c.id)}
+                                            disabled={connectingId === c.id}
                                             onMouseEnter={() => setActionButtonHover(`connect-${c.id}`)}
                                             onMouseLeave={() => setActionButtonHover(null)}
-                                            title={c.isActive ? 'Disconnect' : 'Connect'}
+                                            title={connectingId === c.id ? 'Connecting...' : c.isActive ? 'Disconnect' : 'Connect'}
                                             style={{
-                                                padding: '6px 12px',
-                                                backgroundColor: c.isActive ? colors.danger : colors.accent,
-                                                color: '#0a0a0aff',
+                                                padding: '6px 14px',
+                                                backgroundColor: connectingId === c.id
+                                                    ? (theme === 'dark' ? '#2a2a2a' : '#e5e7eb')
+                                                    : c.isActive ? colors.danger : colors.accent,
+                                                color: connectingId === c.id
+                                                    ? colors.textMuted
+                                                    : '#0a0a0a',
                                                 border: 'none',
                                                 borderRadius: '6px',
-                                                cursor: 'pointer',
+                                                cursor: connectingId === c.id ? 'not-allowed' : 'pointer',
                                                 fontSize: '12px',
                                                 fontWeight: 600,
                                                 transition: 'all 0.15s ease',
-                                                transform: actionButtonHover === `connect-${c.id}` ? 'scale(1.05)' : 'scale(1)',
-                                                opacity: actionButtonHover === `connect-${c.id}` ? 0.9 : 1,
-                                                whiteSpace: 'nowrap'
+                                                transform: (!connectingId && actionButtonHover === `connect-${c.id}`) ? 'scale(1.05)' : 'scale(1)',
+                                                opacity: connectingId === c.id ? 0.7 : actionButtonHover === `connect-${c.id}` ? 0.9 : 1,
+                                                whiteSpace: 'nowrap',
+                                                minWidth: 90
                                             }}
                                         >
-                                            {c.isActive ? 'Disconnect' : 'Connect'}
+                                            {connectingId === c.id ? (
+                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                                    <span style={{
+                                                        display: 'inline-block',
+                                                        width: 10, height: 10,
+                                                        border: `2px solid ${colors.textMuted}`,
+                                                        borderTopColor: colors.accent,
+                                                        borderRadius: '50%',
+                                                        animation: 'vpn-spin 0.7s linear infinite'
+                                                    }} />
+                                                    Connecting…
+                                                </span>
+                                            ) : c.isActive ? 'Disconnect' : 'Connect'}
                                         </button>
                                     </td>
                                 </tr>
@@ -533,6 +571,41 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
                 theme={theme}
                 palette={colors}
             />
+
+            {/* Toast Notifications */}
+            <div style={{
+                position: 'fixed', bottom: 28, right: 28,
+                display: 'flex', flexDirection: 'column-reverse', gap: 10,
+                zIndex: 9999, pointerEvents: 'none'
+            }}>
+                {toasts.map(t => (
+                    <div key={t.id} style={{
+                        minWidth: 260, maxWidth: 420,
+                        padding: '14px 18px',
+                        borderRadius: 12,
+                        fontWeight: 500, fontSize: 14,
+                        color: '#fff',
+                        backgroundColor:
+                            t.type === 'error' ? colors.danger
+                            : t.type === 'success' ? colors.accent
+                            : '#3b82f6',
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+                        animation: 'toast-in 0.3s ease',
+                        pointerEvents: 'auto'
+                    }}>
+                        {t.message}
+                    </div>
+                ))}
+                <style>{`
+                    @keyframes toast-in {
+                        from { opacity: 0; transform: translateY(16px) scale(0.96); }
+                        to   { opacity: 1; transform: translateY(0) scale(1); }
+                    }
+                    @keyframes vpn-spin {
+                        to { transform: rotate(360deg); }
+                    }
+                `}</style>
+            </div>
         </div>
     );
 };

@@ -283,15 +283,24 @@ exports.toggleVpnConfig = async (req, res) => {
         const wasActive = vpnConfig.isActive;
         const willBeActive = !wasActive;
 
+        console.log(`\n[VPN Toggle] ============================`);
+        console.log(`[VPN Toggle] User:      ${req.user.id}`);
+        console.log(`[VPN Toggle] Config:    ${vpnConfig.name} (id=${vpnConfig.id})`);
+        console.log(`[VPN Toggle] Protocol:  ${vpnConfig.protocol}`);
+        console.log(`[VPN Toggle] Action:    ${willBeActive ? 'CONNECT' : 'DISCONNECT'}`);
+        console.log(`[VPN Toggle] Sending request to desktop client...`);
+
         // Ask desktop client to apply VPN rules
         try {
-            await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', {
+            const ackResponse = await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', {
                 configId: vpnConfig.id,
                 action: willBeActive ? 'connect' : 'disconnect',
                 protocol: vpnConfig.protocol,
                 configFileName: vpnConfig.configFileName
             });
+            console.log(`[VPN Toggle] Desktop client ACK received:`, ackResponse);
         } catch (socketError) {
+            console.warn(`[VPN Toggle] Desktop client error: ${socketError.message} (code=${socketError.code})`);
             if (socketError.code === 'DESKTOP_CLIENT_NOT_FOUND') {
                 return res.status(400).json({
                     success: false,
@@ -398,9 +407,12 @@ exports.toggleVpnConfig = async (req, res) => {
             }
         }
 
+        console.log(`[VPN Toggle] Updating DB: isActive -> ${willBeActive}`);
         await vpnConfig.update({
             isActive: willBeActive
         });
+        console.log(`[VPN Toggle] DB updated successfully. Final state: isActive=${willBeActive}`);
+        console.log(`[VPN Toggle] ============================\n`);
 
         res.status(200).json({
             success: true,
