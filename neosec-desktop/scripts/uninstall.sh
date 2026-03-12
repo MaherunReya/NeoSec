@@ -47,6 +47,12 @@ if [ -f "$AUTOSTART_FILE" ]; then
     rm "$AUTOSTART_FILE"
 fi
 
+# 4.2 Remove System-wide Desktop Entry
+if [ -f "/usr/share/applications/neosec.desktop" ]; then
+    echo "Removing system-wide desktop entry..."
+    rm "/usr/share/applications/neosec.desktop"
+fi
+
 # 5. Remove Installation Directory
 if [ -d "$INSTALL_DIR" ]; then
     echo "Removing installation directory: $INSTALL_DIR"

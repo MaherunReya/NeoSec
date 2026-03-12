@@ -158,6 +158,21 @@ EOF
 # Ensure correct ownership of the autostart file
 chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.config/autostart/neosec.desktop"
 
+# 8.2 Create System-wide Desktop Entry (for launchers like dmenu)
+echo "Creating system-wide desktop entry..."
+cat <<EOF > /usr/share/applications/neosec.desktop
+[Desktop Entry]
+Type=Application
+Exec=$VENV_DIR/bin/python3 $INSTALL_DIR/main.py
+Icon=security-high
+Name=Neosec
+Comment=Neosec Security Desktop Client
+Categories=Security;System;
+Terminal=false
+Path=$INSTALL_DIR
+EOF
+chmod 644 /usr/share/applications/neosec.desktop
+
 # 9. Fix permissions for the user's config directory
 # (It might have been created by the daemon as root)
 USER_CONFIG_DIR="$REAL_HOME/.local/share/neosec"
