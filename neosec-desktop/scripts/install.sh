@@ -173,6 +173,16 @@ Path=$INSTALL_DIR
 EOF
 chmod 644 /usr/share/applications/neosec.desktop
 
+# 8.3 Create CLI Binary in /usr/local/bin
+echo "Creating CLI binary: /usr/local/bin/neosec..."
+cat <<EOF > /usr/local/bin/neosec
+#!/bin/bash
+# Neosec CLI Wrapper
+export PYTHONPATH=$INSTALL_DIR
+$VENV_DIR/bin/python3 $INSTALL_DIR/main.py "\$@"
+EOF
+chmod +x /usr/local/bin/neosec
+
 # 9. Fix permissions for the user's config directory
 # (It might have been created by the daemon as root)
 USER_CONFIG_DIR="$REAL_HOME/.local/share/neosec"

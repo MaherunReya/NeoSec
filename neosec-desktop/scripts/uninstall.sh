@@ -53,6 +53,12 @@ if [ -f "/usr/share/applications/neosec.desktop" ]; then
     rm "/usr/share/applications/neosec.desktop"
 fi
 
+# 4.3 Remove CLI Binary
+if [ -f "/usr/local/bin/neosec" ]; then
+    echo "Removing CLI binary: /usr/local/bin/neosec"
+    rm "/usr/local/bin/neosec"
+fi
+
 # 5. Remove Installation Directory
 if [ -d "$INSTALL_DIR" ]; then
     echo "Removing installation directory: $INSTALL_DIR"
