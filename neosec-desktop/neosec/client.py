@@ -5,7 +5,7 @@ import struct
 import os
 import time
 
-from config import SOCKET_PATH, BACKEND_URL
+from .config import SOCKET_PATH, BACKEND_URL
 
 class NeosecWebSocketClient:
     """
@@ -47,9 +47,7 @@ class NeosecWebSocketClient:
     def connect(self, token):
         if self.sio_connected:
             return
-            
         self.token = token
-        print(f"Attempting to connect to WebSocket at {self.server_url}...")
         
         # Handle the case where the server is behind a path (e.g., /api)
         url = self.server_url
@@ -64,6 +62,7 @@ class NeosecWebSocketClient:
                 url = parts[0]
                 socketio_path = f"/api{parts[1].rstrip('/')}/socket.io"
 
+        print(f"Attempting to connect to WebSocket at {url} with path {socketio_path}...")
         try:
             self.sio.connect(
                 url, 
@@ -73,6 +72,7 @@ class NeosecWebSocketClient:
             )
         except socketio.exceptions.ConnectionError as e:
             print(f"❌ Failed to connect to WebSocket at {url} (path: {socketio_path}): {e}")
+            print(f"   Common causes: Server down, invalid URL, or path mismatch.")
 
     def close(self):
         if self.sio_connected:
@@ -143,27 +143,17 @@ class NeosecDaemonClient:
             return {"status": "error", "output": "Socket closed"}
 
         try:
-            # 1. Send Length + JSON
-            json_data = json.dumps(data).encode()
-            length_bytes = struct.pack('>I', len(json_data))
-            self.daemon_sock.sendall(length_bytes + json_data)
-            
-            # 2. Receive Length
-            resp_len_bytes = self.daemon_sock.recv(4)
-            if not resp_len_bytes:
-                raise ConnectionError("Server closed connection")
+            # Use makefile for high-level stream handling (NDJSON)
+            with self.daemon_sock.makefile('rw', encoding='utf-8', buffering=1) as f:
+                # 1. Send JSON + Newline
+                f.write(json.dumps(data) + '\n')
                 
-            resp_len = struct.unpack('>I', resp_len_bytes)[0]
-            
-            # 3. Receive Body
-            resp_bytes = b""
-            while len(resp_bytes) < resp_len:
-                chunk = self.daemon_sock.recv(min(4096, resp_len - len(resp_bytes)))
-                if not chunk:
-                     raise ConnectionError("Server connection broken")
-                resp_bytes += chunk
-                
-            return json.loads(resp_bytes.decode())
+                # 2. Receive JSON + Newline
+                resp_line = f.readline()
+                if not resp_line:
+                    raise ConnectionError("Server closed connection")
+                    
+                return json.loads(resp_line)
             
         except Exception as e:
             print(f"Communication error: {e}")

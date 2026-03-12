@@ -1,16 +1,16 @@
-from client import NeosecWebSocketClient, NeosecDaemonClient
+from neosec.client import NeosecWebSocketClient, NeosecDaemonClient
 from PySide6.QtCore import QObject, Signal, Slot, QRunnable, QThreadPool
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtGui import QGuiApplication
-from firewall_module import Firewall
-from dashboard_module import DashboardBackend
-from vpn_module import VpnManager
+from neosec.firewall import Firewall
+from neosec.dashboard import DashboardBackend
+from neosec.vpn import VpnManager
 import sys
 import requests
 import json
 from pathlib import Path
 
-from config import *
+from neosec.config import *
 
 class AuthWorker(QRunnable):
     def __init__(self, user, password, backend_signals):
@@ -297,7 +297,7 @@ if __name__ == "__main__":
     engine.rootContext().setContextProperty("vpnManager", vpn_manager)
     engine.rootContext().setContextProperty("signup_url", SIGNUP_URL)
     engine.rootContext().setContextProperty("firewall", firewall)
-    engine.load("qml/main.qml")
+    engine.load("neosec/qml/main.qml")
     if not engine.rootObjects():
         sys.exit(-1)
     backend.checkSavedAuth()

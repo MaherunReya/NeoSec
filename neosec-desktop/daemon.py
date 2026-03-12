@@ -1,12 +1,11 @@
 import asyncio
 import json
 import os
-import struct
 import subprocess
 import sys
 from pathlib import Path
 
-from config import AUTH_FILE, SOCKET_PATH
+from neosec.config import AUTH_FILE, SOCKET_PATH
 
 class UnixSocketServer:
     def __init__(self):
@@ -20,17 +19,21 @@ class UnixSocketServer:
         
         try:
             while True:
-                # 1. Read Message Length (4 bytes big endian)
-                length_bytes = await reader.read(4)
-                if not length_bytes:
-                    break # Connection closed
-                
-                msg_length = struct.unpack('>I', length_bytes)[0]
-                
-                # 2. Read JSON payload
-                data_bytes = await reader.readexactly(msg_length)
+                # 1. Read line (NDJSON)
                 try:
-                    message = json.loads(data_bytes.decode())
+                    line = await reader.readuntil(b'\n')
+                except asyncio.LimitOverrunError:
+                    print("Message too long")
+                    break
+                except asyncio.IncompleteReadError:
+                    break # Connection closed
+
+                if not line:
+                    break
+                
+                # 2. Parse JSON payload
+                try:
+                    message = json.loads(line.decode().strip())
                 except json.JSONDecodeError:
                     print(f"Invalid JSON received")
                     break
@@ -39,7 +42,6 @@ class UnixSocketServer:
 
                 # 3. Process Message
                 response = {"status": "error", "output": "Unknown error"}
-
                 msg_type = message.get('type')
                 
                 if msg_type == 'auth':
@@ -49,7 +51,6 @@ class UnixSocketServer:
                         response = {"status": "success", "output": "Authenticated"}
                     else:
                         response = {"status": "error", "output": "Authentication failed"}
-                        # Close connection on auth failure? Usually good practice but we send error first.
                     print(response)
 
                 elif msg_type == 'command':
@@ -62,10 +63,9 @@ class UnixSocketServer:
                 else:
                     response = {"status": "error", "output": "Unknown message type"}
 
-                # 4. Send Response
-                resp_json = json.dumps(response).encode()
-                resp_len = struct.pack('>I', len(resp_json))
-                writer.write(resp_len + resp_json)
+                # 4. Send Response (NDJSON)
+                resp_line = json.dumps(response) + '\n'
+                writer.write(resp_line.encode())
                 await writer.drain()
 
                 if not authenticated and msg_type == 'auth':
