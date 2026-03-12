@@ -168,7 +168,6 @@ class VpnManager(QObject):
             self._configs = new_configs
             self._save_metadata()
             self.configsChanged.emit()
-            print(f"VPN Manager updated with {len(self._configs)} configs.")
 
         except Exception as e:
             print(f"Error updating VPNs: {e}")
