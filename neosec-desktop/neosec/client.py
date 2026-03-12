@@ -40,6 +40,22 @@ class NeosecWebSocketClient:
         def on_user_updated(data):
             print(f"📩 [App Event] 'userUpdated' payload received: {data}")
 
+        @self.sio.on('RequestVpnToggle')
+        def on_request_vpn_toggle(data):
+            print(f"📩 [App Event] 'RequestVpnToggle' payload received: {data}")
+            # Simulate applying rules locally
+            time.sleep(1) 
+            print("✅ [Desktop Action] VPN configuration applied successfully.")
+            return {"status": "success", "message": "VPN configuration applied locally"}
+
+        @self.sio.on('RequestFirewallRuleChange')
+        def on_request_firewall_rule_change(data):
+            print(f"📩 [App Event] 'RequestFirewallRuleChange' payload received: {data}")
+            # Simulate applying rules locally
+            time.sleep(1) 
+            print("✅ [Desktop Action] Firewall rules applied successfully.")
+            return {"status": "success", "message": "Firewall rules applied locally"}
+
         @self.sio.on('*')
         def catch_all(event, data):
             print(f"📩 [Global Event] '{event}' payload received: {data}")
@@ -66,7 +82,7 @@ class NeosecWebSocketClient:
         try:
             self.sio.connect(
                 url, 
-                auth={'token': self.token},
+                auth={'token': self.token, 'clientType': 'desktop'},
                 socketio_path=socketio_path,
                 wait_timeout=10
             )

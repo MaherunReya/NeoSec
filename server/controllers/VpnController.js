@@ -3,6 +3,7 @@ const DataTransfer = require('../models/DataTransfer');
 const ActivityLog = require('../models/ActivityLog');
 const { Op } = require('sequelize');
 const { getClientIP } = require('../utils/ipUtils');
+const { emitWithAckToDesktop } = require('../socket');
 
 // Get all VPN configs for current user
 exports.getVpnConfigs = async (req, res) => {
@@ -281,6 +282,28 @@ exports.toggleVpnConfig = async (req, res) => {
 
         const wasActive = vpnConfig.isActive;
         const willBeActive = !wasActive;
+
+        // Ask desktop client to apply VPN rules
+        try {
+            await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', {
+                configId: vpnConfig.id,
+                action: willBeActive ? 'connect' : 'disconnect',
+                protocol: vpnConfig.protocol,
+                configFileName: vpnConfig.configFileName
+            });
+        } catch (socketError) {
+            if (socketError.code === 'DESKTOP_CLIENT_NOT_FOUND') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Desktop client is not connected. Please install and run the NeoSec Desktop Client to apply VPN rules.',
+                    code: 'REQUIRE_DESKTOP_CLIENT'
+                });
+            }
+            return res.status(500).json({
+                success: false,
+                message: `Failed to apply VPN locally: ${socketError.message}`
+            });
+        }
 
         // If activating, deactivate all other VPN configs for this user
         if (willBeActive) {

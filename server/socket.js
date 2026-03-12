@@ -33,6 +33,7 @@ const initializeSocket = (server) => {
             console.log("[Socket] Token decoded:", decoded);
 
             socket.userId = decoded.userId;
+            socket.clientType = socket.handshake.auth.clientType || socket.handshake.headers.clienttype || 'web';
 
             if (!socket.userId) {
                 console.error("[Socket] Failed to find userId in token payload");
@@ -113,8 +114,62 @@ const getIO = () => {
     return io;
 };
 
+/**
+ * Emit an event to a user's desktop client and wait for acknowledgment
+ * @param {string} userId - The user's ID
+ * @param {string} event - The event name
+ * @param {any} data - The payload
+ * @returns {Promise<any>} The acknowledgment from the desktop client
+ */
+const emitWithAckToDesktop = (userId, event, data) => {
+    return new Promise((resolve, reject) => {
+        if (!io) {
+            return reject(new Error('Socket.io not initialized. Cannot emit event.'));
+        }
+
+        const uid = String(userId);
+        const socketIds = userSockets.get(uid);
+
+        if (!socketIds || socketIds.size === 0) {
+            const error = new Error('No active sockets found for user');
+            error.code = 'DESKTOP_CLIENT_NOT_FOUND';
+            return reject(error);
+        }
+
+        // Find a desktop socket
+        let desktopSocket = null;
+        for (const socketId of socketIds) {
+            const s = io.sockets.sockets.get(socketId);
+            if (s && s.clientType === 'desktop') {
+                desktopSocket = s;
+                break;
+            }
+        }
+
+        if (!desktopSocket) {
+            const error = new Error('No desktop client found for user');
+            error.code = 'DESKTOP_CLIENT_NOT_FOUND';
+            return reject(error);
+        }
+
+        console.log(`[Socket] Emitting '${event}' to desktop client of user ${uid}`);
+        
+        // Use timeout to prevent hanging forever if client doesn't respond
+        desktopSocket.timeout(10000).emit(event, data, (err, response) => {
+            if (err) {
+                return reject(new Error(`Desktop client timed out for event ${event}`));
+            }
+            if (response && response.status === 'error') {
+                return reject(new Error(response.message || 'Desktop client returned an error'));
+            }
+            resolve(response);
+        });
+    });
+};
+
 module.exports = {
     initializeSocket,
     emitToUser,
-    getIO
+    getIO,
+    emitWithAckToDesktop
 };

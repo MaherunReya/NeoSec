@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { firewallAPI, getErrorMessage } from '../services/api';
 import { MdModeEdit } from 'react-icons/md';
 import { RiDeleteBin6Line } from 'react-icons/ri';
+import InstallClientModal from './Common/InstallClientModal';
 
 const FirewallRuleManagement = ({ theme = 'light', palette = null }) => {
     // Default palettes
@@ -43,6 +44,7 @@ const FirewallRuleManagement = ({ theme = 'light', palette = null }) => {
     const [editingRuleId, setEditingRuleId] = useState(null);
     const [confirmDeleteRuleId, setConfirmDeleteRuleId] = useState(null);
     const [actionButtonHover, setActionButtonHover] = useState(null);
+    const [showInstallModal, setShowInstallModal] = useState(false);
 
     const initialFirewallForm = {
         ip_address: '',
@@ -162,9 +164,14 @@ const FirewallRuleManagement = ({ theme = 'light', palette = null }) => {
             closeFirewallModal();
         } catch (error) {
             console.error('Save firewall rule error:', error);
-            const msg = error.response?.data?.message || 'Failed to save firewall rule';
-            setFirewallError(msg);
-            showToast(msg, 'error');
+            const errData = error.response?.data || error;
+            if (errData.code === 'REQUIRE_DESKTOP_CLIENT' || (errData.message && errData.message.includes('REQUIRE_DESKTOP_CLIENT'))) {
+                setShowInstallModal(true);
+            } else {
+                const msg = error.response?.data?.message || 'Failed to save firewall rule';
+                setFirewallError(msg);
+                showToast(msg, 'error');
+            }
         } finally {
             setFirewallLoading(false);
         }
@@ -205,9 +212,14 @@ const FirewallRuleManagement = ({ theme = 'light', palette = null }) => {
             }
         } catch (error) {
             console.error('Delete firewall rule error:', error);
-            const msg = error.response?.data?.message || 'Failed to delete firewall rule';
-            setFirewallError(msg);
-            showToast(msg, 'error');
+            const errData = error.response?.data || error;
+            if (errData.code === 'REQUIRE_DESKTOP_CLIENT' || (errData.message && errData.message.includes('REQUIRE_DESKTOP_CLIENT'))) {
+                setShowInstallModal(true);
+            } else {
+                const msg = error.response?.data?.message || 'Failed to delete firewall rule';
+                setFirewallError(msg);
+                showToast(msg, 'error');
+            }
         } finally {
             setConfirmDeleteRuleId(null);
         }
@@ -943,6 +955,13 @@ const FirewallRuleManagement = ({ theme = 'light', palette = null }) => {
                     }
                 `}</style>
             </div>
+
+            <InstallClientModal 
+                isOpen={showInstallModal} 
+                onClose={() => setShowInstallModal(false)}
+                theme={theme}
+                palette={colors}
+            />
         </div>
     );
 };

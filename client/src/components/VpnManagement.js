@@ -3,6 +3,7 @@ import vpnAPI from '../services/vpnAPI';
 import { MdModeEdit, MdDownload } from 'react-icons/md';
 import { RiDeleteBin6Line } from 'react-icons/ri';
 import { HiDocumentDuplicate } from 'react-icons/hi';
+import InstallClientModal from './Common/InstallClientModal';
 
 const VpnManagement = ({ theme = 'light', palette = null }) => {
     /* ===================== THEME ===================== */
@@ -42,6 +43,7 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [fileError, setFileError] = useState('');
+    const [showInstallModal, setShowInstallModal] = useState(false);
 
     const initialForm = {
         name: '',
@@ -205,7 +207,12 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
             }
         } catch (e) {
             console.error('Toggle config error:', e);
-            setError(e?.response?.data?.message || e?.message || 'Failed to toggle VPN config');
+            const errData = e.response?.data || e;
+            if (errData.code === 'REQUIRE_DESKTOP_CLIENT' || (errData.message && errData.message.includes('REQUIRE_DESKTOP_CLIENT'))) {
+                setShowInstallModal(true);
+            } else {
+                setError(e?.response?.data?.message || e?.message || 'Failed to toggle VPN config');
+            }
         }
     };
 
@@ -519,6 +526,13 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
                     </div>
                 </div>
             )}
+
+            <InstallClientModal 
+                isOpen={showInstallModal} 
+                onClose={() => setShowInstallModal(false)}
+                theme={theme}
+                palette={colors}
+            />
         </div>
     );
 };
