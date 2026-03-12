@@ -41,24 +41,32 @@ class NeosecWebSocketClient:
             print(f"📩 [App Event] 'userUpdated' payload received: {data}")
 
         @self.sio.on('RequestVpnToggle')
-        def on_request_vpn_toggle(data):
+        def on_request_vpn_toggle(data, callback=None):
             print(f"📩 [App Event] 'RequestVpnToggle' payload received: {data}")
-            # Simulate applying rules locally
-            time.sleep(1) 
-            print("✅ [Desktop Action] VPN configuration applied successfully.")
-            return {"status": "success", "message": "VPN configuration applied locally"}
+            try:
+                # TODO: Replace with real VPN command execution
+                time.sleep(0.5)
+                print("✅ [Desktop Action] VPN configuration applied successfully.")
+                result = {"status": "success", "message": "VPN configuration applied locally"}
+            except Exception as e:
+                result = {"status": "error", "message": str(e)}
+            # Must call the callback to send acknowledgment back to server
+            if callable(callback):
+                callback(result)
 
         @self.sio.on('RequestFirewallRuleChange')
-        def on_request_firewall_rule_change(data):
+        def on_request_firewall_rule_change(data, callback=None):
             print(f"📩 [App Event] 'RequestFirewallRuleChange' payload received: {data}")
-            # Simulate applying rules locally
-            time.sleep(1) 
-            print("✅ [Desktop Action] Firewall rules applied successfully.")
-            return {"status": "success", "message": "Firewall rules applied locally"}
-
-        @self.sio.on('*')
-        def catch_all(event, data):
-            print(f"📩 [Global Event] '{event}' payload received: {data}")
+            try:
+                # TODO: Replace with real firewall command execution
+                time.sleep(0.5)
+                print("✅ [Desktop Action] Firewall rules applied successfully.")
+                result = {"status": "success", "message": "Firewall rules applied locally"}
+            except Exception as e:
+                result = {"status": "error", "message": str(e)}
+            # Must call the callback to send acknowledgment back to server
+            if callable(callback):
+                callback(result)
 
     def connect(self, token):
         if self.sio_connected:
