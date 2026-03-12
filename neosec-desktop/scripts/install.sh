@@ -158,6 +158,14 @@ EOF
 # Ensure correct ownership of the autostart file
 chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.config/autostart/neosec.desktop"
 
+# 9. Fix permissions for the user's config directory
+# (It might have been created by the daemon as root)
+USER_CONFIG_DIR="$REAL_HOME/.local/share/neosec"
+if [ -d "$USER_CONFIG_DIR" ]; then
+    echo "Fixing permissions for $USER_CONFIG_DIR..."
+    chown -R "$REAL_USER:$REAL_USER" "$USER_CONFIG_DIR"
+fi
+
 echo "--- Installation Complete ---"
 echo "Daemon Status:"
 systemctl status $SERVICE_NAME --no-pager

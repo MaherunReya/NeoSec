@@ -297,7 +297,8 @@ if __name__ == "__main__":
     engine.rootContext().setContextProperty("vpnManager", vpn_manager)
     engine.rootContext().setContextProperty("signup_url", SIGNUP_URL)
     engine.rootContext().setContextProperty("firewall", firewall)
-    engine.load("neosec/qml/main.qml")
+    qml_file = Path(__file__).parent / "neosec" / "qml" / "main.qml"
+    engine.load(str(qml_file))
     if not engine.rootObjects():
         sys.exit(-1)
     backend.checkSavedAuth()
