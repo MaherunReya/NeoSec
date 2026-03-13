@@ -91,55 +91,34 @@ class NeosecWebSocketClient:
         def on_request_vpn_toggle(data, callback=None):
             print(f"📩 [App Event] 'RequestVpnToggle' payload received: {data}")
             try:
-                action   = data.get('action', 'connect')   # 'connect' | 'disconnect'
-                vpn_id   = data.get('vpnId') or data.get('id', '')
-                cfg_file = data.get('configFileName', '')
+                # Server (VpnController.js) sends exactly:
+                #   { configId, action, protocol, configFileName }
+                config_id = data.get('configId')
+                action    = data.get('action', 'connect')  # 'connect' | 'disconnect'
 
-                # ── Step 1: Reload VPN configs from server so we have the
-                #   latest files before NetworkManager tries to import them. ──
-                print("🔄 [VPN] Reloading VPN configs from server before toggling...")
-                self._reload_vpn_configs_sync()
+                if not config_id:
+                    raise RuntimeError("'configId' missing from server payload.")
 
-                # ── Step 2: Delegate to VpnManager (nmcli-based) ──────────────
-                if self.vpn_manager:
-                    # Resolve vpn_id from configFileName if not supplied directly
-                    if not vpn_id and cfg_file:
-                        for cfg in self.vpn_manager._configs:
-                            # The server's configFileName may match the stored
-                            # unique filename or the original base name portion.
-                            stored_fn = cfg.get('filename', '')
-                            if (cfg_file == stored_fn or
-                                    cfg_file.replace('.conf', '').replace('.ovpn', '')
-                                    in stored_fn):
-                                vpn_id = cfg.get('id')
-                                break
-
-                    if not vpn_id:
-                        raise RuntimeError(
-                            f"Could not resolve a VPN config for configFileName='{cfg_file}'. "
-                            "Make sure the VPN exists in the server."
-                        )
-
-                    print(f"⚙️  [VPN] Calling VpnManager.toggleConnection('{vpn_id}') "
-                          f"(action={action})")
-
-                    # toggleConnection handles both connect and disconnect:
-                    # - if vpn_id is already active → disconnects
-                    # - if vpn_id is not active     → connects (may disconnect another first)
-                    # For an explicit 'disconnect' we only act when it is currently active.
-                    if action == 'disconnect' and self.vpn_manager._active_vpn_id != vpn_id:
-                        print(f"ℹ️  [VPN] {vpn_id} is not the active VPN; nothing to disconnect.")
-                    else:
-                        self.vpn_manager.toggleConnection(vpn_id)
-
-                    result = {"status": "success", "message": f"VPN {action}ed successfully"}
-
-                else:
-                    # No VpnManager wired – should not happen in normal usage
+                if not self.vpn_manager:
                     raise RuntimeError(
                         "VpnManager is not available. "
                         "Call set_vpn_manager() before handling VPN toggle events."
                     )
+
+                # ── Step 1: Reload configs from the server so any newly
+                #   uploaded/changed files are written to disk and registered
+                #   in VpnManager before nmcli tries to import them. ──────────
+                print("🔄 [VPN] Reloading VPN configs from server before toggling...")
+                self._reload_vpn_configs_sync()
+
+                # ── Step 2: Delegate entirely to VpnManager.toggleConnection()
+                #   It knows how to: import the config via nmcli, rename the
+                #   connection, bring it up/down, and track the active ID. ─────
+                print(f"⚙️  [VPN] Calling VpnManager.toggleConnection('{config_id}') "
+                      f"(action={action})")
+                self.vpn_manager.toggleConnection(config_id)
+
+                result = {"status": "success", "message": f"VPN {action}ed successfully"}
 
             except Exception as e:
                 print(f"❌ [VPN] Toggle failed: {e}")
