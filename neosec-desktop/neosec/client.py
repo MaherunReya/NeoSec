@@ -181,7 +181,9 @@ class NeosecWebSocketClient:
                 # ── Step 1 (RC-1 / RC-4): Cache-first reload ─────────────────
                 # Only downloads the file if it is not already on disk.
                 # Uses retries for transient network errors.
+                print(f"🔄 [VPN] [Step 1] Reloading config for ID: {config_id}")
                 self._reload_vpn_configs_sync(config_id)
+                print(f"✅ [VPN] [Step 1] Config reload completed for ID: {config_id}")
 
                 # ── Step 2 (RC-2): Optimistic ack BEFORE the VPN toggle ───────
                 # KEY INSIGHT: python-socketio only *queues* the ack packet when
@@ -209,8 +211,7 @@ class NeosecWebSocketClient:
                         print("❌ [VPN] [bg] vpn_manager became None unexpectedly.")
                         return
                     try:
-                        print(f"⚙️  [VPN] [bg] Calling "
-                              f"VpnManager.toggleConnection('{config_id}')")
+                        print(f"⚙️  [VPN] [bg] [Step 3] Calling VpnManager.toggleConnection('{config_id}')")
                         self.vpn_manager.toggleConnection(config_id)
                         
                         # Determine final status
@@ -218,45 +219,50 @@ class NeosecWebSocketClient:
                         is_active = m.hasActiveConnection if m else False
                         final_status = 'CONNECTED' if is_active else 'OFFLINE'
                         
-                        print(f"✅ [VPN] [bg] toggleConnection('{config_id}') "
-                              f"completed. Final status: {final_status}")
+                        print(f"✅ [VPN] [bg] [Step 3] toggleConnection completed.")
+                        print(f"   [VPN] [bg] VpnManager state: active_id='{getattr(m, 'activeConfigId', 'N/A')}', hasActive={is_active}")
+                        print(f"   [VPN] [bg] Resulting status for server: {final_status}")
                         
                         # Report back to server via REST API (with infinite-ish retry)
                         status_url = f"{VPN_URL}/{config_id}/status"
                         headers = {"Authorization": f"Bearer {self.token}"}
                         payload = {"status": final_status}
                         
-                        print(f"📡 [VPN] [bg] Reporting status '{final_status}' to REST API: {status_url}")
+                        print(f"📡 [VPN] [bg] [Step 4] Reporting status '{final_status}' to REST API: {status_url}")
+                        print(f"   [VPN] [bg] Headers: {{'Authorization': 'Bearer ...{self.token[-8:] if self.token else 'None'}'}}")
                         
                         attempt = 1
                         while True:
                             try:
-                                resp = requests.patch(status_url, json=payload, headers=headers, timeout=10)
+                                print(f"   [VPN] [bg] Sending PATCH request (attempt {attempt})...")
+                                resp = requests.patch(status_url, json=payload, headers=headers, timeout=15)
+                                print(f"   [VPN] [bg] Response Status: {resp.status_code}")
                                 if resp.status_code == 200:
-                                    print(f"✅ [VPN] [bg] Status reported successfully (attempt {attempt}).")
+                                    print(f"✅ [VPN] [bg] [Step 4] Status reported successfully. Server responded: {resp.text}")
                                     break
                                 else:
-                                    print(f"⚠️  [VPN] [bg] API error {resp.status_code}: {resp.text}")
+                                    print(f"⚠️  [VPN] [bg] [Step 4] API error {resp.status_code}: {resp.text}")
                             except Exception as api_exc:
-                                print(f"⚠️  [VPN] [bg] API call failed (attempt {attempt}): {api_exc}")
+                                print(f"⚠️  [VPN] [bg] [Step 4] API call failed with exception (attempt {attempt}): {api_exc}")
                             
                             print(f"🔁 [VPN] [bg] Retrying status report in 3s...")
                             time.sleep(3)
                             attempt += 1
                             if attempt > 100: # Safety cap (5 mins)
-                                print("❌ [VPN] [bg] Giving up on status report after 100 attempts.")
+                                print("❌ [VPN] [bg] [Step 4] Giving up on status report after 100 attempts.")
                                 break
                             
                     except Exception as exc:
                         print(f"❌ [VPN] [bg] toggleConnection failed: {exc}")
                         # Even error reporting should be REST-based
                         try:
+                            print(f"📡 [VPN] [bg] Reporting ERROR status to REST API...")
                             requests.patch(f"{VPN_URL}/{config_id}/status", 
                                           json={"status": "ERROR"}, 
                                           headers={"Authorization": f"Bearer {self.token}"}, 
                                           timeout=5)
-                        except:
-                            pass
+                        except Exception as e_err:
+                            print(f"⚠️  [VPN] [bg] Failed to report ERROR state: {e_err}")
 
                 t = threading.Thread(target=_do_toggle, daemon=True)
                 t.start()
@@ -289,25 +295,32 @@ class NeosecWebSocketClient:
 
     def report_current_status_rest(self):
         """Report current VPN status to server via REST API (useful on reconnect)"""
-        if not self.vpn_manager or not self.token:
+        print("🔍 [VPN] [Sync] Starting REST status sync...")
+        if not self.vpn_manager:
+            print("⚠️  [VPN] [Sync] Aborting: No vpn_manager.")
+            return
+        if not self.token:
+            print("⚠️  [VPN] [Sync] Aborting: No token available.")
             return
             
-        print("🔍 [VPN] Checking current status for REST-API sync...")
+        print("🔍 [VPN] [Sync] Checking current status from VpnManager...")
         try:
             m = self.vpn_manager
-            # Check if any VPN is active
-            if m is not None and hasattr(m, 'hasActiveConnection') and m.hasActiveConnection:
-                # Get the active config ID if possible
-                active_id = getattr(m, 'activeConfigId', None)
-                if active_id:
-                    status_url = f"{VPN_URL}/{active_id}/status"
-                    headers = {"Authorization": f"Bearer {self.token}"}
-                    requests.patch(status_url, json={"status": "CONNECTED"}, headers=headers, timeout=5)
-                    print(f"📤 [VPN] Reported active config {active_id} as CONNECTED via REST.")
-                else:
-                    print("⚠️  [VPN] VPN is active but activeConfigId is not known for REST sync.")
+            is_active = getattr(m, 'hasActiveConnection', False)
+            active_id = getattr(m, 'activeConfigId', None)
+            
+            print(f"🔍 [VPN] [Sync] Manager state: is_active={is_active}, active_id={active_id}")
+            
+            if is_active and active_id:
+                status_url = f"{VPN_URL}/{active_id}/status"
+                headers = {"Authorization": f"Bearer {self.token}"}
+                print(f"📡 [VPN] [Sync] Reporting CONNECTED for {active_id} to {status_url}")
+                resp = requests.patch(status_url, json={"status": "CONNECTED"}, headers=headers, timeout=5)
+                print(f"✅ [VPN] [Sync] Reported! Status: {resp.status_code}, Resp: {resp.text}")
+            else:
+                print("🔍 [VPN] [Sync] No active connection to report.")
         except Exception as e:
-            print(f"⚠️  [VPN] Failed to report status via REST: {e}")
+            print(f"⚠️  [VPN] [Sync] Failed to report status via REST: {e}")
 
     def connect(self, token):
         if self.sio_connected:
