@@ -4,6 +4,7 @@ import json
 import struct
 import os
 import time
+import threading
 import requests
 
 from .config import SOCKET_PATH, BACKEND_URL, VPN_URL
@@ -182,31 +183,42 @@ class NeosecWebSocketClient:
                 self._reload_vpn_configs_sync(config_id)
 
                 # ── Step 2 (RC-2): Optimistic ack BEFORE the VPN toggle ───────
-                # Calling toggleConnection() brings up the VPN tunnel.  For
-                # full-tunnel configs this immediately reroutes all traffic
-                # through the new interface, dropping the existing TCP connection
-                # to the backend.  If we call callback() *after* that, the ack
-                # is sent on a dead socket and the server times out.
+                # KEY INSIGHT: python-socketio only *queues* the ack packet when
+                # callback() is called — it does not transmit it until the event
+                # handler *returns* and the event loop regains control.
                 #
-                # Sending the ack first (while the socket is still live) ensures
-                # the server receives a definitive "success" before any route
-                # change happens.  If the subsequent toggle fails we log the
-                # error locally; the VPN state mismatch is recoverable via the
-                # server's next poll / user retry.
+                # toggleConnection() calls nmcli synchronously (several seconds).
+                # If we call it here, it blocks the handler thread and the queued
+                # ack sits unsent until AFTER the VPN routing change has already
+                # killed the socket → server still times out.
+                #
+                # Fix: send the ack, then immediately spawn a daemon thread for
+                # the actual toggle. The event handler returns right away, the
+                # event loop flushes the ack to the wire, and the toggle runs in
+                # the background where a routing-table change can't hurt us.
                 print(f"📤 [VPN] Sending ack to server before toggle "
                       f"(action={action}, configId={config_id})")
                 if callable(callback):
                     callback({"status": "success",
                               "message": f"VPN {action} initiated"})
 
-                # ── Step 3: Delegate to VpnManager ───────────────────────────
-                print(f"⚙️  [VPN] Calling VpnManager.toggleConnection('{config_id}')")
-                self.vpn_manager.toggleConnection(config_id)
-                print(f"✅ [VPN] toggleConnection('{config_id}') completed.")
-                return  # callback already sent above
+                # ── Step 3: Toggle in background (event handler returns now) ──
+                def _do_toggle():
+                    try:
+                        print(f"⚙️  [VPN] [bg] Calling "
+                              f"VpnManager.toggleConnection('{config_id}')")
+                        self.vpn_manager.toggleConnection(config_id)
+                        print(f"✅ [VPN] [bg] toggleConnection('{config_id}') "
+                              "completed.")
+                    except Exception as exc:
+                        print(f"❌ [VPN] [bg] toggleConnection failed: {exc}")
+
+                t = threading.Thread(target=_do_toggle, daemon=True)
+                t.start()
+                return  # ← event handler exits here, ack is now transmitted
 
             except Exception as e:
-                print(f"❌ [VPN] Toggle failed: {e}")
+                print(f"❌ [VPN] Toggle setup failed: {e}")
                 result = {"status": "error", "message": str(e)}
                 # Error ack — socket may or may not still be alive
                 if callable(callback):
