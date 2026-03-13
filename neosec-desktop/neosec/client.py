@@ -16,7 +16,12 @@ class NeosecWebSocketClient:
         self.token = None
         self.sio = socketio.Client()
         self.sio_connected = False
+        self.daemon_client = None  # set via set_daemon_client() after construction
         self.setup_sio_events()
+
+    def set_daemon_client(self, daemon_client):
+        """Wire a NeosecDaemonClient so VPN commands can be routed through it."""
+        self.daemon_client = daemon_client
 
     def setup_sio_events(self):
         @self.sio.event
@@ -44,15 +49,52 @@ class NeosecWebSocketClient:
         def on_request_vpn_toggle(data, callback=None):
             print(f"📩 [App Event] 'RequestVpnToggle' payload received: {data}")
             try:
-                # TODO: Replace with real VPN command execution
-                time.sleep(0.5)
-                print("✅ [Desktop Action] VPN configuration applied successfully.")
-                result = {"status": "success", "message": "VPN configuration applied locally"}
+                action   = data.get('action', 'connect')      # 'connect' | 'disconnect'
+                protocol = data.get('protocol', 'OpenVPN')    # 'OpenVPN'  | 'WireGuard'
+                cfg_file = data.get('configFileName', '')
+
+                # Build the OS-level command for the requested action + protocol
+                if action == 'connect':
+                    if protocol == 'WireGuard':
+                        # Strip .conf extension to get the interface name (e.g. wg0)
+                        iface = cfg_file.replace('.conf', '') if cfg_file else 'wg0'
+                        cmd = f"wg-quick up {iface}"
+                    else:
+                        # OpenVPN: start the tunnel using the stored config file
+                        cmd = f"openvpn --config /etc/openvpn/{cfg_file} --daemon"
+                else:
+                    if protocol == 'WireGuard':
+                        iface = cfg_file.replace('.conf', '') if cfg_file else 'wg0'
+                        cmd = f"wg-quick down {iface}"
+                    else:
+                        cmd = "pkill -f openvpn"
+
+                print(f"⚙️  [Desktop Action] Running VPN command: {cmd}")
+
+                # Use the daemon client if available; otherwise fall back to local subprocess
+                if self.daemon_client and self.daemon_client.is_connected:
+                    output = self.daemon_client.send_command(cmd)
+                    if 'Error' in str(output):
+                        raise RuntimeError(output)
+                    print(f"✅ [Desktop Action] VPN command output: {output}")
+                else:
+                    import subprocess
+                    proc = subprocess.run(
+                        cmd, shell=True, capture_output=True, text=True, timeout=15
+                    )
+                    if proc.returncode != 0:
+                        raise RuntimeError(proc.stderr.strip() or f"Exit code {proc.returncode}")
+                    print(f"✅ [Desktop Action] VPN command output: {proc.stdout.strip()}")
+
+                result = {"status": "success", "message": f"VPN {action}ed successfully"}
             except Exception as e:
+                print(f"❌ [Desktop Action] VPN command failed: {e}")
                 result = {"status": "error", "message": str(e)}
-            # Must call the callback to send acknowledgment back to server
+
+            # Send acknowledgment back to the server
             if callable(callback):
                 callback(result)
+
 
         @self.sio.on('RequestFirewallRuleChange')
         def on_request_firewall_rule_change(data, callback=None):

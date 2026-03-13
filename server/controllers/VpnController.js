@@ -283,24 +283,15 @@ exports.toggleVpnConfig = async (req, res) => {
         const wasActive = vpnConfig.isActive;
         const willBeActive = !wasActive;
 
-        console.log(`\n[VPN Toggle] ============================`);
-        console.log(`[VPN Toggle] User:      ${req.user.id}`);
-        console.log(`[VPN Toggle] Config:    ${vpnConfig.name} (id=${vpnConfig.id})`);
-        console.log(`[VPN Toggle] Protocol:  ${vpnConfig.protocol}`);
-        console.log(`[VPN Toggle] Action:    ${willBeActive ? 'CONNECT' : 'DISCONNECT'}`);
-        console.log(`[VPN Toggle] Sending request to desktop client...`);
-
-        // Ask desktop client to apply VPN rules
+        // Ask desktop client to apply VPN rules and wait for acknowledgment (10s timeout)
         try {
-            const ackResponse = await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', {
+            await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', {
                 configId: vpnConfig.id,
                 action: willBeActive ? 'connect' : 'disconnect',
                 protocol: vpnConfig.protocol,
                 configFileName: vpnConfig.configFileName
             });
-            console.log(`[VPN Toggle] Desktop client ACK received:`, ackResponse);
         } catch (socketError) {
-            console.warn(`[VPN Toggle] Desktop client error: ${socketError.message} (code=${socketError.code})`);
             if (socketError.code === 'DESKTOP_CLIENT_NOT_FOUND') {
                 return res.status(400).json({
                     success: false,
@@ -308,12 +299,18 @@ exports.toggleVpnConfig = async (req, res) => {
                     code: 'REQUIRE_DESKTOP_CLIENT'
                 });
             }
-            return res.status(500).json({
+            // Timeout or error from desktop client — do NOT update DB
+            console.error('[VPN Toggle] Desktop client error/timeout:', socketError.message);
+            return res.status(504).json({
                 success: false,
-                message: `Failed to apply VPN locally: ${socketError.message}`
+                message: socketError.message.includes('timed out')
+                    ? 'Desktop client did not respond in time. VPN status unchanged.'
+                    : `Desktop client error: ${socketError.message}`,
+                code: 'DESKTOP_TIMEOUT'
             });
         }
 
+        // Desktop confirmed success — now update DB
         // If activating, deactivate all other VPN configs for this user
         if (willBeActive) {
             await VpnConfig.update(
@@ -407,12 +404,8 @@ exports.toggleVpnConfig = async (req, res) => {
             }
         }
 
-        console.log(`[VPN Toggle] Updating DB: isActive -> ${willBeActive}`);
-        await vpnConfig.update({
-            isActive: willBeActive
-        });
-        console.log(`[VPN Toggle] DB updated successfully. Final state: isActive=${willBeActive}`);
-        console.log(`[VPN Toggle] ============================\n`);
+        // Persist the new active state
+        await vpnConfig.update({ isActive: willBeActive });
 
         res.status(200).json({
             success: true,
@@ -423,7 +416,7 @@ exports.toggleVpnConfig = async (req, res) => {
                 protocol: vpnConfig.protocol,
                 configFileName: vpnConfig.configFileName,
                 description: vpnConfig.description,
-                isActive: vpnConfig.isActive,
+                isActive: willBeActive,
                 createdAt: vpnConfig.createdAt,
                 updatedAt: vpnConfig.updatedAt
             }

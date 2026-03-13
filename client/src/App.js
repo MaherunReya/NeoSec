@@ -529,7 +529,7 @@ function App() {
 
                         {/* VPN View */}
                         {currentView === 'vpn' && (
-                            <VpnManagement theme={theme} palette={palette} />
+                            <VpnManagement theme={theme} palette={palette} showToast={showToast} />
                         )}
 
                         {/* Firewall View */}
