@@ -132,6 +132,15 @@ exports.createVpnConfig = async (req, res) => {
         });
     } catch (error) {
         console.error('Create VPN config error:', error);
+        
+        // Handle Sequelize validation errors specifically
+        if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(400).json({
+                success: false,
+                message: error.errors.map(e => e.message).join(', ')
+            });
+        }
+
         res.status(500).json({
             success: false,
             message: error.message || 'Failed to create VPN configuration'

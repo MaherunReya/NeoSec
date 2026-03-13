@@ -11,7 +11,7 @@ const VpnConfig = sequelize.define('VpnConfig', {
     name: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
+        unique: 'user_vpn_name',
         validate: {
             notEmpty: true
         }
@@ -47,6 +47,7 @@ const VpnConfig = sequelize.define('VpnConfig', {
     userId: {
         type: DataTypes.UUID,
         allowNull: false,
+        unique: 'user_vpn_name',
         references: {
             model: 'users',
             key: 'id'
