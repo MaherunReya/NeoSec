@@ -44,15 +44,22 @@ class NeosecWebSocketClient:
         def on_request_vpn_toggle(data, callback=None):
             print(f"📩 [App Event] 'RequestVpnToggle' payload received: {data}")
             try:
-                # TODO: Replace with real VPN command execution
+                # TODO: Implement real VPN logic here
+                # For now, we simulate success for the placeholder
                 time.sleep(0.5)
                 print("✅ [Desktop Action] VPN configuration applied successfully.")
                 result = {"status": "success", "message": "VPN configuration applied locally"}
             except Exception as e:
+                print(f"❌ [Desktop Action] VPN error: {e}")
                 result = {"status": "error", "message": str(e)}
-            # Must call the callback to send acknowledgment back to server
+            
+            # Use both return and callback for maximum compatibility
             if callable(callback):
-                callback(result)
+                try:
+                    callback(result)
+                except Exception as cb_err:
+                    print(f"⚠️ [Socket] Callback failed: {cb_err}")
+            return result
 
         @self.sio.on('RequestFirewallRuleChange')
         def on_request_firewall_rule_change(data, callback=None):

@@ -311,12 +311,15 @@ const activateProfile = async (req, res) => {
                   protocol: vpnConfig.protocol,
                   configFileName: vpnConfig.configFileName
               });
+              console.log(`[Profile Activation] Desktop client ACK received:`, ackResponse);
+
+              const response = Array.isArray(ackResponse) ? ackResponse[0] : ackResponse;
               
-              if (ackResponse && ackResponse.status === 'success') {
+              if (response && response.status === 'success') {
                   await vpnConfig.update({ isActive: true });
                   console.log(`[Profile Activation] VPN activated successfully for user ${req.user.id}`);
               } else {
-                  console.warn(`[Profile Activation] Desktop failed to activate VPN: ${ackResponse?.message}`);
+                  console.warn(`[Profile Activation] Desktop failed to activate VPN: ${response?.message}`);
                   await vpnConfig.update({ isActive: false });
               }
           } catch (socketError) {

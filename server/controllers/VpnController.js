@@ -303,10 +303,14 @@ exports.toggleVpnConfig = async (req, res) => {
             });
             console.log(`[VPN Toggle] Desktop client ACK received:`, ackResponse);
             
-            if (ackResponse && ackResponse.status === 'success') {
+            // In some Socket.IO versions, timeout() might return an array if used via BroadcastOperator
+            // and sometimes single sockets might behave similarly depending on the middleware.
+            const response = Array.isArray(ackResponse) ? ackResponse[0] : ackResponse;
+            
+            if (response && response.status === 'success') {
                 clientSuccess = true;
             } else {
-                clientError = ackResponse?.message || 'Desktop client failed to apply VPN configuration';
+                clientError = response?.message || 'Desktop client failed to apply VPN configuration';
             }
         } catch (socketError) {
             console.warn(`[VPN Toggle] Desktop client error: ${socketError.message} (code=${socketError.code})`);
