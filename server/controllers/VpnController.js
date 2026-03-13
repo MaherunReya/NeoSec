@@ -11,7 +11,7 @@ exports.getVpnConfigs = async (req, res) => {
         const vpnConfigs = await VpnConfig.findAll({
             where: { userId: req.user.id },
             order: [['createdAt', 'DESC']],
-            attributes: ['id', 'name', 'protocol', 'configFileName', 'description', 'isActive', 'createdAt', 'updatedAt']
+            attributes: ['id', 'name', 'protocol', 'configFileName', 'description', 'isActive', 'status', 'createdAt', 'updatedAt']
         });
 
         res.status(200).json({
@@ -423,6 +423,111 @@ exports.downloadVpnConfig = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to download VPN configuration'
+        });
+    }
+};
+
+// Update VPN status (REST equivalent of socket ReportVpnStatus)
+exports.updateVpnStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+        const configId = req.params.id;
+
+        if (!status) {
+            return res.status(400).json({
+                success: false,
+                message: 'Status is required'
+            });
+        }
+
+        const vpnConfig = await VpnConfig.findOne({
+            where: {
+                id: configId,
+                userId: req.user.id
+            }
+        });
+
+        if (!vpnConfig) {
+            return res.status(404).json({
+                success: false,
+                message: 'VPN configuration not found'
+            });
+        }
+
+        const isActive = (status === 'CONNECTED');
+        const wasActive = vpnConfig.isActive;
+
+        // Update DB
+        await vpnConfig.update({ status, isActive });
+
+        // If now connected, ensure others are marked inactive
+        if (isActive) {
+            await VpnConfig.update(
+                { isActive: false, status: 'OFFLINE' },
+                {
+                    where: {
+                        userId: req.user.id,
+                        id: { [Op.ne]: configId }
+                    }
+                }
+            );
+
+            // Log session start
+            try {
+                await DataTransfer.create({
+                    userId: req.user.id,
+                    vpnConfigId: configId,
+                    bytesSent: 0,
+                    bytesReceived: 0,
+                    sessionStart: new Date(),
+                    isActive: true
+                });
+                
+                await ActivityLog.create({
+                    eventType: 'VPN Connection',
+                    description: `REST confirmation: VPN connected (${vpnConfig.name})`,
+                    status: 'Success',
+                    severity: 'info',
+                    userId: req.user.id
+                });
+            } catch (loggingError) {
+                console.error('[VPN Status] Logging error:', loggingError.message);
+            }
+        } else if (wasActive && !isActive) {
+            // Log disconnection if it was active
+            try {
+                await DataTransfer.update(
+                    { isActive: false, sessionEnd: new Date() },
+                    { where: { userId: req.user.id, vpnConfigId: configId, isActive: true } }
+                );
+                
+                await ActivityLog.create({
+                    eventType: 'VPN Disconnection',
+                    description: `REST confirmation: VPN disconnected (${vpnConfig.name})`,
+                    status: 'Disconnected',
+                    severity: 'info',
+                    userId: req.user.id
+                });
+            } catch (loggingError) {
+                console.error('[VPN Status] Disconnect logging error:', loggingError.message);
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'VPN status updated successfully',
+            data: {
+                id: configId,
+                status,
+                isActive
+            }
+        });
+
+    } catch (error) {
+        console.error('Update VPN status error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update VPN status'
         });
     }
 };

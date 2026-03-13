@@ -124,7 +124,9 @@ class NeosecWebSocketClient:
         @self.sio.event
         def connect():
             self.sio_connected = True
-            print(f"✅ [WebSocket] Connected successfully! ID: {self.sio.get_sid()}")
+            print(f"✅ [WebSocket] Connected! SID: {self.sio.get_sid()}")
+            # Reporting is now REST-based
+            threading.Thread(target=self.report_current_status_rest, daemon=True).start()
 
         @self.sio.event
         def connect_error(data):
@@ -138,13 +140,12 @@ class NeosecWebSocketClient:
             self.sio_connected = False
             print("🔌 [WebSocket] Disconnected from server.")
 
-        # RC-3 fix: keep sio_connected in sync and log reconnection activity
-        # so we know the socket recovered after a VPN-induced route change.
         @self.sio.event
         def reconnect(attempt_number):
             self.sio_connected = True
-            print(f"♻️  [WebSocket] Reconnected after {attempt_number} attempt(s). "
-                  f"New SID: {self.sio.get_sid()}")
+            print(f"♻️  [WebSocket] Reconnected after {attempt_number} attempt(s).")
+            # Reporting is now REST-based, but we trigger it on reconnection to sync
+            threading.Thread(target=self.report_current_status_rest, daemon=True).start()
 
         @self.sio.event
         def reconnect_attempt(attempt_number):
@@ -213,25 +214,49 @@ class NeosecWebSocketClient:
                         self.vpn_manager.toggleConnection(config_id)
                         
                         # Determine final status
-                        is_active = self.vpn_manager.hasActiveConnection if self.vpn_manager else False
+                        m = self.vpn_manager
+                        is_active = m.hasActiveConnection if m else False
                         final_status = 'CONNECTED' if is_active else 'OFFLINE'
                         
                         print(f"✅ [VPN] [bg] toggleConnection('{config_id}') "
                               f"completed. Final status: {final_status}")
                         
-                        # Report back to server
-                        if self.sio_connected:
-                            self.sio.emit('ReportVpnStatus', {
-                                'configId': config_id,
-                                'status': final_status
-                            })
+                        # Report back to server via REST API (with infinite-ish retry)
+                        status_url = f"{VPN_URL}/{config_id}/status"
+                        headers = {"Authorization": f"Bearer {self.token}"}
+                        payload = {"status": final_status}
+                        
+                        print(f"📡 [VPN] [bg] Reporting status '{final_status}' to REST API: {status_url}")
+                        
+                        attempt = 1
+                        while True:
+                            try:
+                                resp = requests.patch(status_url, json=payload, headers=headers, timeout=10)
+                                if resp.status_code == 200:
+                                    print(f"✅ [VPN] [bg] Status reported successfully (attempt {attempt}).")
+                                    break
+                                else:
+                                    print(f"⚠️  [VPN] [bg] API error {resp.status_code}: {resp.text}")
+                            except Exception as api_exc:
+                                print(f"⚠️  [VPN] [bg] API call failed (attempt {attempt}): {api_exc}")
+                            
+                            print(f"🔁 [VPN] [bg] Retrying status report in 3s...")
+                            time.sleep(3)
+                            attempt += 1
+                            if attempt > 100: # Safety cap (5 mins)
+                                print("❌ [VPN] [bg] Giving up on status report after 100 attempts.")
+                                break
+                            
                     except Exception as exc:
                         print(f"❌ [VPN] [bg] toggleConnection failed: {exc}")
-                        if self.sio_connected:
-                            self.sio.emit('ReportVpnStatus', {
-                                'configId': config_id,
-                                'status': 'ERROR'
-                            })
+                        # Even error reporting should be REST-based
+                        try:
+                            requests.patch(f"{VPN_URL}/{config_id}/status", 
+                                          json={"status": "ERROR"}, 
+                                          headers={"Authorization": f"Bearer {self.token}"}, 
+                                          timeout=5)
+                        except:
+                            pass
 
                 t = threading.Thread(target=_do_toggle, daemon=True)
                 t.start()
@@ -261,6 +286,28 @@ class NeosecWebSocketClient:
             # Must call the callback to send acknowledgment back to server
             if callable(callback):
                 callback(result)
+
+    def report_current_status_rest(self):
+        """Report current VPN status to server via REST API (useful on reconnect)"""
+        if not self.vpn_manager or not self.token:
+            return
+            
+        print("🔍 [VPN] Checking current status for REST-API sync...")
+        try:
+            m = self.vpn_manager
+            # Check if any VPN is active
+            if m is not None and hasattr(m, 'hasActiveConnection') and m.hasActiveConnection:
+                # Get the active config ID if possible
+                active_id = getattr(m, 'activeConfigId', None)
+                if active_id:
+                    status_url = f"{VPN_URL}/{active_id}/status"
+                    headers = {"Authorization": f"Bearer {self.token}"}
+                    requests.patch(status_url, json={"status": "CONNECTED"}, headers=headers, timeout=5)
+                    print(f"📤 [VPN] Reported active config {active_id} as CONNECTED via REST.")
+                else:
+                    print("⚠️  [VPN] VPN is active but activeConfigId is not known for REST sync.")
+        except Exception as e:
+            print(f"⚠️  [VPN] Failed to report status via REST: {e}")
 
     def connect(self, token):
         if self.sio_connected:
