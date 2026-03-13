@@ -15,7 +15,15 @@ class NeosecWebSocketClient:
     def __init__(self, server_url=BACKEND_URL):
         self.server_url = server_url
         self.token = None
-        self.sio = socketio.Client()
+        # RC-3 fix: explicit reconnection config so the socket survives the
+        # routing-table flip that happens when a full-tunnel VPN comes up.
+        self.sio = socketio.Client(
+            reconnection=True,
+            reconnection_attempts=0,        # 0 = retry indefinitely
+            reconnection_delay=1,           # first retry after 1 s
+            reconnection_delay_max=10,      # cap backoff at 10 s
+            randomization_factor=0.5,
+        )
         self.sio_connected = False
         self.daemon_client = None  # set via set_daemon_client() after construction
         self.vpn_manager = None    # set via set_vpn_manager() after construction
@@ -29,41 +37,87 @@ class NeosecWebSocketClient:
         """Wire a VpnManager so VPN connect/disconnect is handled via nmcli."""
         self.vpn_manager = vpn_manager
 
-    def _reload_vpn_configs_sync(self):
-        """Fetch fresh VPN configs from the server and push them into VpnManager.
+    def _reload_vpn_configs_sync(self, config_id):
+        """Ensure the config file for `config_id` exists locally.
 
-        This must be called before toggling so that any newly uploaded or
-        changed config files are available locally before nmcli tries to import
-        them.
+        RC-1 fix: Cache-first. If the file is already on disk we skip ALL
+        HTTP traffic so the reload does not eat into the server's 10-second
+        ack window.
+
+        RC-4 fix: If we do need to fetch the file, retry up to 3 times with
+        a 1-second pause between attempts so a brief network hiccup (e.g. a
+        previous VPN session being torn down) does not permanently break the
+        download.
         """
         if not self.vpn_manager or not self.token:
             return
-        try:
-            headers = {"Authorization": f"Bearer {self.token}"}
-            resp = requests.get(VPN_URL, headers=headers, timeout=10)
-            if resp.status_code != 200:
-                print(f"⚠️  [VPN Reload] Failed to fetch VPN list: {resp.status_code}")
-                return
-            data = resp.json()
-            if not data.get("success"):
-                return
-            vpn_list = data.get("data", [])
-            full_data = []
-            for vpn in vpn_list:
-                vpn_id = vpn.get("id")
-                dl_url = f"{VPN_URL}/{vpn_id}/download"
-                try:
-                    dl_resp = requests.get(dl_url, headers=headers, timeout=15)
-                    config_content = dl_resp.content if dl_resp.status_code == 200 else None
-                except Exception as e:
-                    print(f"⚠️  [VPN Reload] Error downloading config for {vpn_id}: {e}")
-                    config_content = None
-                vpn["config_content"] = config_content
-                full_data.append(vpn)
-            print(f"✅ [VPN Reload] Fetched {len(full_data)} VPN config(s); updating VpnManager.")
-            self.vpn_manager.update_vpns(full_data)
-        except Exception as e:
-            print(f"❌ [VPN Reload] Unexpected error: {e}")
+
+        # ── Cache-first check ───────────────────────────────────────────────
+        cached_path = self.vpn_manager._get_path_by_id(config_id)
+        if cached_path and os.path.exists(cached_path):
+            print(f"✅ [VPN Reload] Config '{config_id}' already cached at {cached_path}. "
+                  "Skipping network reload.")
+            return
+
+        # ── Targeted download (this config only) ────────────────────────────
+        print(f"🔄 [VPN Reload] Cache miss for '{config_id}'. Fetching from server...")
+        headers = {"Authorization": f"Bearer {self.token}"}
+
+        # Step A: fetch the full VPN list (metadata only — no file content yet)
+        # We need it to call update_vpns() which expects the full user list so
+        # it can clean up removed entries. Only the target gets a file download.
+        for attempt in range(1, 4):
+            try:
+                resp = requests.get(VPN_URL, headers=headers, timeout=10)
+                if resp.status_code != 200:
+                    raise OSError(f"HTTP {resp.status_code} listing VPNs")
+                data = resp.json()
+                if not data.get("success"):
+                    raise OSError("Server returned success=false listing VPNs")
+                vpn_list = data.get("data", [])
+                break
+            except Exception as exc:
+                print(f"⚠️  [VPN Reload] List attempt {attempt}/3 failed: {exc}")
+                if attempt < 3:
+                    time.sleep(1)
+        else:
+            print("❌ [VPN Reload] All list attempts failed. Using cached configs.")
+            return
+
+        # Step B: download the file only for the target config; use cached
+        # bytes for everything else to keep the call fast.
+        full_data = []
+        for vpn in vpn_list:
+            vpn_id = vpn.get("id")
+            if vpn_id == config_id:
+                # Targeted download with retry
+                content = None
+                for attempt in range(1, 4):
+                    try:
+                        dl_url = f"{VPN_URL}/{vpn_id}/download"
+                        dl = requests.get(dl_url, headers=headers, timeout=15)
+                        if dl.status_code == 200:
+                            content = dl.content
+                            break
+                        raise OSError(f"HTTP {dl.status_code} downloading config")
+                    except Exception as exc:
+                        print(f"⚠️  [VPN Reload] Download attempt {attempt}/3 "
+                              f"for '{vpn_id}' failed: {exc}")
+                        if attempt < 3:
+                            time.sleep(1)
+                vpn["config_content"] = content
+            else:
+                # Re-use existing cached bytes — avoids downloading every config.
+                existing_path = self.vpn_manager._get_path_by_id(vpn_id)
+                if existing_path and os.path.exists(existing_path):
+                    with open(existing_path, "rb") as fh:
+                        vpn["config_content"] = fh.read()
+                else:
+                    vpn["config_content"] = None
+            full_data.append(vpn)
+
+        print(f"✅ [VPN Reload] Updating VpnManager with {len(full_data)} entry/entries.")
+        self.vpn_manager.update_vpns(full_data)
 
     def setup_sio_events(self):
         @self.sio.event
@@ -82,6 +136,23 @@ class NeosecWebSocketClient:
         def disconnect():
             self.sio_connected = False
             print("🔌 [WebSocket] Disconnected from server.")
+
+        # RC-3 fix: keep sio_connected in sync and log reconnection activity
+        # so we know the socket recovered after a VPN-induced route change.
+        @self.sio.event
+        def reconnect(attempt_number):
+            self.sio_connected = True
+            print(f"♻️  [WebSocket] Reconnected after {attempt_number} attempt(s). "
+                  f"New SID: {self.sio.get_sid()}")
+
+        @self.sio.event
+        def reconnect_attempt(attempt_number):
+            print(f"🔁 [WebSocket] Reconnect attempt #{attempt_number}...")
+
+        @self.sio.event
+        def reconnect_failed():
+            self.sio_connected = False
+            print("❌ [WebSocket] All reconnect attempts exhausted.")
 
         @self.sio.on('userUpdated')
         def on_user_updated(data):
@@ -105,28 +176,44 @@ class NeosecWebSocketClient:
                         "Call set_vpn_manager() before handling VPN toggle events."
                     )
 
-                # ── Step 1: Reload configs from the server so any newly
-                #   uploaded/changed files are written to disk and registered
-                #   in VpnManager before nmcli tries to import them. ──────────
-                print("🔄 [VPN] Reloading VPN configs from server before toggling...")
-                self._reload_vpn_configs_sync()
+                # ── Step 1 (RC-1 / RC-4): Cache-first reload ─────────────────
+                # Only downloads the file if it is not already on disk.
+                # Uses retries for transient network errors.
+                self._reload_vpn_configs_sync(config_id)
 
-                # ── Step 2: Delegate entirely to VpnManager.toggleConnection()
-                #   It knows how to: import the config via nmcli, rename the
-                #   connection, bring it up/down, and track the active ID. ─────
-                print(f"⚙️  [VPN] Calling VpnManager.toggleConnection('{config_id}') "
-                      f"(action={action})")
+                # ── Step 2 (RC-2): Optimistic ack BEFORE the VPN toggle ───────
+                # Calling toggleConnection() brings up the VPN tunnel.  For
+                # full-tunnel configs this immediately reroutes all traffic
+                # through the new interface, dropping the existing TCP connection
+                # to the backend.  If we call callback() *after* that, the ack
+                # is sent on a dead socket and the server times out.
+                #
+                # Sending the ack first (while the socket is still live) ensures
+                # the server receives a definitive "success" before any route
+                # change happens.  If the subsequent toggle fails we log the
+                # error locally; the VPN state mismatch is recoverable via the
+                # server's next poll / user retry.
+                print(f"📤 [VPN] Sending ack to server before toggle "
+                      f"(action={action}, configId={config_id})")
+                if callable(callback):
+                    callback({"status": "success",
+                              "message": f"VPN {action} initiated"})
+
+                # ── Step 3: Delegate to VpnManager ───────────────────────────
+                print(f"⚙️  [VPN] Calling VpnManager.toggleConnection('{config_id}')")
                 self.vpn_manager.toggleConnection(config_id)
-
-                result = {"status": "success", "message": f"VPN {action}ed successfully"}
+                print(f"✅ [VPN] toggleConnection('{config_id}') completed.")
+                return  # callback already sent above
 
             except Exception as e:
                 print(f"❌ [VPN] Toggle failed: {e}")
                 result = {"status": "error", "message": str(e)}
-
-            # Send acknowledgment back to the server
-            if callable(callback):
-                callback(result)
+                # Error ack — socket may or may not still be alive
+                if callable(callback):
+                    try:
+                        callback(result)
+                    except Exception as cb_err:
+                        print(f"⚠️  [VPN] Could not deliver error ack: {cb_err}")
 
 
         @self.sio.on('RequestFirewallRuleChange')
