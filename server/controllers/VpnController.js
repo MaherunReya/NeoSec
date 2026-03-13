@@ -291,6 +291,9 @@ exports.toggleVpnConfig = async (req, res) => {
         console.log(`[VPN Toggle] Sending request to desktop client...`);
 
         // Ask desktop client to apply VPN rules
+        let clientSuccess = false;
+        let clientError = '';
+
         try {
             const ackResponse = await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', {
                 configId: vpnConfig.id,
@@ -299,6 +302,12 @@ exports.toggleVpnConfig = async (req, res) => {
                 configFileName: vpnConfig.configFileName
             });
             console.log(`[VPN Toggle] Desktop client ACK received:`, ackResponse);
+            
+            if (ackResponse && ackResponse.status === 'success') {
+                clientSuccess = true;
+            } else {
+                clientError = ackResponse?.message || 'Desktop client failed to apply VPN configuration';
+            }
         } catch (socketError) {
             console.warn(`[VPN Toggle] Desktop client error: ${socketError.message} (code=${socketError.code})`);
             if (socketError.code === 'DESKTOP_CLIENT_NOT_FOUND') {
@@ -308,9 +317,21 @@ exports.toggleVpnConfig = async (req, res) => {
                     code: 'REQUIRE_DESKTOP_CLIENT'
                 });
             }
+            clientError = `Failed to apply VPN locally: ${socketError.message}`;
+        }
+
+        // If desktop client failed, force DB state to false and return error
+        if (!clientSuccess) {
+            console.log(`[VPN Toggle] Desktop client failed (${clientError}). Forcing isActive=false`);
+            await vpnConfig.update({ isActive: false });
             return res.status(500).json({
                 success: false,
-                message: `Failed to apply VPN locally: ${socketError.message}`
+                message: clientError,
+                data: {
+                    id: vpnConfig.id,
+                    name: vpnConfig.name,
+                    isActive: false
+                }
             });
         }
 

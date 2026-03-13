@@ -159,9 +159,8 @@ const emitWithAckToDesktop = (userId, event, data) => {
             if (err) {
                 return reject(new Error(`Desktop client timed out for event ${event}`));
             }
-            if (response && response.status === 'error') {
-                return reject(new Error(response.message || 'Desktop client returned an error'));
-            }
+            // We resolve even if the response status is 'error', since the controller 
+            // needs to handle logical errors and update the database accordingly.
             resolve(response);
         });
     });

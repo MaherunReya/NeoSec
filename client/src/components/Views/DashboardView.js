@@ -150,6 +150,7 @@ function DashboardView({ user, theme, palette, dashboardData, dashboardLoading, 
                                             })
                                             .catch((error) => {
                                                 console.error('Failed to disconnect VPN:', error);
+                                                if (onRefreshDashboard) onRefreshDashboard();
                                             });
                                     }}
                                 >

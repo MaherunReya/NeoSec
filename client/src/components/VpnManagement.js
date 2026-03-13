@@ -231,6 +231,17 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
                     'error'
                 );
             }
+            
+            // Sync UI with DB state if server returned current state on failure
+            if (errData.data && errData.data.isActive !== undefined) {
+                setConfigs((p) =>
+                    p.map((c) =>
+                        c.id === id
+                            ? { ...c, isActive: errData.data.isActive }
+                            : { ...c, isActive: false }
+                    )
+                );
+            }
         } finally {
             setConnectingId(null);
         }

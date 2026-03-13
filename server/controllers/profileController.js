@@ -2,6 +2,7 @@ const { Profile, ProfileLog, User, VpnConfig, DataTransfer } = require('../model
 const { Op } = require('sequelize');
 const { getClientIP } = require('../utils/ipUtils');
 const ActivityLog = require('../models/ActivityLog');
+const { emitWithAckToDesktop } = require('../socket');
 
 const createLog = async (profileId, userId, action, changes, req, description) => {
   try {
@@ -301,8 +302,27 @@ const activateProfile = async (req, res) => {
              console.log('DataTransfer model failed to log session on profile activation');
           }
 
-          // Activate this VPN
-          await vpnConfig.update({ isActive: true });
+          // Activate this VPN - First ask desktop client
+          try {
+              console.log(`[Profile Activation] Toggling VPN for profile: ${profile.name}`);
+              const ackResponse = await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', {
+                  configId: vpnConfig.id,
+                  action: 'connect',
+                  protocol: vpnConfig.protocol,
+                  configFileName: vpnConfig.configFileName
+              });
+              
+              if (ackResponse && ackResponse.status === 'success') {
+                  await vpnConfig.update({ isActive: true });
+                  console.log(`[Profile Activation] VPN activated successfully for user ${req.user.id}`);
+              } else {
+                  console.warn(`[Profile Activation] Desktop failed to activate VPN: ${ackResponse?.message}`);
+                  await vpnConfig.update({ isActive: false });
+              }
+          } catch (socketError) {
+              console.error(`[Profile Activation] Socket error toggling VPN: ${socketError.message}`);
+              await vpnConfig.update({ isActive: false });
+          }
 
           try {
               const ipAddress = getClientIP(req);
@@ -478,7 +498,26 @@ const deactivateProfile = async (req, res) => {
             });
 
             if (vpnConfig) {
-                await vpnConfig.update({ isActive: false });
+                try {
+                    console.log(`[Profile Deactivation] Toggling VPN off for profile: ${profile.name}`);
+                    const ackResponse = await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', {
+                        configId: vpnConfig.id,
+                        action: 'disconnect',
+                        protocol: vpnConfig.protocol,
+                        configFileName: vpnConfig.configFileName
+                    });
+                    
+                    if (ackResponse && ackResponse.status === 'success') {
+                        await vpnConfig.update({ isActive: false });
+                    } else {
+                        console.warn(`[Profile Deactivation] Desktop failed to deactivate VPN: ${ackResponse?.message}`);
+                        // Force false anyway on disconnect attempt
+                        await vpnConfig.update({ isActive: false });
+                    }
+                } catch (socketError) {
+                    console.error(`[Profile Deactivation] Socket error toggling VPN off: ${socketError.message}`);
+                    await vpnConfig.update({ isActive: false });
+                }
 
                 // End DataTransfer Session
                 try {
