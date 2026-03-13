@@ -235,7 +235,38 @@ const connectDB = async () => {
             // Don't fail the entire connection if column check fails
         }
 
-        // 6) Schema sync behavior
+        // 6) Check and add missing columns to vpn_configs table
+        try {
+            const [vpnColumns] = await sequelize.query(`
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'vpn_configs' AND table_schema = 'public';
+            `);
+            const vpnColumnNames = vpnColumns.map(col => col.column_name);
+            
+            if (!vpnColumnNames.includes('status')) {
+                console.log('⚠️  status column missing in vpn_configs. Adding it...');
+                
+                // Create ENUM type for vpn status if it doesn't exist
+                await sequelize.query(`
+                    DO $$ BEGIN
+                        CREATE TYPE vpn_status_enum AS ENUM ('OFFLINE', 'CONNECTING', 'CONNECTED', 'DISCONNECTING', 'ERROR');
+                    EXCEPTION
+                        WHEN duplicate_object THEN null;
+                    END $$;
+                `);
+                
+                await sequelize.query(`
+                    ALTER TABLE vpn_configs 
+                    ADD COLUMN IF NOT EXISTS "status" vpn_status_enum DEFAULT 'OFFLINE' NOT NULL;
+                `);
+                console.log('✅ status column added to vpn_configs successfully.');
+            }
+        } catch (vpnColError) {
+            console.error('Error checking/adding vpn_configs columns:', vpnColError.message);
+        }
+
+        // 7) Schema sync behavior
         if (!isProd) {
             // Development: auto-update schema safely
             console.log('Syncing database schema (alter mode)...');
