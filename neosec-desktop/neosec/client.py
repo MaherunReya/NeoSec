@@ -4,8 +4,9 @@ import json
 import struct
 import os
 import time
+import requests
 
-from .config import SOCKET_PATH, BACKEND_URL
+from .config import SOCKET_PATH, BACKEND_URL, VPN_URL
 
 class NeosecWebSocketClient:
     """
@@ -17,11 +18,52 @@ class NeosecWebSocketClient:
         self.sio = socketio.Client()
         self.sio_connected = False
         self.daemon_client = None  # set via set_daemon_client() after construction
+        self.vpn_manager = None    # set via set_vpn_manager() after construction
         self.setup_sio_events()
 
     def set_daemon_client(self, daemon_client):
         """Wire a NeosecDaemonClient so VPN commands can be routed through it."""
         self.daemon_client = daemon_client
+
+    def set_vpn_manager(self, vpn_manager):
+        """Wire a VpnManager so VPN connect/disconnect is handled via nmcli."""
+        self.vpn_manager = vpn_manager
+
+    def _reload_vpn_configs_sync(self):
+        """Fetch fresh VPN configs from the server and push them into VpnManager.
+
+        This must be called before toggling so that any newly uploaded or
+        changed config files are available locally before nmcli tries to import
+        them.
+        """
+        if not self.vpn_manager or not self.token:
+            return
+        try:
+            headers = {"Authorization": f"Bearer {self.token}"}
+            resp = requests.get(VPN_URL, headers=headers, timeout=10)
+            if resp.status_code != 200:
+                print(f"⚠️  [VPN Reload] Failed to fetch VPN list: {resp.status_code}")
+                return
+            data = resp.json()
+            if not data.get("success"):
+                return
+            vpn_list = data.get("data", [])
+            full_data = []
+            for vpn in vpn_list:
+                vpn_id = vpn.get("id")
+                dl_url = f"{VPN_URL}/{vpn_id}/download"
+                try:
+                    dl_resp = requests.get(dl_url, headers=headers, timeout=15)
+                    config_content = dl_resp.content if dl_resp.status_code == 200 else None
+                except Exception as e:
+                    print(f"⚠️  [VPN Reload] Error downloading config for {vpn_id}: {e}")
+                    config_content = None
+                vpn["config_content"] = config_content
+                full_data.append(vpn)
+            print(f"✅ [VPN Reload] Fetched {len(full_data)} VPN config(s); updating VpnManager.")
+            self.vpn_manager.update_vpns(full_data)
+        except Exception as e:
+            print(f"❌ [VPN Reload] Unexpected error: {e}")
 
     def setup_sio_events(self):
         @self.sio.event
@@ -49,46 +91,58 @@ class NeosecWebSocketClient:
         def on_request_vpn_toggle(data, callback=None):
             print(f"📩 [App Event] 'RequestVpnToggle' payload received: {data}")
             try:
-                action   = data.get('action', 'connect')      # 'connect' | 'disconnect'
-                protocol = data.get('protocol', 'OpenVPN')    # 'OpenVPN'  | 'WireGuard'
+                action   = data.get('action', 'connect')   # 'connect' | 'disconnect'
+                vpn_id   = data.get('vpnId') or data.get('id', '')
                 cfg_file = data.get('configFileName', '')
 
-                # Build the OS-level command for the requested action + protocol
-                if action == 'connect':
-                    if protocol == 'WireGuard':
-                        # Strip .conf extension to get the interface name (e.g. wg0)
-                        iface = cfg_file.replace('.conf', '') if cfg_file else 'wg0'
-                        cmd = f"wg-quick up {iface}"
-                    else:
-                        # OpenVPN: start the tunnel using the stored config file
-                        cmd = f"openvpn --config /etc/openvpn/{cfg_file} --daemon"
-                else:
-                    if protocol == 'WireGuard':
-                        iface = cfg_file.replace('.conf', '') if cfg_file else 'wg0'
-                        cmd = f"wg-quick down {iface}"
-                    else:
-                        cmd = "pkill -f openvpn"
+                # ── Step 1: Reload VPN configs from server so we have the
+                #   latest files before NetworkManager tries to import them. ──
+                print("🔄 [VPN] Reloading VPN configs from server before toggling...")
+                self._reload_vpn_configs_sync()
 
-                print(f"⚙️  [Desktop Action] Running VPN command: {cmd}")
+                # ── Step 2: Delegate to VpnManager (nmcli-based) ──────────────
+                if self.vpn_manager:
+                    # Resolve vpn_id from configFileName if not supplied directly
+                    if not vpn_id and cfg_file:
+                        for cfg in self.vpn_manager._configs:
+                            # The server's configFileName may match the stored
+                            # unique filename or the original base name portion.
+                            stored_fn = cfg.get('filename', '')
+                            if (cfg_file == stored_fn or
+                                    cfg_file.replace('.conf', '').replace('.ovpn', '')
+                                    in stored_fn):
+                                vpn_id = cfg.get('id')
+                                break
 
-                # Use the daemon client if available; otherwise fall back to local subprocess
-                if self.daemon_client and self.daemon_client.is_connected:
-                    output = self.daemon_client.send_command(cmd)
-                    if 'Error' in str(output):
-                        raise RuntimeError(output)
-                    print(f"✅ [Desktop Action] VPN command output: {output}")
+                    if not vpn_id:
+                        raise RuntimeError(
+                            f"Could not resolve a VPN config for configFileName='{cfg_file}'. "
+                            "Make sure the VPN exists in the server."
+                        )
+
+                    print(f"⚙️  [VPN] Calling VpnManager.toggleConnection('{vpn_id}') "
+                          f"(action={action})")
+
+                    # toggleConnection handles both connect and disconnect:
+                    # - if vpn_id is already active → disconnects
+                    # - if vpn_id is not active     → connects (may disconnect another first)
+                    # For an explicit 'disconnect' we only act when it is currently active.
+                    if action == 'disconnect' and self.vpn_manager._active_vpn_id != vpn_id:
+                        print(f"ℹ️  [VPN] {vpn_id} is not the active VPN; nothing to disconnect.")
+                    else:
+                        self.vpn_manager.toggleConnection(vpn_id)
+
+                    result = {"status": "success", "message": f"VPN {action}ed successfully"}
+
                 else:
-                    import subprocess
-                    proc = subprocess.run(
-                        cmd, shell=True, capture_output=True, text=True, timeout=15
+                    # No VpnManager wired – should not happen in normal usage
+                    raise RuntimeError(
+                        "VpnManager is not available. "
+                        "Call set_vpn_manager() before handling VPN toggle events."
                     )
-                    if proc.returncode != 0:
-                        raise RuntimeError(proc.stderr.strip() or f"Exit code {proc.returncode}")
-                    print(f"✅ [Desktop Action] VPN command output: {proc.stdout.strip()}")
 
-                result = {"status": "success", "message": f"VPN {action}ed successfully"}
             except Exception as e:
-                print(f"❌ [Desktop Action] VPN command failed: {e}")
+                print(f"❌ [VPN] Toggle failed: {e}")
                 result = {"status": "error", "message": str(e)}
 
             # Send acknowledgment back to the server

@@ -286,6 +286,7 @@ if __name__ == "__main__":
     firewall = Firewall()
     dashboard = DashboardBackend()
     vpn_manager = VpnManager()
+    ws_client.set_vpn_manager(vpn_manager)
     backend.rulesFetched.connect(firewall.update_rules)
     backend.vpnsFetched.connect(vpn_manager.update_vpns)
     firewall.saveRulesRequested.connect(backend.saveRules)
