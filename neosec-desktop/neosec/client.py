@@ -204,14 +204,34 @@ class NeosecWebSocketClient:
 
                 # ── Step 3: Toggle in background (event handler returns now) ──
                 def _do_toggle():
+                    if not self.vpn_manager:
+                        print("❌ [VPN] [bg] vpn_manager became None unexpectedly.")
+                        return
                     try:
                         print(f"⚙️  [VPN] [bg] Calling "
                               f"VpnManager.toggleConnection('{config_id}')")
                         self.vpn_manager.toggleConnection(config_id)
+                        
+                        # Determine final status
+                        is_active = self.vpn_manager.hasActiveConnection if self.vpn_manager else False
+                        final_status = 'CONNECTED' if is_active else 'OFFLINE'
+                        
                         print(f"✅ [VPN] [bg] toggleConnection('{config_id}') "
-                              "completed.")
+                              f"completed. Final status: {final_status}")
+                        
+                        # Report back to server
+                        if self.sio_connected:
+                            self.sio.emit('ReportVpnStatus', {
+                                'configId': config_id,
+                                'status': final_status
+                            })
                     except Exception as exc:
                         print(f"❌ [VPN] [bg] toggleConnection failed: {exc}")
+                        if self.sio_connected:
+                            self.sio.emit('ReportVpnStatus', {
+                                'configId': config_id,
+                                'status': 'ERROR'
+                            })
 
                 t = threading.Thread(target=_do_toggle, daemon=True)
                 t.start()

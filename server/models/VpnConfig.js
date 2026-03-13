@@ -38,7 +38,11 @@ const VpnConfig = sequelize.define('VpnConfig', {
     isActive: {
         type: DataTypes.BOOLEAN,
         defaultValue: false
-     //   field:'isactive'
+    },
+    status: {
+        type: DataTypes.ENUM('OFFLINE', 'CONNECTING', 'CONNECTED', 'DISCONNECTING', 'ERROR'),
+        allowNull: false,
+        defaultValue: 'OFFLINE'
     },
     userId: {
         type: DataTypes.UUID,

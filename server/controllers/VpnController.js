@@ -282,6 +282,10 @@ exports.toggleVpnConfig = async (req, res) => {
 
         const wasActive = vpnConfig.isActive;
         const willBeActive = !wasActive;
+        const targetStatus = willBeActive ? 'CONNECTING' : 'DISCONNECTING';
+
+        // Update status to intermediate state before notifying desktop
+        await vpnConfig.update({ status: targetStatus });
 
         // Ask desktop client to apply VPN rules and wait for acknowledgment (10s timeout)
         try {
@@ -291,7 +295,22 @@ exports.toggleVpnConfig = async (req, res) => {
                 protocol: vpnConfig.protocol,
                 configFileName: vpnConfig.configFileName
             });
+            
+            // Desktop confirmed it RECEIVED the request.
+            // We return 200 OK now. Definitive status update will come via 'ReportVpnStatus'.
+            return res.status(200).json({
+                success: true,
+                message: `VPN ${willBeActive ? 'activation' : 'deactivation'} initiated`,
+                data: {
+                    id: vpnConfig.id,
+                    status: targetStatus
+                }
+            });
+
         } catch (socketError) {
+            // Reset status on error
+            await vpnConfig.update({ status: wasActive ? 'CONNECTED' : 'OFFLINE' });
+            
             if (socketError.code === 'DESKTOP_CLIENT_NOT_FOUND') {
                 return res.status(400).json({
                     success: false,
@@ -310,117 +329,6 @@ exports.toggleVpnConfig = async (req, res) => {
             });
         }
 
-        // Desktop confirmed success — now update DB
-        // If activating, deactivate all other VPN configs for this user
-        if (willBeActive) {
-            await VpnConfig.update(
-                { isActive: false },
-                {
-                    where: {
-                        userId: req.user.id,
-                        id: { [Op.ne]: vpnConfig.id }
-                    }
-                }
-            );
-            
-            // End any active data transfer sessions if DataTransfer model exists
-            try {
-                await DataTransfer.update(
-                    { isActive: false, sessionEnd: new Date() },
-                    {
-                        where: {
-                            userId: req.user.id,
-                            isActive: true
-                        }
-                    }
-                );
-                
-                // Create new data transfer session
-                await DataTransfer.create({
-                    userId: req.user.id,
-                    vpnConfigId: vpnConfig.id,
-                    bytesSent: 0,
-                    bytesReceived: 0,
-                    sessionStart: new Date(),
-                    isActive: true
-                });
-            } catch (err) {
-                console.log('DataTransfer model not available, skipping session management');
-            }
-            
-            // Log VPN connection activity
-            try {
-                const ipAddress = getClientIP(req);
-                await ActivityLog.create({
-                    eventType: 'VPN Connection',
-                    description: `VPN connected: ${vpnConfig.name} (${vpnConfig.protocol})`,
-                    status: 'Success',
-                    severity: 'info',
-                    userId: req.user.id,
-                    ipAddress: ipAddress,
-                    metadata: {
-                        vpnConfigId: vpnConfig.id,
-                        protocol: vpnConfig.protocol,
-                        serverAddress: vpnConfig.serverAddress
-                    }
-                });
-            } catch (logError) {
-                console.error('Error logging VPN connection:', logError);
-            }
-        } else {
-            // If deactivating, end the current data transfer session
-            try {
-                await DataTransfer.update(
-                    { isActive: false, sessionEnd: new Date() },
-                    {
-                        where: {
-                            userId: req.user.id,
-                            vpnConfigId: vpnConfig.id,
-                            isActive: true
-                        }
-                    }
-                );
-            } catch (err) {
-                console.log('DataTransfer model not available, skipping session management');
-            }
-            
-            // Log VPN disconnection activity
-            try {
-                const ipAddress = getClientIP(req);
-                await ActivityLog.create({
-                    eventType: 'VPN Disconnection',
-                    description: `VPN disconnected: ${vpnConfig.name}`,
-                    status: 'Disconnected',
-                    severity: 'info',
-                    userId: req.user.id,
-                    ipAddress: ipAddress,
-                    metadata: {
-                        vpnConfigId: vpnConfig.id,
-                        protocol: vpnConfig.protocol
-                    }
-                });
-            } catch (logError) {
-                console.error('Error logging VPN disconnection:', logError);
-            }
-        }
-
-        // Persist the new active state
-        await vpnConfig.update({ isActive: willBeActive });
-
-        res.status(200).json({
-            success: true,
-            message: `VPN configuration ${willBeActive ? 'activated' : 'deactivated'} successfully`,
-            data: {
-                id: vpnConfig.id,
-                name: vpnConfig.name,
-                protocol: vpnConfig.protocol,
-                configFileName: vpnConfig.configFileName,
-                description: vpnConfig.description,
-                isActive: willBeActive,
-                createdAt: vpnConfig.createdAt,
-                updatedAt: vpnConfig.updatedAt
-            }
-        });
     } catch (error) {
         console.error('Toggle VPN config error:', error);
         res.status(500).json({

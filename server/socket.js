@@ -73,6 +73,85 @@ const initializeSocket = (server) => {
         socket.on('error', (err) => {
             console.error(`Socket error for ${socket.id}:`, err);
         });
+
+        // Async VPN reporting
+        socket.on('ReportVpnStatus', async (data) => {
+            console.log(`📩 [Socket] 'ReportVpnStatus' received from user ${userId}:`, data);
+            
+            const { configId, status } = data;
+            if (!configId || !status) return;
+
+            try {
+                const VpnConfig = require('./models/VpnConfig');
+                const DataTransfer = require('./models/DataTransfer');
+                const ActivityLog = require('./models/ActivityLog');
+                const { Op } = require('sequelize');
+
+                const vpnConfig = await VpnConfig.findByPk(configId);
+                if (!vpnConfig) {
+                    console.error(`[Socket] VPN config ${configId} not found for report`);
+                    return;
+                }
+
+                const isActive = (status === 'CONNECTED');
+                const wasActive = vpnConfig.isActive;
+
+                // Update DB
+                await vpnConfig.update({ status, isActive });
+
+                // If now connected, ensure others are marked inactive
+                if (isActive) {
+                    await VpnConfig.update(
+                        { isActive: false, status: 'OFFLINE' },
+                        {
+                            where: {
+                                userId: userId,
+                                id: { [Op.ne]: configId }
+                            }
+                        }
+                    );
+
+                    // Session management log
+                    try {
+                        await DataTransfer.create({
+                            userId: userId,
+                            vpnConfigId: configId,
+                            bytesSent: 0,
+                            bytesReceived: 0,
+                            sessionStart: new Date(),
+                            isActive: true
+                        });
+                        
+                        await ActivityLog.create({
+                            eventType: 'VPN Connection',
+                            description: `Asynchronous confirmation: VPN connected (${vpnConfig.name})`,
+                            status: 'Success',
+                            severity: 'info',
+                            userId: userId
+                        });
+                    } catch (e) {}
+                } else if (wasActive && !isActive) {
+                    // Log disconnection if it was active
+                    try {
+                        await DataTransfer.update(
+                            { isActive: false, sessionEnd: new Date() },
+                            { where: { userId: userId, vpnConfigId: configId, isActive: true } }
+                        );
+                        
+                        await ActivityLog.create({
+                            eventType: 'VPN Disconnection',
+                            description: `Asynchronous confirmation: VPN disconnected (${vpnConfig.name})`,
+                            status: 'Disconnected',
+                            severity: 'info',
+                            userId: userId
+                        });
+                    } catch (e) {}
+                }
+
+            } catch (err) {
+                console.error('[Socket] Failed to process ReportVpnStatus:', err.message);
+            }
+        });
     });
 
     return io;
