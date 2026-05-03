@@ -39,6 +39,7 @@ require('./models/associations');
 // Now connect to database (this will sync the models)
 const { connectDB } = require('./config/db');
 const { startScheduler } = require('./services/threatBlockerScheduler');
+const { startVpnStatusScheduler } = require('./services/vpnStatusScheduler');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -212,6 +213,12 @@ server.listen(PORT, () => {
         console.log(`Threat blocker scheduler started with frequency: ${schedulerFrequency}`);
     } catch (schedulerError) {
         console.error('Failed to start threat blocker scheduler:', schedulerError.message);
+    }
+
+    try {
+        startVpnStatusScheduler();
+    } catch (schedulerError) {
+        console.error('Failed to start VPN status scheduler:', schedulerError.message);
     }
 
 });
