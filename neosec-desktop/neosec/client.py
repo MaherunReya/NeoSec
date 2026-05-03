@@ -178,39 +178,33 @@ class NeosecWebSocketClient:
                         "Call set_vpn_manager() before handling VPN toggle events."
                     )
 
-                # ── Step 1 (RC-1 / RC-4): Cache-first reload ─────────────────
-                # Only downloads the file if it is not already on disk.
-                # Uses retries for transient network errors.
-                print(f"🔄 [VPN] [Step 1] Reloading config for ID: {config_id}")
-                self._reload_vpn_configs_sync(config_id)
-                print(f"✅ [VPN] [Step 1] Config reload completed for ID: {config_id}")
-
-                # ── Step 2 (RC-2): Optimistic ack BEFORE the VPN toggle ───────
+                # ── Step 1 (RC-2): Optimistic ack BEFORE any slow work ───────
                 # KEY INSIGHT: python-socketio only *queues* the ack packet when
                 # callback() is called — it does not transmit it until the event
                 # handler *returns* and the event loop regains control.
                 #
-                # toggleConnection() calls nmcli synchronously (several seconds).
-                # If we call it here, it blocks the handler thread and the queued
-                # ack sits unsent until AFTER the VPN routing change has already
-                # killed the socket → server still times out.
-                #
-                # Fix: send the ack, then immediately spawn a daemon thread for
-                # the actual toggle. The event handler returns right away, the
-                # event loop flushes the ack to the wire, and the toggle runs in
-                # the background where a routing-table change can't hurt us.
+                # Long-running operations (reload/toggle) must run after the
+                # handler returns so the ack can flush immediately.
                 print(f"📤 [VPN] Sending ack to server before toggle "
                       f"(action={action}, configId={config_id})")
                 if callable(callback):
                     callback({"status": "success",
                               "message": f"VPN {action} initiated"})
 
-                # ── Step 3: Toggle in background (event handler returns now) ──
+                # ── Step 2: Toggle in background (event handler returns now) ──
                 def _do_toggle():
                     if not self.vpn_manager:
                         print("❌ [VPN] [bg] vpn_manager became None unexpectedly.")
                         return
                     try:
+                        if action == 'connect':
+                            # Cache-first reload (only downloads if missing)
+                            print(f"🔄 [VPN] [bg] Reloading config for ID: {config_id}")
+                            self._reload_vpn_configs_sync(config_id)
+                            print(f"✅ [VPN] [bg] Config reload completed for ID: {config_id}")
+                        else:
+                            print(f"INFO [VPN] [bg] Skipping reload for disconnect (ID: {config_id})")
+
                         print(f"⚙️  [VPN] [bg] [Step 3] Calling VpnManager.toggleConnection('{config_id}')")
                         self.vpn_manager.toggleConnection(config_id)
                         

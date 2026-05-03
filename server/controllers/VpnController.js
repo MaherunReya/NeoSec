@@ -3,7 +3,7 @@ const DataTransfer = require('../models/DataTransfer');
 const ActivityLog = require('../models/ActivityLog');
 const { Op } = require('sequelize');
 const { getClientIP } = require('../utils/ipUtils');
-const { emitWithAckToDesktop } = require('../socket');
+const { emitWithAckToDesktop, emitToDesktop } = require('../socket');
 
 // Get all VPN configs for current user
 exports.getVpnConfigs = async (req, res) => {
@@ -296,14 +296,22 @@ exports.toggleVpnConfig = async (req, res) => {
         // Update status to intermediate state before notifying desktop
         await vpnConfig.update({ status: targetStatus });
 
-        // Ask desktop client to apply VPN rules and wait for acknowledgment (10s timeout)
+        const togglePayload = {
+            configId: vpnConfig.id,
+            action: willBeActive ? 'connect' : 'disconnect',
+            protocol: vpnConfig.protocol,
+            configFileName: vpnConfig.configFileName
+        };
+
+        // Ask desktop client to apply VPN rules
         try {
-            await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', {
-                configId: vpnConfig.id,
-                action: willBeActive ? 'connect' : 'disconnect',
-                protocol: vpnConfig.protocol,
-                configFileName: vpnConfig.configFileName
-            });
+            if (willBeActive) {
+                // Wait for acknowledgment on connect (10s timeout)
+                await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', togglePayload);
+            } else {
+                // Fire-and-forget on disconnect to avoid ack timeouts
+                emitToDesktop(req.user.id, 'RequestVpnToggle', togglePayload);
+            }
             
             // Desktop confirmed it RECEIVED the request.
             // We return 200 OK now. Definitive status update will come via 'ReportVpnStatus'.
@@ -329,12 +337,20 @@ exports.toggleVpnConfig = async (req, res) => {
             }
             // Timeout or error from desktop client — do NOT update DB
             console.error('[VPN Toggle] Desktop client error/timeout:', socketError.message);
-            return res.status(504).json({
+            if (willBeActive) {
+                return res.status(504).json({
+                    success: false,
+                    message: socketError.message.includes('timed out')
+                        ? 'Desktop client did not respond in time. VPN status unchanged.'
+                        : `Desktop client error: ${socketError.message}`,
+                    code: 'DESKTOP_TIMEOUT'
+                });
+            }
+
+            return res.status(500).json({
                 success: false,
-                message: socketError.message.includes('timed out')
-                    ? 'Desktop client did not respond in time. VPN status unchanged.'
-                    : `Desktop client error: ${socketError.message}`,
-                code: 'DESKTOP_TIMEOUT'
+                message: `Desktop client error: ${socketError.message}`,
+                code: 'DESKTOP_ERROR'
             });
         }
 

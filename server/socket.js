@@ -194,6 +194,45 @@ const getIO = () => {
 };
 
 /**
+ * Emit an event to a user's desktop client without waiting for acknowledgment
+ * @param {string} userId - The user's ID
+ * @param {string} event - The event name
+ * @param {any} data - The payload
+ */
+const emitToDesktop = (userId, event, data) => {
+    if (!io) {
+        throw new Error('Socket.io not initialized. Cannot emit event.');
+    }
+
+    const uid = String(userId);
+    const socketIds = userSockets.get(uid);
+
+    if (!socketIds || socketIds.size === 0) {
+        const error = new Error('No active sockets found for user');
+        error.code = 'DESKTOP_CLIENT_NOT_FOUND';
+        throw error;
+    }
+
+    let desktopSocket = null;
+    for (const socketId of socketIds) {
+        const s = io.sockets.sockets.get(socketId);
+        if (s && s.clientType === 'desktop') {
+            desktopSocket = s;
+            break;
+        }
+    }
+
+    if (!desktopSocket) {
+        const error = new Error('No desktop client found for user');
+        error.code = 'DESKTOP_CLIENT_NOT_FOUND';
+        throw error;
+    }
+
+    console.log(`[Socket] Emitting '${event}' to desktop client of user ${uid} (no ack)`);
+    desktopSocket.emit(event, data);
+};
+
+/**
  * Emit an event to a user's desktop client and wait for acknowledgment
  * @param {string} userId - The user's ID
  * @param {string} event - The event name
@@ -250,5 +289,6 @@ module.exports = {
     initializeSocket,
     emitToUser,
     getIO,
-    emitWithAckToDesktop
+    emitWithAckToDesktop,
+    emitToDesktop
 };
