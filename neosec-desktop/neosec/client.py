@@ -205,13 +205,21 @@ class NeosecWebSocketClient:
                         else:
                             print(f"INFO [VPN] [bg] Skipping reload for disconnect (ID: {config_id})")
 
-                        print(f"⚙️  [VPN] [bg] [Step 3] Calling VpnManager.toggleConnection('{config_id}')")
-                        self.vpn_manager.toggleConnection(config_id)
+                        if action == 'connect':
+                            print(f"⚙️  [VPN] [bg] [Step 3] Calling VpnManager.connectConnection('{config_id}')")
+                            self.vpn_manager.connectConnection(config_id)
+                        elif action == 'disconnect':
+                            print(f"⚙️  [VPN] [bg] [Step 3] Calling VpnManager.disconnectConnection('{config_id}')")
+                            self.vpn_manager.disconnectConnection(config_id)
+                        else:
+                            print(f"⚙️  [VPN] [bg] [Step 3] Calling VpnManager.toggleConnection('{config_id}')")
+                            self.vpn_manager.toggleConnection(config_id)
                         
                         # Determine final status
                         m = self.vpn_manager
+                        active_id = getattr(m, 'activeConfigId', None) if m else None
                         is_active = m.hasActiveConnection if m else False
-                        final_status = 'CONNECTED' if is_active else 'OFFLINE'
+                        final_status = 'CONNECTED' if is_active and active_id == config_id else 'OFFLINE'
                         
                         print(f"✅ [VPN] [bg] [Step 3] toggleConnection completed.")
                         print(f"   [VPN] [bg] VpnManager state: active_id='{getattr(m, 'activeConfigId', 'N/A')}', hasActive={is_active}")

@@ -111,6 +111,13 @@ class VpnManager(QObject):
         except OSError as e:
             print(f"Error saving metadata: {e}")
 
+    def _refresh_active_flags(self):
+        for cfg in self._configs:
+            cfg["active"] = (cfg["id"] == self._active_vpn_id)
+
+        self.configsChanged.emit()
+        self.activeConfigChanged.emit()
+
     @Slot(list)
     def update_vpns(self, vpn_data):
         new_configs = []
@@ -180,50 +187,68 @@ class VpnManager(QObject):
         return [dict(c) for c in sorted_configs]
 
     @Slot(str)
+    def connectConnection(self, vpn_id):
+        if self._active_vpn_id == vpn_id:
+            print(f"Already connected to {vpn_id}.")
+            self._refresh_active_flags()
+            return
+
+        self._run_nmcli(["connection", "delete", self.NEOSEC_CONNECTION_NAME])
+        self._active_vpn_id = ""
+
+        path = self._get_path_by_id(vpn_id)
+        if not path or not os.path.exists(path):
+            print("Error: Config file not found")
+            self._refresh_active_flags()
+            return
+
+        protocol = self._get_proto_by_id(vpn_id)
+
+        print(f"Importing and connecting to {path}...")
+        uuid = self._import_connection(path, protocol)
+
+        if uuid:
+            print(f"DEBUG: Import successful, UUID: {uuid}")
+            if self._rename_connection(uuid, self.NEOSEC_CONNECTION_NAME):
+                print(f"DEBUG: Rename successful, connecting to {self.NEOSEC_CONNECTION_NAME}...")
+                if self._connect_connection(self.NEOSEC_CONNECTION_NAME):
+                    print("DEBUG: Connection UP successful")
+                    self._active_vpn_id = vpn_id
+                else:
+                    print("DEBUG: Connection UP failed")
+                    self._run_nmcli(["connection", "delete", self.NEOSEC_CONNECTION_NAME])
+            else:
+                print("DEBUG: Rename failed")
+                self._delete_connection_nm(uuid)
+        else:
+            print("DEBUG: Import failed")
+
+        self._refresh_active_flags()
+
+    @Slot(str)
+    def disconnectConnection(self, vpn_id):
+        if self._active_vpn_id != vpn_id:
+            print(
+                f"Disconnect requested for {vpn_id}, but active is '{self._active_vpn_id}'. Skipping."
+            )
+            self._refresh_active_flags()
+            return
+
+        print(f"Disconnecting {vpn_id}...")
+        if self._disconnect_connection(self.NEOSEC_CONNECTION_NAME):
+            self._run_nmcli(["connection", "delete", self.NEOSEC_CONNECTION_NAME])
+            self._active_vpn_id = ""
+        else:
+            print("Failed to disconnect")
+
+        self._refresh_active_flags()
+
+    @Slot(str)
     def toggleConnection(self, vpn_id):
         if self._active_vpn_id == vpn_id:
-            print(f"Disconnecting {vpn_id}...")
-            if self._disconnect_connection(self.NEOSEC_CONNECTION_NAME):
-                self._run_nmcli(["connection", "delete", self.NEOSEC_CONNECTION_NAME])
-                self._active_vpn_id = ""
-            else:
-                print("Failed to disconnect")
+            self.disconnectConnection(vpn_id)
         else:
-            self._run_nmcli(["connection", "delete", self.NEOSEC_CONNECTION_NAME])
-            
-            self._active_vpn_id = ""
-
-            path = self._get_path_by_id(vpn_id)
-            if not path or not os.path.exists(path):
-                print("Error: Config file not found")
-                return
-
-            protocol = self._get_proto_by_id(vpn_id)
-            
-            print(f"Importing and connecting to {path}...")
-            uuid = self._import_connection(path, protocol)
-            
-            if uuid:
-                print(f"DEBUG: Import successful, UUID: {uuid}")
-                if self._rename_connection(uuid, self.NEOSEC_CONNECTION_NAME):
-                    print(f"DEBUG: Rename successful, connecting to {self.NEOSEC_CONNECTION_NAME}...")
-                    if self._connect_connection(self.NEOSEC_CONNECTION_NAME):
-                        print("DEBUG: Connection UP successful")
-                        self._active_vpn_id = vpn_id
-                    else:
-                        print("DEBUG: Connection UP failed")
-                        self._run_nmcli(["connection", "delete", self.NEOSEC_CONNECTION_NAME])
-                else:
-                    print("DEBUG: Rename failed")
-                    self._delete_connection_nm(uuid)
-            else:
-                print("DEBUG: Import failed")
-
-        for cfg in self._configs:
-            cfg["active"] = (cfg["id"] == self._active_vpn_id)
-        
-        self.configsChanged.emit()
-        self.activeConfigChanged.emit()
+            self.connectConnection(vpn_id)
     
     def _get_path_by_id(self, vpn_id):
         for cfg in self._configs:
