@@ -91,12 +91,24 @@ chmod +x "$INSTALL_DIR/main.py"
 
 # 4. Create Virtual Environment
 echo "Creating Python virtual environment in $VENV_DIR..."
-python3 -m venv "$VENV_DIR"
+
+VENV_OPTS=""
+# Optimization: Check if PySide6 is already installed on the system to avoid large downloads
+if python3 -c "import PySide6" 2>/dev/null; then
+    echo "✅ Found system-wide PySide6. Using --system-site-packages to avoid extra downloads."
+    VENV_OPTS="--system-site-packages"
+else
+    echo "💡 System-wide PySide6 not found. Will install pyside6-essentials (approx. 70MB) into venv."
+fi
+
+python3 -m venv $VENV_OPTS "$VENV_DIR"
 
 # 5. Install Python Dependencies into venv
 if [ -f "$INSTALL_DIR/requirements.txt" ]; then
     echo "Installing Python dependencies into virtual environment..."
     "$VENV_DIR/bin/pip" install --upgrade pip
+    
+    # If using system site packages, we might still need other dependencies from requirements.txt
     "$VENV_DIR/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 else
     echo "Warning: requirements.txt not found. Skipping dependency installation."
@@ -145,6 +157,39 @@ EOF
 
 # Ensure correct ownership of the autostart file
 chown "$REAL_USER:$REAL_USER" "$REAL_HOME/.config/autostart/neosec.desktop"
+
+# 8.2 Create System-wide Desktop Entry (for launchers like dmenu)
+echo "Creating system-wide desktop entry..."
+cat <<EOF > /usr/share/applications/neosec.desktop
+[Desktop Entry]
+Type=Application
+Exec=$VENV_DIR/bin/python3 $INSTALL_DIR/main.py
+Icon=security-high
+Name=Neosec
+Comment=Neosec Security Desktop Client
+Categories=Security;System;
+Terminal=false
+Path=$INSTALL_DIR
+EOF
+chmod 644 /usr/share/applications/neosec.desktop
+
+# 8.3 Create CLI Binary in /usr/local/bin
+echo "Creating CLI binary: /usr/local/bin/neosec..."
+cat <<EOF > /usr/local/bin/neosec
+#!/bin/bash
+# Neosec CLI Wrapper
+export PYTHONPATH=$INSTALL_DIR
+$VENV_DIR/bin/python3 $INSTALL_DIR/main.py "\$@"
+EOF
+chmod +x /usr/local/bin/neosec
+
+# 9. Fix permissions for the user's config directory
+# (It might have been created by the daemon as root)
+USER_CONFIG_DIR="$REAL_HOME/.local/share/neosec"
+if [ -d "$USER_CONFIG_DIR" ]; then
+    echo "Fixing permissions for $USER_CONFIG_DIR..."
+    chown -R "$REAL_USER:$REAL_USER" "$USER_CONFIG_DIR"
+fi
 
 echo "--- Installation Complete ---"
 echo "Daemon Status:"

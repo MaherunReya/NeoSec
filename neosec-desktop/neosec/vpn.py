@@ -32,8 +32,10 @@ class VpnManager(QObject):
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return True, result.stdout.strip()
         except subprocess.CalledProcessError as e:
+            print(f"DEBUG: nmcli command failed: {e.cmd} - Error: {e.stderr.strip()}")
             return False, e.stderr.strip()
         except FileNotFoundError:
+            print("DEBUG: nmcli not found")
             return False, "nmcli not found"
 
     def _get_all_uuids(self):
@@ -202,17 +204,20 @@ class VpnManager(QObject):
             uuid = self._import_connection(path, protocol)
             
             if uuid:
+                print(f"DEBUG: Import successful, UUID: {uuid}")
                 if self._rename_connection(uuid, self.NEOSEC_CONNECTION_NAME):
+                    print(f"DEBUG: Rename successful, connecting to {self.NEOSEC_CONNECTION_NAME}...")
                     if self._connect_connection(self.NEOSEC_CONNECTION_NAME):
+                        print("DEBUG: Connection UP successful")
                         self._active_vpn_id = vpn_id
                     else:
-                        print("Failed to connect")
+                        print("DEBUG: Connection UP failed")
                         self._run_nmcli(["connection", "delete", self.NEOSEC_CONNECTION_NAME])
                 else:
-                    print("Failed to rename connection")
+                    print("DEBUG: Rename failed")
                     self._delete_connection_nm(uuid)
             else:
-                print("Failed to import connection")
+                print("DEBUG: Import failed")
 
         for cfg in self._configs:
             cfg["active"] = (cfg["id"] == self._active_vpn_id)
@@ -235,3 +240,7 @@ class VpnManager(QObject):
     @Property(bool, notify=activeConfigChanged)
     def hasActiveConnection(self):
         return self._active_vpn_id != ""
+
+    @Property(str, notify=activeConfigChanged)
+    def activeConfigId(self):
+        return self._active_vpn_id

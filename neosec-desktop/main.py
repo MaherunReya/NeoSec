@@ -1,4 +1,4 @@
-from neosec.client import NeosecClient
+from neosec.client import NeosecWebSocketClient, NeosecDaemonClient
 from PySide6.QtCore import QObject, Signal, Slot, QRunnable, QThreadPool
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtGui import QGuiApplication
@@ -189,9 +189,10 @@ class Backend(QObject):
     vpnsFetched = Signal(list)
     vpnDeleted = Signal(bool)
     
-    def __init__(self, socket_client, parent=None):
+    def __init__(self, ws_client, daemon_client, parent=None):
         super().__init__(parent)
-        self.socket_client = socket_client
+        self.ws_client = ws_client
+        self.daemon_client = daemon_client
         self.thread_pool = QThreadPool.globalInstance()
         self.loginFileSaved.connect(self.checkSavedAuth)
         self.vpnDeleted.connect(self.handleVpnDeleted)
@@ -242,12 +243,12 @@ class Backend(QObject):
 
     @Slot(list)
     def saveRules(self, rules):
-        if not self.socket_client or not self.socket_client.is_connected:
+        if not self.daemon_client or not self.daemon_client.is_connected:
             print("Error: Socket not connected. Cannot save rules.")
             return
 
         print("Sending rules to socket...")
-        self.socket_client.send_command("iptables -F INPUT")
+        self.daemon_client.send_command("iptables -F INPUT")
         
         for rule in rules:
             if not rule.get("rule_enabled"):
@@ -268,34 +269,37 @@ class Backend(QObject):
             if proto in ["TCP", "BOTH"]:
                 cmd = f"iptables -A INPUT -p TCP -s {s_ip} {port_flag}-j {target}"
                 print(f"Sending: {cmd}")
-                self.socket_client.send_command(cmd)
+                self.daemon_client.send_command(cmd)
             if proto in ["UPD", "BOTH"]:
                 cmd = f"iptables -A INPUT -p UDP -s {s_ip} {port_flag}-j {target}"
                 print(f"Sending: {cmd}")
-                self.socket_client.send_command(cmd)
+                self.daemon_client.send_command(cmd)
 
 if __name__ == "__main__":
     app = QGuiApplication(sys.argv)
     
-    socket_client = NeosecClient()
-    # socket_client.connect("neosec") - Removed, connection happens after login
+    ws_client = NeosecWebSocketClient()
+    daemon_client = NeosecDaemonClient()
     
     engine = QQmlApplicationEngine()
-    backend = Backend(socket_client)
+    backend = Backend(ws_client, daemon_client)
     firewall = Firewall()
     dashboard = DashboardBackend()
     vpn_manager = VpnManager()
+    ws_client.set_vpn_manager(vpn_manager)
     backend.rulesFetched.connect(firewall.update_rules)
     backend.vpnsFetched.connect(vpn_manager.update_vpns)
     firewall.saveRulesRequested.connect(backend.saveRules)
     backend.loginSuccess.connect(lambda e, r, token: backend.fetchRules(token))
-    backend.loginSuccess.connect(lambda e, r, token: socket_client.connect(token))
+    backend.loginSuccess.connect(lambda e, r, token: ws_client.connect(token))
+    backend.loginSuccess.connect(lambda e, r, token: daemon_client.connect(token))
     engine.rootContext().setContextProperty("backend", backend)
     engine.rootContext().setContextProperty("dashboardBackend", dashboard)
     engine.rootContext().setContextProperty("vpnManager", vpn_manager)
     engine.rootContext().setContextProperty("signup_url", SIGNUP_URL)
     engine.rootContext().setContextProperty("firewall", firewall)
-    engine.load("neosec/qml/main.qml")
+    qml_file = Path(__file__).parent / "neosec" / "qml" / "main.qml"
+    engine.load(str(qml_file))
     if not engine.rootObjects():
         sys.exit(-1)
     backend.checkSavedAuth()

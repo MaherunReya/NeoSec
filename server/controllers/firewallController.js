@@ -1,6 +1,7 @@
 const FirewallRule = require('../models/FirewallRule');
 const ActivityLog = require('../models/ActivityLog');
 const { getClientIP } = require('../utils/ipUtils');
+const { emitWithAckToDesktop } = require('../socket');
 
 // Helper to validate payload
 const validateRulePayload = (payload) => {
@@ -66,6 +67,25 @@ const createRule = async (req, res) => {
         success: false,
         message: 'Validation failed',
         errors
+      });
+    }
+
+    try {
+      await emitWithAckToDesktop(req.user.id, 'RequestFirewallRuleChange', {
+        action: 'create',
+        rule: { ip_address, port_start, port_end, protocol, action }
+      });
+    } catch (socketError) {
+      if (socketError.code === 'DESKTOP_CLIENT_NOT_FOUND') {
+        return res.status(400).json({
+          success: false,
+          message: 'Desktop client is not connected. Please install and run the NeoSec Desktop Client to apply Firewall rules.',
+          code: 'REQUIRE_DESKTOP_CLIENT'
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        message: `Failed to apply Firewall rule locally: ${socketError.message}`
       });
     }
 
@@ -146,6 +166,32 @@ const updateRule = async (req, res) => {
       });
     }
 
+    try {
+      await emitWithAckToDesktop(req.user.id, 'RequestFirewallRuleChange', {
+        action: 'update',
+        ruleId: id,
+        rule: { 
+          ip_address: ip_address ?? rule.ip_address, 
+          port_start: port_start ?? rule.port_start, 
+          port_end: port_end ?? rule.port_end, 
+          protocol: protocol ?? rule.protocol, 
+          action: action ?? rule.action 
+        }
+      });
+    } catch (socketError) {
+      if (socketError.code === 'DESKTOP_CLIENT_NOT_FOUND') {
+        return res.status(400).json({
+          success: false,
+          message: 'Desktop client is not connected. Please install and run the NeoSec Desktop Client to apply Firewall rules.',
+          code: 'REQUIRE_DESKTOP_CLIENT'
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        message: `Failed to update Firewall rule locally: ${socketError.message}`
+      });
+    }
+
     rule.ip_address = ip_address ?? rule.ip_address;
     rule.port_start = port_start !== undefined ? port_start : rule.port_start;
     rule.port_end = port_end !== undefined ? port_end : rule.port_end;
@@ -203,6 +249,25 @@ const deleteRule = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Firewall rule not found'
+      });
+    }
+
+    try {
+      await emitWithAckToDesktop(req.user.id, 'RequestFirewallRuleChange', {
+        action: 'delete',
+        ruleId: id
+      });
+    } catch (socketError) {
+      if (socketError.code === 'DESKTOP_CLIENT_NOT_FOUND') {
+        return res.status(400).json({
+          success: false,
+          message: 'Desktop client is not connected. Please install and run the NeoSec Desktop Client to apply Firewall rules.',
+          code: 'REQUIRE_DESKTOP_CLIENT'
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        message: `Failed to delete Firewall rule locally: ${socketError.message}`
       });
     }
 

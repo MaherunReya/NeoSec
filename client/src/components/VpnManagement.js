@@ -3,8 +3,9 @@ import vpnAPI from '../services/vpnAPI';
 import { MdModeEdit, MdDownload } from 'react-icons/md';
 import { RiDeleteBin6Line } from 'react-icons/ri';
 import { HiDocumentDuplicate } from 'react-icons/hi';
+import InstallClientModal from './Common/InstallClientModal';
 
-const VpnManagement = ({ theme = 'light', palette = null }) => {
+const VpnManagement = ({ theme = 'light', palette = null, showToast }) => {
     /* ===================== THEME ===================== */
     const darkPalette = {
         bgMain: '#121212',
@@ -38,10 +39,12 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [actionButtonHover, setActionButtonHover] = useState(null);
+    const [processingId, setProcessingId] = useState(null);
 
     const [showModal, setShowModal] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [fileError, setFileError] = useState('');
+    const [showInstallModal, setShowInstallModal] = useState(false);
 
     const initialForm = {
         name: '',
@@ -72,6 +75,43 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
     useEffect(() => {
         loadConfigs();
     }, []);
+
+    // Polling logic for pending states (CONNECTING / DISCONNECTING)
+    useEffect(() => {
+        const hasPending = configs.some(c => ['CONNECTING', 'DISCONNECTING'].includes(c.status));
+        
+        if (!hasPending) return;
+
+        console.log('🔄 [VPN] Pending state detected. Starting poll...');
+        const pollInterval = setInterval(async () => {
+            try {
+                const res = await vpnAPI.getConfigs();
+                if (res.success) {
+                    const newConfigs = res.data || [];
+                    
+                    // Check for transitions to show toasts
+                    newConfigs.forEach(newCfg => {
+                        const oldCfg = configs.find(c => c.id === newCfg.id);
+                        if (oldCfg && ['CONNECTING', 'DISCONNECTING'].includes(oldCfg.status)) {
+                            if (newCfg.status === 'CONNECTED') {
+                                showToast(`VPN "${newCfg.name}" connected successfully.`, 'success');
+                            } else if (newCfg.status === 'OFFLINE' && oldCfg.status === 'DISCONNECTING') {
+                                showToast(`VPN "${newCfg.name}" disconnected.`, 'info');
+                            } else if (newCfg.status === 'ERROR') {
+                                showToast(`VPN "${newCfg.name}" failed to connect.`, 'error');
+                            }
+                        }
+                    });
+
+                    setConfigs(newConfigs);
+                }
+            } catch (e) {
+                console.error('Polling error:', e);
+            }
+        }, 3000);
+
+        return () => clearInterval(pollInterval);
+    }, [configs, showToast]);
 
     /* ===================== MODAL ===================== */
     const openCreate = () => {
@@ -189,24 +229,68 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
     };
 
     const toggleConfig = async (id) => {
+        setProcessingId(id);
+        if (showToast) showToast('VPN request sent to desktop app.', 'info');
         try {
             setError('');
             const res = await vpnAPI.toggleConfig(id);
             if (res.success) {
-                setConfigs((p) =>
-                    p.map((c) =>
-                        c.id === id
-                            ? { ...c, isActive: res.data.isActive }
-                            : { ...c, isActive: false }
-                    )
-                );
+                // We don't update configs immediately - the status ENUM handles it now.
+                // The socket 'VpnStatusChanged' will update the UI definitively.
+                // We just keep the processingId for a bit until we see a status change.
+                setConfigs(prev => prev.map(c => 
+                    c.id === id ? { ...c, status: res.data.status } : c
+                ));
             } else {
                 throw new Error(res.message || 'Toggle failed');
             }
         } catch (e) {
             console.error('Toggle config error:', e);
-            setError(e?.response?.data?.message || e?.message || 'Failed to toggle VPN config');
+            const errData = e.response?.data || e;
+            if (errData.code === 'REQUIRE_DESKTOP_CLIENT' || (errData.message && errData.message.includes('REQUIRE_DESKTOP_CLIENT'))) {
+                setShowInstallModal(true);
+            } else if (errData.code === 'DESKTOP_TIMEOUT') {
+                if (showToast) showToast(
+                    errData.message || 'Desktop client did not respond in time.',
+                    'error'
+                );
+            } else {
+                const msg = e?.response?.data?.message || e?.message || 'Failed to toggle VPN config';
+                if (showToast) showToast(msg, 'error');
+                else setError(msg);
+            }
+        } finally {
+            setProcessingId(null);
         }
+    };
+
+    const getStatusText = (cfg) => {
+        if (processingId === cfg.id) return 'Processing...';
+        switch (cfg.status) {
+            case 'CONNECTING': return 'Connecting...';
+            case 'CONNECTED': return 'Disconnect';
+            case 'DISCONNECTING': return 'Disconnecting...';
+            case 'ERROR': return 'Retry'
+            case 'OFFLINE':
+            default: return 'Connect';
+        }
+    };
+
+    const getStatusColor = (cfg) => {
+        if (processingId === cfg.id) return theme === 'dark' ? '#444' : '#aaa';
+        switch (cfg.status) {
+            case 'CONNECTING': return '#f39c12';
+            case 'CONNECTED': return colors.danger;
+            case 'DISCONNECTING': return '#f39c12';
+            case 'ERROR': return '#e67e22';
+            case 'OFFLINE':
+            default: return colors.accent;
+        }
+    };
+
+    const isButtonDisabled = (cfg) => {
+        if (processingId !== null) return true;
+        return ['CONNECTING', 'DISCONNECTING'].includes(cfg.status);
     };
 
     const cloneConfig = async (id) => {
@@ -353,26 +437,27 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
                                     <td style={{ padding: 12, textAlign: 'center', width: '16.66%' }}>
                                         {/* Connect/Disconnect Button */}
                                         <button
-                                            onClick={() => toggleConfig(c.id)}
+                                            onClick={() => isButtonDisabled(c) ? null : toggleConfig(c.id)}
                                             onMouseEnter={() => setActionButtonHover(`connect-${c.id}`)}
                                             onMouseLeave={() => setActionButtonHover(null)}
-                                            title={c.isActive ? 'Disconnect' : 'Connect'}
+                                            disabled={isButtonDisabled(c)}
                                             style={{
                                                 padding: '6px 12px',
-                                                backgroundColor: c.isActive ? colors.danger : colors.accent,
-                                                color: '#0a0a0aff',
+                                                backgroundColor: getStatusColor(c),
+                                                color: '#fff',
                                                 border: 'none',
                                                 borderRadius: '6px',
-                                                cursor: 'pointer',
+                                                cursor: isButtonDisabled(c) ? 'not-allowed' : 'pointer',
                                                 fontSize: '12px',
                                                 fontWeight: 600,
                                                 transition: 'all 0.15s ease',
-                                                transform: actionButtonHover === `connect-${c.id}` ? 'scale(1.05)' : 'scale(1)',
-                                                opacity: actionButtonHover === `connect-${c.id}` ? 0.9 : 1,
-                                                whiteSpace: 'nowrap'
+                                                transform: (!isButtonDisabled(c) && actionButtonHover === `connect-${c.id}`) ? 'scale(1.05)' : 'scale(1)',
+                                                opacity: isButtonDisabled(c) ? 0.75 : 1,
+                                                whiteSpace: 'nowrap',
+                                                minWidth: '100px'
                                             }}
                                         >
-                                            {c.isActive ? 'Disconnect' : 'Connect'}
+                                            {getStatusText(c)}
                                         </button>
                                     </td>
                                 </tr>
@@ -519,6 +604,13 @@ const VpnManagement = ({ theme = 'light', palette = null }) => {
                     </div>
                 </div>
             )}
+
+            <InstallClientModal 
+                isOpen={showInstallModal} 
+                onClose={() => setShowInstallModal(false)}
+                theme={theme}
+                palette={colors}
+            />
         </div>
     );
 };

@@ -54,7 +54,7 @@ Page {
                         spacing: 12
                         
                         Image {
-                            source: "images/logo.svg"
+                            source: "images/logo.png"
                             width: 28; height: 28
                             fillMode: Image.PreserveAspectFit
                             anchors.verticalCenter: parent.verticalCenter
@@ -75,9 +75,9 @@ Page {
 
                     Repeater {
                         model: [
-                            { id: "dashboardBtn", text: "DASHBOARD", icon: "images/profile.svg" },
-                            { id: "vpnBtn", text: "VPN LINK", icon: "images/vpn.svg" },
-                            { id: "firewallBtn", text: "FIREWALL", icon: "images/firewall.svg" }
+                            { id: "dashboardBtn", text: "DASHBOARD", icon: "images/profile.png" },
+                            { id: "vpnBtn", text: "VPN LINK", icon: "images/vpn.png" },
+                            { id: "firewallBtn", text: "FIREWALL", icon: "images/firewall.png" }
                         ]
                         
                         delegate: Button {

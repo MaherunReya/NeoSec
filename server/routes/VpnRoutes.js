@@ -8,6 +8,7 @@ const {
     deleteVpnConfig,
     cloneVpnConfig,
     toggleVpnConfig,
+    updateVpnStatus,
     downloadVpnConfig
 } = require('../controllers/VpnController');
 const { protect } = require('../middleware/auth');
@@ -23,6 +24,7 @@ router.post('/', createVpnConfig);
 router.put('/:id', updateVpnConfig);
 router.delete('/:id', deleteVpnConfig);
 router.patch('/:id/toggle', toggleVpnConfig);
+router.patch('/:id/status', updateVpnStatus);
 router.post('/:id/clone', cloneVpnConfig);
 
 module.exports = router;

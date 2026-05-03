@@ -3,6 +3,7 @@ const DataTransfer = require('../models/DataTransfer');
 const ActivityLog = require('../models/ActivityLog');
 const { Op } = require('sequelize');
 const { getClientIP } = require('../utils/ipUtils');
+const { emitWithAckToDesktop } = require('../socket');
 
 // Get all VPN configs for current user
 exports.getVpnConfigs = async (req, res) => {
@@ -10,7 +11,7 @@ exports.getVpnConfigs = async (req, res) => {
         const vpnConfigs = await VpnConfig.findAll({
             where: { userId: req.user.id },
             order: [['createdAt', 'DESC']],
-            attributes: ['id', 'name', 'protocol', 'configFileName', 'description', 'isActive', 'createdAt', 'updatedAt']
+            attributes: ['id', 'name', 'protocol', 'configFileName', 'description', 'isActive', 'status', 'createdAt', 'updatedAt']
         });
 
         res.status(200).json({
@@ -131,6 +132,15 @@ exports.createVpnConfig = async (req, res) => {
         });
     } catch (error) {
         console.error('Create VPN config error:', error);
+        
+        // Handle Sequelize validation errors specifically
+        if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
+            return res.status(400).json({
+                success: false,
+                message: error.errors.map(e => e.message).join(', ')
+            });
+        }
+
         res.status(500).json({
             success: false,
             message: error.message || 'Failed to create VPN configuration'
@@ -281,118 +291,53 @@ exports.toggleVpnConfig = async (req, res) => {
 
         const wasActive = vpnConfig.isActive;
         const willBeActive = !wasActive;
+        const targetStatus = willBeActive ? 'CONNECTING' : 'DISCONNECTING';
 
-        // If activating, deactivate all other VPN configs for this user
-        if (willBeActive) {
-            await VpnConfig.update(
-                { isActive: false },
-                {
-                    where: {
-                        userId: req.user.id,
-                        id: { [Op.ne]: vpnConfig.id }
-                    }
+        // Update status to intermediate state before notifying desktop
+        await vpnConfig.update({ status: targetStatus });
+
+        // Ask desktop client to apply VPN rules and wait for acknowledgment (10s timeout)
+        try {
+            await emitWithAckToDesktop(req.user.id, 'RequestVpnToggle', {
+                configId: vpnConfig.id,
+                action: willBeActive ? 'connect' : 'disconnect',
+                protocol: vpnConfig.protocol,
+                configFileName: vpnConfig.configFileName
+            });
+            
+            // Desktop confirmed it RECEIVED the request.
+            // We return 200 OK now. Definitive status update will come via 'ReportVpnStatus'.
+            return res.status(200).json({
+                success: true,
+                message: `VPN ${willBeActive ? 'activation' : 'deactivation'} initiated`,
+                data: {
+                    id: vpnConfig.id,
+                    status: targetStatus
                 }
-            );
+            });
+
+        } catch (socketError) {
+            // Reset status on error
+            await vpnConfig.update({ status: wasActive ? 'CONNECTED' : 'OFFLINE' });
             
-            // End any active data transfer sessions if DataTransfer model exists
-            try {
-                await DataTransfer.update(
-                    { isActive: false, sessionEnd: new Date() },
-                    {
-                        where: {
-                            userId: req.user.id,
-                            isActive: true
-                        }
-                    }
-                );
-                
-                // Create new data transfer session
-                await DataTransfer.create({
-                    userId: req.user.id,
-                    vpnConfigId: vpnConfig.id,
-                    bytesSent: 0,
-                    bytesReceived: 0,
-                    sessionStart: new Date(),
-                    isActive: true
+            if (socketError.code === 'DESKTOP_CLIENT_NOT_FOUND') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Desktop client is not connected. Please install and run the NeoSec Desktop Client to apply VPN rules.',
+                    code: 'REQUIRE_DESKTOP_CLIENT'
                 });
-            } catch (err) {
-                console.log('DataTransfer model not available, skipping session management');
             }
-            
-            // Log VPN connection activity
-            try {
-                const ipAddress = getClientIP(req);
-                await ActivityLog.create({
-                    eventType: 'VPN Connection',
-                    description: `VPN connected: ${vpnConfig.name} (${vpnConfig.protocol})`,
-                    status: 'Success',
-                    severity: 'info',
-                    userId: req.user.id,
-                    ipAddress: ipAddress,
-                    metadata: {
-                        vpnConfigId: vpnConfig.id,
-                        protocol: vpnConfig.protocol,
-                        serverAddress: vpnConfig.serverAddress
-                    }
-                });
-            } catch (logError) {
-                console.error('Error logging VPN connection:', logError);
-            }
-        } else {
-            // If deactivating, end the current data transfer session
-            try {
-                await DataTransfer.update(
-                    { isActive: false, sessionEnd: new Date() },
-                    {
-                        where: {
-                            userId: req.user.id,
-                            vpnConfigId: vpnConfig.id,
-                            isActive: true
-                        }
-                    }
-                );
-            } catch (err) {
-                console.log('DataTransfer model not available, skipping session management');
-            }
-            
-            // Log VPN disconnection activity
-            try {
-                const ipAddress = getClientIP(req);
-                await ActivityLog.create({
-                    eventType: 'VPN Disconnection',
-                    description: `VPN disconnected: ${vpnConfig.name}`,
-                    status: 'Disconnected',
-                    severity: 'info',
-                    userId: req.user.id,
-                    ipAddress: ipAddress,
-                    metadata: {
-                        vpnConfigId: vpnConfig.id,
-                        protocol: vpnConfig.protocol
-                    }
-                });
-            } catch (logError) {
-                console.error('Error logging VPN disconnection:', logError);
-            }
+            // Timeout or error from desktop client — do NOT update DB
+            console.error('[VPN Toggle] Desktop client error/timeout:', socketError.message);
+            return res.status(504).json({
+                success: false,
+                message: socketError.message.includes('timed out')
+                    ? 'Desktop client did not respond in time. VPN status unchanged.'
+                    : `Desktop client error: ${socketError.message}`,
+                code: 'DESKTOP_TIMEOUT'
+            });
         }
 
-        await vpnConfig.update({
-            isActive: willBeActive
-        });
-
-        res.status(200).json({
-            success: true,
-            message: `VPN configuration ${willBeActive ? 'activated' : 'deactivated'} successfully`,
-            data: {
-                id: vpnConfig.id,
-                name: vpnConfig.name,
-                protocol: vpnConfig.protocol,
-                configFileName: vpnConfig.configFileName,
-                description: vpnConfig.description,
-                isActive: vpnConfig.isActive,
-                createdAt: vpnConfig.createdAt,
-                updatedAt: vpnConfig.updatedAt
-            }
-        });
     } catch (error) {
         console.error('Toggle VPN config error:', error);
         res.status(500).json({
@@ -487,6 +432,111 @@ exports.downloadVpnConfig = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Failed to download VPN configuration'
+        });
+    }
+};
+
+// Update VPN status (REST equivalent of socket ReportVpnStatus)
+exports.updateVpnStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+        const configId = req.params.id;
+
+        if (!status) {
+            return res.status(400).json({
+                success: false,
+                message: 'Status is required'
+            });
+        }
+
+        const vpnConfig = await VpnConfig.findOne({
+            where: {
+                id: configId,
+                userId: req.user.id
+            }
+        });
+
+        if (!vpnConfig) {
+            return res.status(404).json({
+                success: false,
+                message: 'VPN configuration not found'
+            });
+        }
+
+        const isActive = (status === 'CONNECTED');
+        const wasActive = vpnConfig.isActive;
+
+        // Update DB
+        await vpnConfig.update({ status, isActive });
+
+        // If now connected, ensure others are marked inactive
+        if (isActive) {
+            await VpnConfig.update(
+                { isActive: false, status: 'OFFLINE' },
+                {
+                    where: {
+                        userId: req.user.id,
+                        id: { [Op.ne]: configId }
+                    }
+                }
+            );
+
+            // Log session start
+            try {
+                await DataTransfer.create({
+                    userId: req.user.id,
+                    vpnConfigId: configId,
+                    bytesSent: 0,
+                    bytesReceived: 0,
+                    sessionStart: new Date(),
+                    isActive: true
+                });
+                
+                await ActivityLog.create({
+                    eventType: 'VPN Connection',
+                    description: `REST confirmation: VPN connected (${vpnConfig.name})`,
+                    status: 'Success',
+                    severity: 'info',
+                    userId: req.user.id
+                });
+            } catch (loggingError) {
+                console.error('[VPN Status] Logging error:', loggingError.message);
+            }
+        } else if (wasActive && !isActive) {
+            // Log disconnection if it was active
+            try {
+                await DataTransfer.update(
+                    { isActive: false, sessionEnd: new Date() },
+                    { where: { userId: req.user.id, vpnConfigId: configId, isActive: true } }
+                );
+                
+                await ActivityLog.create({
+                    eventType: 'VPN Disconnection',
+                    description: `REST confirmation: VPN disconnected (${vpnConfig.name})`,
+                    status: 'Disconnected',
+                    severity: 'info',
+                    userId: req.user.id
+                });
+            } catch (loggingError) {
+                console.error('[VPN Status] Disconnect logging error:', loggingError.message);
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'VPN status updated successfully',
+            data: {
+                id: configId,
+                status,
+                isActive
+            }
+        });
+
+    } catch (error) {
+        console.error('Update VPN status error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to update VPN status'
         });
     }
 };
