@@ -222,6 +222,20 @@ class Backend(QObject):
         else:
             print("Cannot delete VPN: No active token")
 
+    @Slot(str)
+    def toggleVpn(self, vpn_id):
+        if not self.ws_client:
+            print("Cannot toggle VPN: No WebSocket client")
+            return
+            
+        # Determine action based on current state
+        m = self.ws_client.vpn_manager
+        is_active = m.activeConfigId == vpn_id if m else False
+        action = "disconnect" if is_active else "connect"
+        
+        print(f"User initiated VPN {action} for {vpn_id}")
+        self.ws_client.trigger_coordinated_toggle(vpn_id, action)
+
     @Slot()
     def handleVpnDeleted(self, success):
         if success:

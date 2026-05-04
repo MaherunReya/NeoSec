@@ -120,6 +120,33 @@ class NeosecWebSocketClient:
         print(f"✅ [VPN Reload] Updating VpnManager with {len(full_data)} entry/entries.")
         self.vpn_manager.update_vpns(full_data)
 
+    def _report_vpn_status(self, config_id, status):
+        """Report VPN status to server via REST API with retries."""
+        status_url = f"{VPN_URL}/{config_id}/status"
+        headers = {"Authorization": f"Bearer {self.token}"}
+        payload = {"status": status}
+        
+        print(f"📡 [VPN Status] Reporting '{status}' for {config_id} to REST API...")
+        
+        attempt = 1
+        while True:
+            try:
+                resp = requests.patch(status_url, json=payload, headers=headers, timeout=15)
+                if resp.status_code == 200:
+                    print(f"✅ [VPN Status] Reported '{status}' successfully.")
+                    return True
+                else:
+                    print(f"⚠️  [VPN Status] API error {resp.status_code}: {resp.text}")
+            except Exception as e:
+                print(f"⚠️  [VPN Status] Attempt {attempt} failed: {e}")
+            
+            if attempt >= 5: # Limit retries for intermediate states
+                print(f"❌ [VPN Status] Failed to report '{status}' after {attempt} attempts.")
+                return False
+                
+            time.sleep(2)
+            attempt += 1
+
     def setup_sio_events(self):
         @self.sio.event
         def connect():
@@ -172,101 +199,7 @@ class NeosecWebSocketClient:
                 if not config_id:
                     raise RuntimeError("'configId' missing from server payload.")
 
-                if not self.vpn_manager:
-                    raise RuntimeError(
-                        "VpnManager is not available. "
-                        "Call set_vpn_manager() before handling VPN toggle events."
-                    )
-
-                # ── Step 1 (RC-1 / RC-4): Cache-first reload ─────────────────
-                # Only downloads the file if it is not already on disk.
-                # Uses retries for transient network errors.
-                print(f"🔄 [VPN] [Step 1] Reloading config for ID: {config_id}")
-                self._reload_vpn_configs_sync(config_id)
-                print(f"✅ [VPN] [Step 1] Config reload completed for ID: {config_id}")
-
-                # ── Step 2 (RC-2): Optimistic ack BEFORE the VPN toggle ───────
-                # KEY INSIGHT: python-socketio only *queues* the ack packet when
-                # callback() is called — it does not transmit it until the event
-                # handler *returns* and the event loop regains control.
-                #
-                # toggleConnection() calls nmcli synchronously (several seconds).
-                # If we call it here, it blocks the handler thread and the queued
-                # ack sits unsent until AFTER the VPN routing change has already
-                # killed the socket → server still times out.
-                #
-                # Fix: send the ack, then immediately spawn a daemon thread for
-                # the actual toggle. The event handler returns right away, the
-                # event loop flushes the ack to the wire, and the toggle runs in
-                # the background where a routing-table change can't hurt us.
-                print(f"📤 [VPN] Sending ack to server before toggle "
-                      f"(action={action}, configId={config_id})")
-                if callable(callback):
-                    callback({"status": "success",
-                              "message": f"VPN {action} initiated"})
-
-                # ── Step 3: Toggle in background (event handler returns now) ──
-                def _do_toggle():
-                    if not self.vpn_manager:
-                        print("❌ [VPN] [bg] vpn_manager became None unexpectedly.")
-                        return
-                    try:
-                        print(f"⚙️  [VPN] [bg] [Step 3] Calling VpnManager.toggleConnection('{config_id}')")
-                        self.vpn_manager.toggleConnection(config_id)
-                        
-                        # Determine final status
-                        m = self.vpn_manager
-                        is_active = m.hasActiveConnection if m else False
-                        final_status = 'CONNECTED' if is_active else 'OFFLINE'
-                        
-                        print(f"✅ [VPN] [bg] [Step 3] toggleConnection completed.")
-                        print(f"   [VPN] [bg] VpnManager state: active_id='{getattr(m, 'activeConfigId', 'N/A')}', hasActive={is_active}")
-                        print(f"   [VPN] [bg] Resulting status for server: {final_status}")
-                        
-                        # Report back to server via REST API (with infinite-ish retry)
-                        status_url = f"{VPN_URL}/{config_id}/status"
-                        headers = {"Authorization": f"Bearer {self.token}"}
-                        payload = {"status": final_status}
-                        
-                        print(f"📡 [VPN] [bg] [Step 4] Reporting status '{final_status}' to REST API: {status_url}")
-                        print(f"   [VPN] [bg] Headers: {{'Authorization': 'Bearer ...{self.token[-8:] if self.token else 'None'}'}}")
-                        
-                        attempt = 1
-                        while True:
-                            try:
-                                print(f"   [VPN] [bg] Sending PATCH request (attempt {attempt})...")
-                                resp = requests.patch(status_url, json=payload, headers=headers, timeout=15)
-                                print(f"   [VPN] [bg] Response Status: {resp.status_code}")
-                                if resp.status_code == 200:
-                                    print(f"✅ [VPN] [bg] [Step 4] Status reported successfully. Server responded: {resp.text}")
-                                    break
-                                else:
-                                    print(f"⚠️  [VPN] [bg] [Step 4] API error {resp.status_code}: {resp.text}")
-                            except Exception as api_exc:
-                                print(f"⚠️  [VPN] [bg] [Step 4] API call failed with exception (attempt {attempt}): {api_exc}")
-                            
-                            print(f"🔁 [VPN] [bg] Retrying status report in 3s...")
-                            time.sleep(3)
-                            attempt += 1
-                            if attempt > 100: # Safety cap (5 mins)
-                                print("❌ [VPN] [bg] [Step 4] Giving up on status report after 100 attempts.")
-                                break
-                            
-                    except Exception as exc:
-                        print(f"❌ [VPN] [bg] toggleConnection failed: {exc}")
-                        # Even error reporting should be REST-based
-                        try:
-                            print(f"📡 [VPN] [bg] Reporting ERROR status to REST API...")
-                            requests.patch(f"{VPN_URL}/{config_id}/status", 
-                                          json={"status": "ERROR"}, 
-                                          headers={"Authorization": f"Bearer {self.token}"}, 
-                                          timeout=5)
-                        except Exception as e_err:
-                            print(f"⚠️  [VPN] [bg] Failed to report ERROR state: {e_err}")
-
-                t = threading.Thread(target=_do_toggle, daemon=True)
-                t.start()
-                return  # ← event handler exits here, ack is now transmitted
+                self.trigger_coordinated_toggle(config_id, action, callback)
 
             except Exception as e:
                 print(f"❌ [VPN] Toggle setup failed: {e}")
@@ -292,6 +225,70 @@ class NeosecWebSocketClient:
             # Must call the callback to send acknowledgment back to server
             if callable(callback):
                 callback(result)
+
+    def trigger_coordinated_toggle(self, config_id, action, callback=None):
+        """Perform a graceful VPN toggle: notify -> disconnect -> toggle -> reconnect -> report."""
+        if not self.vpn_manager:
+            raise RuntimeError("VpnManager is not available.")
+
+        # ── Step 1: Cache-first reload ──
+        print(f"🔄 [VPN] [Step 1] Reloading config for ID: {config_id}")
+        self._reload_vpn_configs_sync(config_id)
+
+        # ── Step 2: Optimistic ack BEFORE the VPN toggle (if requested via socket) ──
+        if callable(callback):
+            callback({"status": "success", "message": f"VPN {action} initiated"})
+
+        # ── Step 3: Coordinated transition in background ──
+        def _do_toggle():
+            try:
+                # 3a. Report transition state
+                transition_status = "CONNECTING" if action == "connect" else "DISCONNECTING"
+                self._report_vpn_status(config_id, transition_status)
+                
+                # 3b. Gracefully disconnect SIO
+                if self.sio_connected:
+                    print("🔌 [VPN] Disconnecting WebSocket before transition...")
+                    self.sio.disconnect()
+                    self.sio_connected = False
+                
+                # 3c. Perform the toggle
+                print(f"⚙️  [VPN] Performing {action} for {config_id}...")
+                self.vpn_manager.toggleConnection(config_id)
+                
+                # 3d. Stabilize routing
+                time.sleep(2)
+                
+                # 3e. Reconnect SIO (with retries because the interface might still be coming up)
+                print("♻️  [VPN] Reconnecting WebSocket after transition...")
+                reconnect_attempts = 10
+                for i in range(reconnect_attempts):
+                    try:
+                        self.connect(self.token)
+                        if self.sio_connected:
+                            print(f"✅ [VPN] WebSocket reconnected on attempt {i+1}.")
+                            break
+                    except Exception as e:
+                        print(f"⚠️  [VPN] Reconnect attempt {i+1} failed: {e}")
+                    
+                    if i < reconnect_attempts - 1:
+                        print(f"🔁 [VPN] Retrying WebSocket connection in 3s...")
+                        time.sleep(3)
+                else:
+                    print("❌ [VPN] Failed to reconnect WebSocket after multiple attempts.")
+                
+                # 3f. Report final status
+                m = self.vpn_manager
+                is_active = m.hasActiveConnection if m else False
+                final_status = 'CONNECTED' if is_active else 'OFFLINE'
+                self._report_vpn_status(config_id, final_status)
+                
+            except Exception as exc:
+                print(f"❌ [VPN] Coordinated toggle failed: {exc}")
+                self._report_vpn_status(config_id, "ERROR")
+
+        t = threading.Thread(target=_do_toggle, daemon=True)
+        t.start()
 
     def report_current_status_rest(self):
         """Report current VPN status to server via REST API (useful on reconnect)"""

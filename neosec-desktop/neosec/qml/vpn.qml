@@ -157,7 +157,7 @@ Rectangle {
                             elide: Text.ElideRight
                         }
                         
-                        onClicked: vpnManager.toggleConnection(model.modelData.id)
+                        onClicked: backend.toggleVpn(model.modelData.id)
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
 
