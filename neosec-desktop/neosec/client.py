@@ -254,7 +254,15 @@ class NeosecWebSocketClient:
                 
                 # 3c. Perform the toggle
                 print(f"⚙️  [VPN] Performing {action} for {config_id}...")
-                self.vpn_manager.toggleConnection(config_id)
+                success, error_msg = self.vpn_manager.toggleConnection(config_id)
+                
+                if not success:
+                    print(f"❌ [VPN] Toggle failed: {error_msg}")
+                    # If it failed, we should probably reconnect SIO anyway to report the error
+                    print("♻️  [VPN] Reconnecting WebSocket to report failure...")
+                    self.connect(self.token)
+                    self._report_vpn_status(config_id, "ERROR")
+                    return
                 
                 # 3d. Stabilize routing
                 time.sleep(2)
@@ -289,6 +297,17 @@ class NeosecWebSocketClient:
 
         t = threading.Thread(target=_do_toggle, daemon=True)
         t.start()
+
+    def on_vpn_state_changed(self, vpn_id, is_active):
+        """Called when VpnManager detects a state change (manual or programmatic)."""
+        if not vpn_id or not self.token:
+            return
+            
+        status = "CONNECTED" if is_active else "OFFLINE"
+        print(f"📡 [VPN] Reporting state change for {vpn_id}: {status}")
+        
+        # Run in thread to avoid blocking UI
+        threading.Thread(target=self._report_vpn_status, args=(vpn_id, status), daemon=True).start()
 
     def report_current_status_rest(self):
         """Report current VPN status to server via REST API (useful on reconnect)"""

@@ -306,6 +306,7 @@ if __name__ == "__main__":
     ws_client.set_vpn_manager(vpn_manager)
     backend.rulesFetched.connect(firewall.update_rules)
     backend.vpnsFetched.connect(vpn_manager.update_vpns)
+    vpn_manager.connectionStateChanged.connect(ws_client.on_vpn_state_changed)
     firewall.saveRulesRequested.connect(backend.saveRules)
     backend.loginSuccess.connect(lambda e, r, token: backend.fetchRules(token))
     backend.loginSuccess.connect(lambda e, r, token: ws_client.connect(token))
@@ -320,4 +321,13 @@ if __name__ == "__main__":
     if not engine.rootObjects():
         sys.exit(-1)
     backend.checkSavedAuth()
-    sys.exit(app.exec())
+    
+    exit_code = app.exec()
+    
+    # Cleanup on exit: report OFFLINE if needed
+    if vpn_manager.hasActiveConnection:
+        active_id = vpn_manager.activeConfigId
+        print(f"👋 [App Exit] Reporting final OFFLINE for {active_id}")
+        ws_client._report_vpn_status(active_id, "OFFLINE")
+        
+    sys.exit(exit_code)
