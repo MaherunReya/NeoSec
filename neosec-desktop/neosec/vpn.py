@@ -8,6 +8,7 @@ from .config import VPN_DIR, VPN_METADATA_FILE
 class VpnManager(QObject):
     configsChanged = Signal()
     activeConfigChanged = Signal()
+    connectionStateChanged = Signal(str, bool) # vpn_id, is_active
 
     NEOSEC_CONNECTION_NAME = "neosec-vpn"
 
@@ -21,6 +22,11 @@ class VpnManager(QObject):
         
         self._cleanup_neosec_connection()
         self._load_metadata()
+
+        # Polling for external disconnects
+        self._poll_timer = QTimer(self)
+        self._poll_timer.timeout.connect(self._check_external_status)
+        self._poll_timer.start(5000) # Check every 5 seconds
 
     def _cleanup_neosec_connection(self):
         """Force delete the proprietary connection to ensure clean state."""
@@ -184,10 +190,14 @@ class VpnManager(QObject):
         if self._active_vpn_id == vpn_id:
             print(f"Disconnecting {vpn_id}...")
             if self._disconnect_connection(self.NEOSEC_CONNECTION_NAME):
+                old_id = self._active_vpn_id
                 self._run_nmcli(["connection", "delete", self.NEOSEC_CONNECTION_NAME])
                 self._active_vpn_id = ""
+                self.connectionStateChanged.emit(old_id, False)
+                return True, ""
             else:
                 print("Failed to disconnect")
+                return False, "Failed to disconnect connection"
         else:
             self._run_nmcli(["connection", "delete", self.NEOSEC_CONNECTION_NAME])
             
@@ -196,7 +206,7 @@ class VpnManager(QObject):
             path = self._get_path_by_id(vpn_id)
             if not path or not os.path.exists(path):
                 print("Error: Config file not found")
-                return
+                return False, "Config file not found locally"
 
             protocol = self._get_proto_by_id(vpn_id)
             
@@ -207,24 +217,38 @@ class VpnManager(QObject):
                 print(f"DEBUG: Import successful, UUID: {uuid}")
                 if self._rename_connection(uuid, self.NEOSEC_CONNECTION_NAME):
                     print(f"DEBUG: Rename successful, connecting to {self.NEOSEC_CONNECTION_NAME}...")
-                    if self._connect_connection(self.NEOSEC_CONNECTION_NAME):
+                    success, error_msg = self._connect_connection_detailed(self.NEOSEC_CONNECTION_NAME)
+                    if success:
                         print("DEBUG: Connection UP successful")
                         self._active_vpn_id = vpn_id
+                        self.connectionStateChanged.emit(vpn_id, True)
                     else:
-                        print("DEBUG: Connection UP failed")
+                        print(f"DEBUG: Connection UP failed: {error_msg}")
                         self._run_nmcli(["connection", "delete", self.NEOSEC_CONNECTION_NAME])
+                        # Emit a special failure signal or just rely on the return state
+                        if "Secrets were required" in error_msg or "password" in error_msg.lower():
+                            print("💡 [VpnManager] Hint: This connection likely requires a password. Please save it in NetworkManager.")
+                        return False, error_msg
                 else:
                     print("DEBUG: Rename failed")
                     self._delete_connection_nm(uuid)
+                    return False, "Failed to rename connection"
             else:
                 print("DEBUG: Import failed")
+                return False, "Failed to import .ovpn/.conf file"
 
         for cfg in self._configs:
             cfg["active"] = (cfg["id"] == self._active_vpn_id)
         
         self.configsChanged.emit()
         self.activeConfigChanged.emit()
-    
+        return True, ""
+
+    def _connect_connection_detailed(self, name_or_uuid):
+        """Connect and return success status + error message if any."""
+        if not name_or_uuid: return False, "No connection name"
+        success, output = self._run_nmcli(["connection", "up", name_or_uuid])
+        return success, output
     def _get_path_by_id(self, vpn_id):
         for cfg in self._configs:
             if cfg.get("id") == vpn_id:
@@ -244,3 +268,30 @@ class VpnManager(QObject):
     @Property(str, notify=activeConfigChanged)
     def activeConfigId(self):
         return self._active_vpn_id
+
+    def _check_external_status(self):
+        """Check if the VPN connection is still active in NetworkManager."""
+        # Only care if we THINK we have an active connection
+        if not self._active_vpn_id:
+            return
+
+        # Check if 'neosec-vpn' is in the list of active connections
+        success, output = self._run_nmcli(["-t", "-f", "NAME,STATE", "connection", "show", "--active"])
+        
+        is_still_up = False
+        if success:
+            lines = output.split('\n')
+            for line in lines:
+                if line.startswith(f"{self.NEOSEC_CONNECTION_NAME}:"):
+                    is_still_up = True
+                    break
+        
+        if not is_still_up:
+            print(f"⚠️  [VpnManager] Detected external disconnect of {self.NEOSEC_CONNECTION_NAME}")
+            old_id = self._active_vpn_id
+            self._active_vpn_id = ""
+            for cfg in self._configs:
+                cfg["active"] = False
+            self.configsChanged.emit()
+            self.activeConfigChanged.emit()
+            self.connectionStateChanged.emit(old_id, False)
