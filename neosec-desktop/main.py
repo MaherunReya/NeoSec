@@ -1,3 +1,6 @@
+from neosec import mtu_fix
+mtu_fix.apply()
+
 from neosec.client import NeosecWebSocketClient, NeosecDaemonClient
 from PySide6.QtCore import QObject, Signal, Slot, QRunnable, QThreadPool
 from PySide6.QtQml import QQmlApplicationEngine
