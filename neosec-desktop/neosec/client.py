@@ -6,6 +6,7 @@ import os
 import time
 import threading
 import requests
+import subprocess
 
 from .config import SOCKET_PATH, BACKEND_URL, VPN_URL
 
@@ -251,6 +252,7 @@ class NeosecWebSocketClient:
                     print("🔌 [VPN] Disconnecting WebSocket before transition...")
                     self.sio.disconnect()
                     self.sio_connected = False
+                    subprocess.run(["notify-send", "NEOSEC DISCONNECTED", "Connection to the NEOSEC server closed."])
                 
                 # 3c. Perform the toggle
                 print(f"⚙️  [VPN] Performing {action} for {config_id}...")
@@ -364,6 +366,7 @@ class NeosecWebSocketClient:
                 socketio_path=socketio_path,
                 wait_timeout=10
             )
+            subprocess.run(["notify-send", "NEOSEC CONNECTED", "Connection to the NEOSEC server established successfully."])
         except socketio.exceptions.ConnectionError as e:
             print(f"❌ Failed to connect to WebSocket at {url} (path: {socketio_path}): {e}")
             print(f"   Common causes: Server down, invalid URL, or path mismatch.")
@@ -372,6 +375,7 @@ class NeosecWebSocketClient:
         if self.sio_connected:
             print("Disconnecting WebSocket client...")
             self.sio.disconnect()
+            subprocess.run(["notify-send", "NEOSEC DISCONNECTED", "Connection to the NEOSEC server closed."])
 
 
 class NeosecDaemonClient:
